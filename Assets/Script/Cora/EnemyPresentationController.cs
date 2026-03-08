@@ -4,14 +4,28 @@ using DG.Tweening;
 
 public class EnemyPresentationController : MonoBehaviour
 {
-    [Header("ìGââèoê›íË")]
-    public float enemyRevealDuration = 0.2f;
-    public Ease roomTravelEase = Ease.Linear;
+    private float enemyRevealDuration = 0.2f;
+    private Ease roomTravelEase = Ease.Linear;
 
-    public void Configure(float revealDuration, Ease moveEase)
+    public void Configure(float enemyRevealDuration, Ease roomTravelEase)
     {
-        enemyRevealDuration = revealDuration;
-        roomTravelEase = moveEase;
+        this.enemyRevealDuration = enemyRevealDuration;
+        this.roomTravelEase = roomTravelEase;
+    }
+
+    public void RefreshUpcomingEnemyStandbyVisuals(IEnumerable<BattleUnit> upcomingEnemies)
+    {
+        if (upcomingEnemies == null) return;
+
+        foreach (BattleUnit unit in upcomingEnemies)
+        {
+            if (unit == null) continue;
+
+            unit.transform.localScale = Vector3.one * 0.8f;
+            RestoreEnemyColors(unit);
+            SetEnemyAlpha(unit, 1f);
+            SetEnemyVisible(unit, false);
+        }
     }
 
     public void ActivateEnemyAsCurrent(BattleUnit unit)
@@ -21,7 +35,6 @@ public class EnemyPresentationController : MonoBehaviour
         unit.transform.localScale = Vector3.one;
         SetEnemyVisible(unit, true);
         unit.SetUIActive(true);
-
         RestoreEnemyColors(unit);
         SetEnemyAlpha(unit, 1f);
         unit.InitializeTurn();
@@ -32,7 +45,7 @@ public class EnemyPresentationController : MonoBehaviour
         if (unit == null) return;
 
         SpriteRenderer[] renderers = unit.GetComponentsInChildren<SpriteRenderer>(true);
-        foreach (var sr in renderers)
+        foreach (SpriteRenderer sr in renderers)
         {
             Color c = sr.color;
             c.r = 1f;
@@ -47,7 +60,7 @@ public class EnemyPresentationController : MonoBehaviour
         if (unit == null) return;
 
         SpriteRenderer[] renderers = unit.GetComponentsInChildren<SpriteRenderer>(true);
-        foreach (var sr in renderers)
+        foreach (SpriteRenderer sr in renderers)
         {
             sr.enabled = isVisible;
         }
@@ -60,7 +73,7 @@ public class EnemyPresentationController : MonoBehaviour
         if (unit == null) return;
 
         SpriteRenderer[] renderers = unit.GetComponentsInChildren<SpriteRenderer>(true);
-        foreach (var sr in renderers)
+        foreach (SpriteRenderer sr in renderers)
         {
             Color c = sr.color;
             c.a = alpha;
@@ -80,7 +93,7 @@ public class EnemyPresentationController : MonoBehaviour
         unit.transform.localScale = Vector3.one * 0.96f;
 
         SpriteRenderer[] renderers = unit.GetComponentsInChildren<SpriteRenderer>(true);
-        foreach (var sr in renderers)
+        foreach (SpriteRenderer sr in renderers)
         {
             sr.DOFade(1f, enemyRevealDuration);
         }
@@ -111,10 +124,7 @@ public class EnemyPresentationController : MonoBehaviour
         foreach (BattleUnit enemy in upcomingEnemies)
         {
             if (enemy == null) continue;
-
-            enemy.transform
-                .DOMoveX(enemy.transform.position.x + deltaX, duration)
-                .SetEase(roomTravelEase);
+            enemy.transform.DOMoveX(enemy.transform.position.x + deltaX, duration).SetEase(roomTravelEase);
         }
     }
 
@@ -122,7 +132,17 @@ public class EnemyPresentationController : MonoBehaviour
     {
         if (animator == null) return;
 
-        if (HasAnimatorParam(animator, "1_Move", AnimatorControllerParameterType.Bool))
+        bool hasMoveBool = false;
+        foreach (AnimatorControllerParameter param in animator.parameters)
+        {
+            if (param.name == "1_Move" && param.type == AnimatorControllerParameterType.Bool)
+            {
+                hasMoveBool = true;
+                break;
+            }
+        }
+
+        if (hasMoveBool)
         {
             animator.SetBool("1_Move", isMoving);
         }
@@ -131,20 +151,5 @@ public class EnemyPresentationController : MonoBehaviour
             if (isMoving) animator.Play("MOVE", 0, 0f);
             else animator.Play("IDLE", 0, 0f);
         }
-    }
-
-    private bool HasAnimatorParam(Animator animator, string paramName, AnimatorControllerParameterType type)
-    {
-        if (animator == null) return false;
-
-        foreach (var param in animator.parameters)
-        {
-            if (param.name == paramName && param.type == type)
-            {
-                return true;
-            }
-        }
-
-        return false;
     }
 }

@@ -1838,6 +1838,7 @@ GameObject:
   - component: {fileID: 1314218348}
   - component: {fileID: 1314218349}
   - component: {fileID: 1314218350}
+  - component: {fileID: 1314218351}
   m_Layer: 0
   m_Name: PanelBattleManager
   m_TagString: Untagged
@@ -1903,6 +1904,9 @@ MonoBehaviour:
   battleEffectController: {fileID: 0}
   stageFlowController: {fileID: 0}
   battleTurnController: {fileID: 0}
+  panelActionController: {fileID: 0}
+  encounterFlowController: {fileID: 0}
+  battleDamageResolver: {fileID: 0}
   playerUnit: {fileID: 1270524463}
   enemyUnit: {fileID: 0}
   currentCoins: 0
@@ -1969,8 +1973,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7dba1ef15d2a32c44add810b98b6a04f, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  enemyRevealDuration: 0.2
-  roomTravelEase: 1
 --- !u!114 &1314218346
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -2038,6 +2040,18 @@ MonoBehaviour:
   enemyAttackWindupDelay: 0.2
   enemyPostAttackDelay: 0.5
   enemyIdleDelay: 0.25
+--- !u!114 &1314218351
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1314218340}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e8265c6baedda5040b6e53fe78c9dec5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
 --- !u!1 &1331345417
 GameObject:
   m_ObjectHideFlags: 0
