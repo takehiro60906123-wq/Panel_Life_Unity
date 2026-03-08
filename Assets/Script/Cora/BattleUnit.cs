@@ -6,8 +6,18 @@ using DG.Tweening;
 public class BattleUnit : MonoBehaviour
 {
     [Header("ステータス")]
-    public int maxHP = 50;
+    public int maxHP = 15; // シレン風に初期値15
     private int currentHP;
+
+    // ▼ 新規追加：敵が落とす経験値（プレイヤーの場合は使わないので0でOK）
+    public int expYield = 2;
+
+    [Header("レベルシステム（プレイヤー専用）")]
+    public int level = 1;
+    public int currentExp = 0;
+    public TextMeshProUGUI levelText; // 「Lv 1」と表示するUI
+    // レベルアップに必要な経験値のテーブル（10でLv2, 30でLv3...）
+    private int[] expTable = { 0, 10, 30, 60, 100, 150, 220, 300, 400, 500 };
 
     [Header("UI連携")]
     public Slider hpSlider;
@@ -34,21 +44,7 @@ public class BattleUnit : MonoBehaviour
         UpdateTurnUI();
     }
 
-    // ▼ 新規追加：ターン表示の更新
-    public void UpdateTurnUI()
-    {
-        if (turnText != null)
-        {
-            if (currentCooldown > 0)
-            {
-                turnText.text = $"あと {currentCooldown}";
-            }
-            else
-            {
-                turnText.text = "ATTACK!";
-            }
-        }
-    }
+   
 
     public void TakeDamage(int damage)
     {
@@ -73,16 +69,39 @@ public class BattleUnit : MonoBehaviour
         UpdateUI();
     }
 
+    // ★重複しないように、UpdateUIはこの1つだけにします！
     public void UpdateUI()
     {
         if (hpSlider != null)
         {
             hpSlider.maxValue = maxHP;
-            hpSlider.DOValue(currentHP, 0.3f);
+            hpSlider.value = currentHP;
         }
         if (hpText != null)
         {
             hpText.text = $"{currentHP} / {maxHP}";
+        }
+
+        // ▼ 追加：レベルUIの更新
+        if (levelText != null)
+        {
+            levelText.text = $"Lv {level}";
+        }
+    }
+
+    // ▼ 復活：ターン表示の更新処理
+    public void UpdateTurnUI()
+    {
+        if (turnText != null)
+        {
+            if (currentCooldown > 0)
+            {
+                turnText.text = $"あと {currentCooldown}";
+            }
+            else
+            {
+                turnText.text = "ATTACK!";
+            }
         }
     }
 
@@ -103,5 +122,42 @@ public class BattleUnit : MonoBehaviour
         if (hpSlider != null) hpSlider.gameObject.SetActive(isActive);
         if (hpText != null) hpText.gameObject.SetActive(isActive);
         if (turnText != null) turnText.gameObject.SetActive(isActive); // ★追加
+    }
+
+    // ▼ 修正：経験値を獲得し、レベルアップしたかどうかを返す
+    public bool AddExp(int amount)
+    {
+        currentExp += amount;
+        bool isLeveledUp = false; // レベルアップしたかのフラグ
+
+        // レベルアップ判定
+        while (level < expTable.Length && currentExp >= expTable[level])
+        {
+            LevelUp();
+            isLeveledUp = true;
+        }
+
+        return isLeveledUp; // 結果をマネージャーに報告！
+    }
+
+    // ▼ 新規追加：レベルアップ処理
+    private void LevelUp()
+    {
+        level++;
+
+        // 最大HPが 4 または 5 上がる
+        int hpIncrease = Random.Range(4, 6);
+        maxHP += hpIncrease;
+
+        // ★ローグライクの醍醐味：レベルアップでHP全回復！
+        currentHP = maxHP;
+
+        // 演出（アニメーションがあれば再生）
+        if (animator != null) animator.SetTrigger("6_Other"); // 例としてHealと同じアニメ
+
+        // もしレベルアップ用のエフェクトがあればここでInstantiate(またはプールから取得)しても良いです
+        Debug.Log($"レベルアップ！ Lv{level} になった！ 最大HPが {hpIncrease} 上がった！");
+
+        UpdateUI();
     }
 }
