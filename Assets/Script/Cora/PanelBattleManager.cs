@@ -77,6 +77,133 @@ public class PanelBattleManager : MonoBehaviour
 
     public BattleContext Context => battleContext;
 
+    [SerializeField] private PlayerCombatLoadout playerLoadout;
+    [SerializeField] private PlayerCombatController playerCombatController;
+
+    public void FirePistol()
+    {
+        if (playerCombatController == null) return;
+        if (!playerCombatController.CanUseGun()) return;
+
+        GunData gun = playerCombatController.GetGunData();
+        if (gun == null) return;
+
+        BattleUnit target = enemyUnit;
+        if (target == null) return;
+        if (target.IsDead()) return;
+
+        bool consumed = playerCombatController.ConsumeGunGauge();
+        if (!consumed) return;
+
+        StartCoroutine(FirePistolRoutine(gun, target));
+    }
+
+    private IEnumerator FirePistolRoutine(GunData gun, BattleUnit target)
+    {
+        for (int i = 0; i < gun.shotCount; i++)
+        {
+            if (enemyUnit == null) break;
+            if (enemyUnit.IsDead()) break;
+
+            SpawnPistolMuzzleFlash();
+            SpawnPistolHitEffect(target);
+
+            battleEventHub?.RaiseEnemyDamageRequested(gun.damagePerShot);
+
+            yield return new WaitForSeconds(0.08f);
+        }
+
+        Debug.Log("ピストル発射");
+
+        if (battleUIController != null)
+        {
+            battleUIController.RefreshGunUI();
+        }
+
+        yield return new WaitForSeconds(0.08f);
+
+        StartCoroutine(EndPlayerTurn());
+    }
+
+    private void SpawnPistolMuzzleFlash()
+    {
+        if (playerUnit == null) return;
+        if (pistolMuzzleFlashPrefab == null) return;
+
+        Vector3 spawnPos = playerUnit.transform.position + new Vector3(0.6f, 0.35f, 0f);
+        SpawnOneShotEffect(pistolMuzzleFlashPrefab, spawnPos, 0.2f);
+    }
+
+    private void SpawnPistolHitEffect(BattleUnit target)
+    {
+        if (target == null) return;
+        if (hitEffectPrefab == null) return;
+
+        Vector3 hitPos = target.transform.position + new Vector3(0f, 0.5f, 0f);
+        SpawnOneShotEffect(hitEffectPrefab, hitPos, 0.25f);
+    }
+
+    private void HandleEnemyDefeatedByGun(BattleUnit defeatedEnemy)
+    {
+        isEnemyDefeatedThisTurn = true;
+
+        if (battleUIController != null)
+        {
+            battleUIController.RefreshGunUI();
+        }
+
+        // まずは既存の通常撃破導線に乗せるための最低限
+        StartCoroutine(EndPlayerTurn());
+    }
+
+    public void FireMachineGun()
+    {
+        if (playerCombatController == null) return;
+
+        GunData gun = playerCombatController.GetGunData();
+        if (gun == null) return;
+        if (gun.gunType != GunType.MachineGun) return;
+
+        BattleUnit target = enemyUnit;
+        if (target == null) return;
+        if (target.IsDead()) return;
+
+        if (!playerCombatController.CanUseMachineGun()) return;
+
+        int shotCount = playerCombatController.ConsumeAllGunGauge();
+        if (shotCount <= 0) return;
+
+        StartCoroutine(FireMachineGunRoutine(gun, target, shotCount));
+    }
+
+    private IEnumerator FireMachineGunRoutine(GunData gun, BattleUnit target, int shotCount)
+    {
+        for (int i = 0; i < shotCount; i++)
+        {
+            if (enemyUnit == null) break;
+            if (enemyUnit.IsDead()) break;
+
+            SpawnPistolMuzzleFlash();
+            SpawnPistolHitEffect(target);
+
+            battleEventHub?.RaiseEnemyDamageRequested(gun.damagePerShot);
+
+            yield return new WaitForSeconds(0.05f);
+        }
+
+        Debug.Log($"マシンガン発射: {shotCount}連射");
+
+        if (battleUIController != null)
+        {
+            battleUIController.RefreshGunUI();
+        }
+
+        yield return new WaitForSeconds(0.08f);
+
+        StartCoroutine(EndPlayerTurn());
+    }
+
+
     public BattleUnit enemyUnit
     {
         get => battleContext != null ? battleContext.CurrentEnemy : null;
@@ -181,6 +308,7 @@ public class PanelBattleManager : MonoBehaviour
     [Header("バトル演出")]
     public GameObject damageTextPrefab;
     public GameObject hitEffectPrefab;
+    public GameObject pistolMuzzleFlashPrefab;
     public GameObject magicBulletPrefab;
     public GameObject energyOrbPrefab;
     public GameObject absorbEffectPrefab;

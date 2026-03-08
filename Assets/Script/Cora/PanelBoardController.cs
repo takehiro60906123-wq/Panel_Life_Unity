@@ -20,6 +20,21 @@ public class PanelBoardController : MonoBehaviour
     private PanelType[,] gridData;
     private GameObject[,] panelObjects;
 
+    [SerializeField] private PlayerCombatController playerCombatController;
+    [SerializeField] private BattleUIController battleUIController;
+
+    private void Awake()
+    {
+        if (battleUIController == null)
+        {
+            battleUIController = FindObjectOfType<BattleUIController>();
+        }
+
+        if (playerCombatController == null)
+        {
+            playerCombatController = FindObjectOfType<PlayerCombatController>();
+        }
+    }
     public bool Initialize(
         GameObject panelPrefabValue,
         Transform boardParentValue,
@@ -103,6 +118,8 @@ public class PanelBoardController : MonoBehaviour
         List<Vector2Int> chain = new List<Vector2Int>();
         if (!IsInRange(startRow, startCol)) return chain;
 
+        int maxLink = GetCurrentMaxLink();
+
         Queue<Vector2Int> queue = new Queue<Vector2Int>();
         HashSet<Vector2Int> visited = new HashSet<Vector2Int>();
 
@@ -120,6 +137,11 @@ public class PanelBoardController : MonoBehaviour
 
         while (queue.Count > 0)
         {
+            if (chain.Count >= maxLink)
+            {
+                break;
+            }
+
             Vector2Int current = queue.Dequeue();
             chain.Add(current);
 
@@ -175,6 +197,19 @@ public class PanelBoardController : MonoBehaviour
 
     public void ClearChainPanels(List<Vector2Int> chain)
     {
+        if (chain == null || chain.Count == 0) return;
+
+        if (playerCombatController != null)
+        {
+            playerCombatController.AddGunGauge(chain.Count);
+            Debug.Log("GunGauge: " + playerCombatController.GetGunGauge());
+        }
+
+        if (battleUIController != null)
+        {
+            battleUIController.RefreshGunUI();
+        }
+
         foreach (Vector2Int pos in chain)
         {
             if (!IsInRange(pos.x, pos.y)) continue;
@@ -193,6 +228,7 @@ public class PanelBoardController : MonoBehaviour
                     {
                         Image img = iconTransform.GetComponent<Image>();
                         if (img != null) img.sprite = null;
+                        iconTransform.localScale = Vector3.one;
                     });
             }
         }
@@ -356,5 +392,13 @@ public class PanelBoardController : MonoBehaviour
     private bool IsInRange(int row, int col)
     {
         return row >= 0 && row < rows && col >= 0 && col < cols;
+    }
+
+    private int GetCurrentMaxLink()
+    {
+        if (playerCombatController == null)
+            return 3;
+
+        return playerCombatController.GetMaxLink();
     }
 }
