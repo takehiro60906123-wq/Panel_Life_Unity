@@ -315,7 +315,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 1, y: 0.32200003}
-  m_AnchoredPosition: {x: 0.000061035156, y: -2.0310059}
+  m_AnchoredPosition: {x: 0.00012207031, y: -2.0310059}
   m_SizeDelta: {x: -0.0002, y: -4.0620117}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &152763172
@@ -1835,6 +1835,9 @@ GameObject:
   - component: {fileID: 1314218345}
   - component: {fileID: 1314218346}
   - component: {fileID: 1314218347}
+  - component: {fileID: 1314218348}
+  - component: {fileID: 1314218349}
+  - component: {fileID: 1314218350}
   m_Layer: 0
   m_Name: PanelBattleManager
   m_TagString: Untagged
@@ -1897,6 +1900,9 @@ MonoBehaviour:
   enemyPresentationController: {fileID: 0}
   roomTravelController: {fileID: 0}
   panelBoardController: {fileID: 0}
+  battleEffectController: {fileID: 0}
+  stageFlowController: {fileID: 0}
+  battleTurnController: {fileID: 0}
   playerUnit: {fileID: 1270524463}
   enemyUnit: {fileID: 0}
   currentCoins: 0
@@ -1992,6 +1998,46 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   cellSize: 100
+--- !u!114 &1314218348
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1314218340}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8af897f7df3a6ac4b80991973424a3d0, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+--- !u!114 &1314218349
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1314218340}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 84fa0011ffd52374690b49b4ac8af947, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+--- !u!114 &1314218350
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1314218340}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: af9a67d3438ff0544978ef6297ed69bc, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  endPlayerTurnDelay: 0.5
+  enemyAttackWindupDelay: 0.2
+  enemyPostAttackDelay: 0.5
+  enemyIdleDelay: 0.25
 --- !u!1 &1331345417
 GameObject:
   m_ObjectHideFlags: 0
@@ -2356,7 +2402,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 1, y: 1}
-  m_AnchoredPosition: {x: -0.000061035156, y: -0.000061035156}
+  m_AnchoredPosition: {x: 0, y: 0}
   m_SizeDelta: {x: 0.00024414, y: 0.0001}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!1 &1516814543

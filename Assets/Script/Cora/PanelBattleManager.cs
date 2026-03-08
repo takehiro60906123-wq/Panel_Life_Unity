@@ -45,6 +45,15 @@ public class PanelBattleManager : MonoBehaviour
     [Header("盤面コントローラー")]
     public PanelBoardController panelBoardController;
 
+    [Header("バトルエフェクトコントローラー")]
+    public BattleEffectController battleEffectController;
+
+    [Header("ステージ進行コントローラー")]
+    public StageFlowController stageFlowController;
+
+    [Header("ターン進行コントローラー")]
+    public BattleTurnController battleTurnController;
+
     [Header("バトルユニット連携")]
     public BattleUnit playerUnit;
     public BattleUnit enemyUnit;
@@ -90,9 +99,6 @@ public class PanelBattleManager : MonoBehaviour
 
     private const int rows = 6;
     private const int cols = 6;
-
-    private readonly Queue<BattleUnit> upcomingEnemies = new Queue<BattleUnit>();
-    private int spawnedEnemyCount = 0;
 
     void Awake()
     {
@@ -156,6 +162,36 @@ public class PanelBattleManager : MonoBehaviour
         {
             panelBoardController = gameObject.AddComponent<PanelBoardController>();
         }
+
+        if (battleEffectController == null)
+        {
+            battleEffectController = GetComponent<BattleEffectController>();
+        }
+
+        if (battleEffectController == null)
+        {
+            battleEffectController = gameObject.AddComponent<BattleEffectController>();
+        }
+
+        if (stageFlowController == null)
+        {
+            stageFlowController = GetComponent<StageFlowController>();
+        }
+
+        if (stageFlowController == null)
+        {
+            stageFlowController = gameObject.AddComponent<StageFlowController>();
+        }
+
+        if (battleTurnController == null)
+        {
+            battleTurnController = GetComponent<BattleTurnController>();
+        }
+
+        if (battleTurnController == null)
+        {
+            battleTurnController = gameObject.AddComponent<BattleTurnController>();
+        }
     }
 
     void Start()
@@ -198,6 +234,26 @@ public class PanelBattleManager : MonoBehaviour
             roomTravelController.Configure(roomTravelDuration, roomTravelEase);
         }
 
+        if (battleEffectController != null)
+        {
+            battleEffectController.Configure(effectPoolManager);
+        }
+
+        if (stageFlowController != null)
+        {
+            stageFlowController.Configure(
+                battlePosition,
+                waitOffset,
+                maxFloors,
+                maxVisibleEnemies,
+                enemyPrefabs);
+        }
+
+        if (battleTurnController != null)
+        {
+            battleTurnController.Configure(0.5f, 0.2f, 0.5f, 0.25f);
+        }
+
         if (panelBoardController == null)
         {
             Debug.LogError("PanelBoardController が取得できません。");
@@ -228,46 +284,42 @@ public class PanelBattleManager : MonoBehaviour
 
     void SetupStage()
     {
-        if (enemyPrefabs == null || enemyPrefabs.Count == 0)
+        if (stageFlowController == null)
         {
-            Debug.LogError("enemyPrefabs が未設定です。敵プレハブを1体以上登録してください。");
+            Debug.LogError("StageFlowController が取得できません。");
             enemyUnit = null;
             SetBoardInteractable(false);
             return;
         }
 
-        if (battlePosition == null)
+        if (!stageFlowController.SetupInitialStage(out BattleUnit initialEnemy, out string errorMessage))
         {
-            Debug.LogError("battlePosition が未設定です。");
+            if (!string.IsNullOrEmpty(errorMessage))
+            {
+                if (errorMessage.Contains("0 以下"))
+                    Debug.LogWarning(errorMessage);
+                else
+                    Debug.LogError(errorMessage);
+            }
+
             enemyUnit = null;
             SetBoardInteractable(false);
             return;
         }
 
-        if (maxFloors <= 0)
-        {
-            Debug.LogWarning("maxFloors が 0 以下です。");
-            enemyUnit = null;
-            SetBoardInteractable(false);
-            return;
-        }
+        enemyUnit = initialEnemy;
 
-        int initialSpawnCount = Mathf.Min(maxVisibleEnemies, maxFloors);
-        for (int i = 0; i < initialSpawnCount; i++)
-        {
-            SpawnNextEnemy();
-        }
+        RefreshUpcomingEnemyStandbyVisuals();
 
-        if (upcomingEnemies.Count > 0)
+        if (enemyUnit != null)
         {
-            enemyUnit = upcomingEnemies.Dequeue();
+            enemyUnit.transform.localScale = Vector3.one;
             ActivateEnemyAsCurrent(enemyUnit);
             SetEncounter(EncounterType.Enemy, 0);
             SetDungeonMist(true);
         }
         else
         {
-            enemyUnit = null;
             Debug.LogWarning("生成できる敵がいませんでした。");
             SetBoardInteractable(false);
         }
@@ -387,7 +439,11 @@ public class PanelBattleManager : MonoBehaviour
     {
         if (enemyUnit == null || enemyUnit.IsDead())
         {
-            if (playerUnit != null && playerUnit.animator != null) playerUnit.animator.Play("ATTACK", 0, 0f);
+            if (playerUnit != null && playerUnit.animator != null)
+            {
+                playerUnit.animator.Play("ATTACK", 0, 0f);
+            }
+
             yield return new WaitForSeconds(0.4f);
             StartCoroutine(EndPlayerTurn());
             yield break;
@@ -397,7 +453,11 @@ public class PanelBattleManager : MonoBehaviour
         {
             if (enemyUnit == null || enemyUnit.IsDead()) break;
 
-            if (playerUnit != null && playerUnit.animator != null) playerUnit.animator.Play("ATTACK", 0, 0f);
+            if (playerUnit != null && playerUnit.animator != null)
+            {
+                playerUnit.animator.Play("ATTACK", 0, 0f);
+            }
+
             yield return new WaitForSeconds(0.12f);
             DamageEnemy(1);
             yield return new WaitForSeconds(0.08f);
@@ -410,7 +470,11 @@ public class PanelBattleManager : MonoBehaviour
     {
         if (enemyUnit == null || enemyUnit.IsDead())
         {
-            if (playerUnit != null && playerUnit.animator != null) playerUnit.animator.Play("ATTACK", 0, 0f);
+            if (playerUnit != null && playerUnit.animator != null)
+            {
+                playerUnit.animator.Play("ATTACK", 0, 0f);
+            }
+
             yield return new WaitForSeconds(0.4f);
             StartCoroutine(EndPlayerTurn());
             yield break;
@@ -420,7 +484,11 @@ public class PanelBattleManager : MonoBehaviour
         {
             if (enemyUnit == null || enemyUnit.IsDead()) break;
 
-            if (playerUnit != null && playerUnit.animator != null) playerUnit.animator.Play("ATTACK", 0, 0f);
+            if (playerUnit != null && playerUnit.animator != null)
+            {
+                playerUnit.animator.Play("ATTACK", 0, 0f);
+            }
+
             yield return new WaitForSeconds(0.08f);
             SpawnMagicBullet();
             yield return new WaitForSeconds(0.12f);
@@ -431,6 +499,26 @@ public class PanelBattleManager : MonoBehaviour
 
     IEnumerator EndPlayerTurn()
     {
+        if (battleTurnController != null)
+        {
+            yield return battleTurnController.EndPlayerTurnRoutine(
+     currentEncounter,
+     () => isEnemySpawning,
+     () => isEnemyDefeatedThisTurn,
+     () => isEnemyDefeatedThisTurn = false,
+     () => enemyUnit,
+     () =>
+     {
+         Debug.Log("ステージクリア！リザルトへ");
+         SetBoardInteractable(false);
+     },
+     EnemyTurnRoutine,
+     AdvanceEmptyTurn,
+     SetBoardInteractable);
+
+            yield break;
+        }
+
         yield return new WaitForSeconds(0.5f);
 
         while (isEnemySpawning)
@@ -451,8 +539,19 @@ public class PanelBattleManager : MonoBehaviour
 
         if (enemyUnit == null)
         {
-            Debug.Log("ステージクリア！リザルトへ");
-            SetBoardInteractable(false);
+            isEnemySpawning = false;
+
+            if (stageFlowController != null && stageFlowController.IsStageComplete())
+            {
+                SetBoardInteractable(false);
+                Debug.Log("ステージクリア！リザルトへ");
+            }
+            else
+            {
+                Debug.LogError("次の敵取得に失敗しました。ステージは未完了です。");
+                SetBoardInteractable(true);
+            }
+
             yield break;
         }
 
@@ -467,6 +566,24 @@ public class PanelBattleManager : MonoBehaviour
 
     IEnumerator EnemyTurnRoutine()
     {
+        if (battleTurnController != null)
+        {
+            yield return battleTurnController.EnemyTurnRoutine(
+                enemyUnit,
+                playerUnit,
+                hitEffectPrefab,
+                SpawnDamageText,
+                SpawnOneShotEffect,
+                () =>
+                {
+                    Debug.Log("ゲームオーバー");
+                    SetBoardInteractable(false);
+                },
+                SetBoardInteractable);
+
+            yield break;
+        }
+
         if (enemyUnit == null)
         {
             SetBoardInteractable(true);
@@ -495,11 +612,7 @@ public class PanelBattleManager : MonoBehaviour
                 int damage = isCritical ? 3 : 1;
                 playerUnit.TakeDamage(damage);
 
-                if (hitEffectPrefab != null)
-                {
-                    GameObject hit = GetPooledObject(hitEffectPrefab, pos + Vector3.up * 0.5f, Quaternion.identity);
-                    StartCoroutine(ReturnPooledObjectAfterDelay(hitEffectPrefab, hit, 0.7f));
-                }
+                SpawnOneShotEffect(hitEffectPrefab, pos + Vector3.up * 0.5f, 0.7f);
 
                 Color textColor = isCritical ? Color.yellow : Color.red;
                 string textStr = isCritical ? $"CRITICAL!\n{damage}" : damage.ToString();
@@ -526,6 +639,40 @@ public class PanelBattleManager : MonoBehaviour
         SetBoardInteractable(true);
     }
 
+    public void AdvanceEmptyTurn()
+    {
+        if (battleTurnController != null)
+        {
+            battleTurnController.AdvanceEmptyTurn(
+                currentEncounter,
+                ref remainingSteps,
+                playerUnit,
+                UpdateEncounterUI,
+                SpawnDamageText,
+                SetBoardInteractable,
+                EnemyRespawnRoutine);
+
+            return;
+        }
+
+        if (currentEncounter == EncounterType.Empty || currentEncounter == EncounterType.Treasure)
+        {
+            remainingSteps--;
+            UpdateEncounterUI();
+
+            if (remainingSteps > 0)
+            {
+                SpawnDamageText($"あと {remainingSteps} ターン", playerUnit.transform.position + Vector3.up * 1.5f, Color.white);
+                SetBoardInteractable(true);
+            }
+            else
+            {
+                SpawnDamageText("次の部屋へ！", playerUnit.transform.position + Vector3.up * 1.5f, Color.cyan);
+                StartCoroutine(EnemyRespawnRoutine());
+            }
+        }
+    }
+
     void DamageEnemy(int baseDamage)
     {
         if (enemyUnit == null || enemyUnit.IsDead() || isEnemySpawning) return;
@@ -545,11 +692,7 @@ public class PanelBattleManager : MonoBehaviour
 
         enemyUnit.TakeDamage(finalDamage);
 
-        if (hitEffectPrefab != null)
-        {
-            GameObject hit = GetPooledObject(hitEffectPrefab, pos + Vector3.up * 0.5f, Quaternion.identity);
-            StartCoroutine(ReturnPooledObjectAfterDelay(hitEffectPrefab, hit, 0.7f));
-        }
+        SpawnOneShotEffect(hitEffectPrefab, pos + Vector3.up * 0.5f, 0.7f);
 
         Color textColor = isCritical ? Color.yellow : Color.white;
         string textStr = isCritical ? $"CRITICAL!\n{finalDamage}" : finalDamage.ToString();
@@ -565,12 +708,7 @@ public class PanelBattleManager : MonoBehaviour
             bool isLevelUp = playerUnit.AddExp(enemyUnit.expYield);
             if (isLevelUp)
             {
-                if (levelUpEffectPrefab != null)
-                {
-                    GameObject effect = GetPooledObject(levelUpEffectPrefab, playerUnit.transform.position, Quaternion.identity);
-                    StartCoroutine(ReturnPooledObjectAfterDelay(levelUpEffectPrefab, effect, 1.2f));
-                }
-
+                SpawnOneShotEffect(levelUpEffectPrefab, playerUnit.transform.position, 1.2f);
                 StartCoroutine(SpawnLevelUpTextWithDelay(0.45f));
             }
 
@@ -593,7 +731,17 @@ public class PanelBattleManager : MonoBehaviour
             enemyUnit = null;
         }
 
-        if (upcomingEnemies.Count == 0 && spawnedEnemyCount >= maxFloors)
+        if (stageFlowController == null)
+        {
+            isEnemySpawning = false;
+            SetBoardInteractable(false);
+            Debug.LogError("StageFlowController が取得できません。");
+            yield break;
+        }
+
+        StageFlowController.NextEncounterPlan plan = stageFlowController.DecideNextEncounter(prevEncounter);
+
+        if (plan.isStageClear)
         {
             SetEncounter(EncounterType.Enemy, 0);
             isEnemySpawning = false;
@@ -602,10 +750,7 @@ public class PanelBattleManager : MonoBehaviour
             yield break;
         }
 
-        bool forceEnemy = (prevEncounter == EncounterType.Empty || prevEncounter == EncounterType.Treasure);
-        int roll = forceEnemy ? 0 : Random.Range(0, 100);
-
-        if (forceEnemy || roll < 70)
+        if (plan.encounterType == EncounterType.Enemy)
         {
             SetEncounter(EncounterType.Enemy, 0);
             yield return StartCoroutine(MoveToNextEnemyRoutine());
@@ -618,14 +763,14 @@ public class PanelBattleManager : MonoBehaviour
                 yield break;
             }
         }
-        else if (roll < 90)
+        else if (plan.encounterType == EncounterType.Empty)
         {
-            SetEncounter(EncounterType.Empty, 3);
+            SetEncounter(EncounterType.Empty, plan.steps);
             yield return StartCoroutine(EnterSafeRoomRoutine("平和な部屋だ", Color.white));
         }
         else
         {
-            SetEncounter(EncounterType.Treasure, 1);
+            SetEncounter(EncounterType.Treasure, plan.steps);
             yield return StartCoroutine(EnterSafeRoomRoutine("宝箱の部屋だ！", Color.yellow));
         }
 
@@ -639,10 +784,17 @@ public class PanelBattleManager : MonoBehaviour
         SetDungeonMist(true);
 
         BattleUnit nextEnemy = null;
-        if (upcomingEnemies.Count > 0)
+
+        if (stageFlowController != null && enemyUnit != null)
         {
-            nextEnemy = upcomingEnemies.Dequeue();
+            nextEnemy = stageFlowController.TakeNextEnemyOrSpawn(enemyUnit.transform.position);
         }
+        else if (stageFlowController != null)
+        {
+            nextEnemy = stageFlowController.TakeNextEnemyOrSpawn(battlePosition != null ? battlePosition.position : Vector3.zero);
+        }
+
+        RefreshUpcomingEnemyStandbyVisuals();
 
         if (nextEnemy != null)
         {
@@ -712,40 +864,16 @@ public class PanelBattleManager : MonoBehaviour
         yield return new WaitForSeconds(roomTravelDuration);
     }
 
-    public void AdvanceEmptyTurn()
-    {
-        if (currentEncounter == EncounterType.Empty || currentEncounter == EncounterType.Treasure)
-        {
-            remainingSteps--;
-            UpdateEncounterUI();
-
-            if (remainingSteps > 0)
-            {
-                SpawnDamageText($"あと {remainingSteps} ターン", playerUnit.transform.position + Vector3.up * 1.5f, Color.white);
-                SetBoardInteractable(true);
-            }
-            else
-            {
-                SpawnDamageText("次の部屋へ！", playerUnit.transform.position + Vector3.up * 1.5f, Color.cyan);
-                StartCoroutine(EnemyRespawnRoutine());
-            }
-        }
-    }
-
     void SpawnMagicBullet()
     {
-        if (magicBulletPrefab == null || enemyUnit == null) return;
+        if (battleEffectController == null) return;
+        if (magicBulletPrefab == null || enemyUnit == null || playerUnit == null) return;
 
         Vector3 start = playerUnit.transform.position + new Vector3(0.5f, 0.5f, 0);
         Vector3 target = enemyUnit.transform.position + Vector3.up * 0.5f;
 
-        GameObject bullet = GetPooledObject(magicBulletPrefab, start, Quaternion.identity);
-        if (bullet == null) return;
-
-        bullet.transform.DOMove(target, 0.15f).SetEase(Ease.Linear).OnComplete(() =>
+        battleEffectController.SpawnMagicBullet(magicBulletPrefab, start, target, () =>
         {
-            ReturnPooledObject(magicBulletPrefab, bullet);
-
             if (!isEnemySpawning)
             {
                 DamageEnemy(1);
@@ -755,92 +883,73 @@ public class PanelBattleManager : MonoBehaviour
 
     void SpawnEnergyOrb(Vector3 startPos, Vector3 target, float duration, float delay)
     {
-        if (energyOrbPrefab == null) return;
+        if (battleEffectController == null) return;
 
-        GameObject orb = GetPooledObject(energyOrbPrefab, startPos, Quaternion.identity);
-        if (orb == null) return;
-
-        orb.transform.DOMove(target, duration)
-            .SetDelay(delay)
-            .SetEase(Ease.InBack)
-            .OnComplete(() =>
-            {
-                ReturnPooledObject(energyOrbPrefab, orb);
-
-                if (absorbEffectPrefab != null)
-                {
-                    GameObject absorb = GetPooledObject(absorbEffectPrefab, target, Quaternion.identity);
-                    if (absorb != null)
-                    {
-                        StartCoroutine(ReturnPooledObjectAfterDelay(absorbEffectPrefab, absorb, 0.8f));
-                    }
-                }
-            });
+        battleEffectController.SpawnEnergyOrb(
+            energyOrbPrefab,
+            absorbEffectPrefab,
+            startPos,
+            target,
+            duration,
+            delay);
     }
 
     IEnumerator SpawnExpTextWithDelay(int exp, Vector3 spawnPos, float delay)
     {
-        yield return new WaitForSeconds(delay);
-        SpawnDamageText($"+{exp} EXP", spawnPos, Color.green);
+        if (battleEffectController == null)
+        {
+            yield return new WaitForSeconds(delay);
+            yield break;
+        }
+
+        yield return battleEffectController.SpawnExpTextWithDelay(damageTextPrefab, exp, spawnPos, delay);
     }
 
     IEnumerator SpawnLevelUpTextWithDelay(float delay)
     {
-        yield return new WaitForSeconds(delay);
-        SpawnDamageText("LEVEL UP!", playerUnit.transform.position + Vector3.up * 1.5f, Color.yellow);
+        if (battleEffectController == null || playerUnit == null)
+        {
+            yield return new WaitForSeconds(delay);
+            yield break;
+        }
+
+        yield return battleEffectController.SpawnLevelUpTextWithDelay(damageTextPrefab, playerUnit.transform, delay);
     }
 
     void SpawnDamageText(string text, Vector3 position, Color color)
     {
-        if (damageTextPrefab == null) return;
+        if (battleEffectController == null) return;
+        battleEffectController.SpawnDamageText(damageTextPrefab, text, position, color);
+    }
 
-        GameObject textObj = GetPooledObject(damageTextPrefab, position, Quaternion.identity);
-        if (textObj == null) return;
-
-        TMP_Text tmp = textObj.GetComponentInChildren<TMP_Text>(true);
-        if (tmp == null)
-        {
-            ReturnPooledObject(damageTextPrefab, textObj);
-            return;
-        }
-
-        textObj.transform.position = position;
-        textObj.transform.localScale = Vector3.one;
-
-        Color baseColor = color;
-        baseColor.a = 1f;
-
-        tmp.text = text;
-        tmp.color = baseColor;
-        tmp.alpha = 1f;
-
-        float randomX = Random.Range(-0.5f, 0.5f);
-        Vector3 targetPos = new Vector3(position.x + randomX, position.y + 1.5f, position.z);
-
-        Sequence seq = DOTween.Sequence();
-        seq.Join(textObj.transform.DOMove(targetPos, 0.8f).SetEase(Ease.OutCirc));
-        seq.Insert(0.2f, tmp.DOFade(0f, 0.8f));
-        seq.OnComplete(() =>
-        {
-            ReturnPooledObject(damageTextPrefab, textObj);
-        });
+    void SpawnOneShotEffect(GameObject prefab, Vector3 position, float returnDelay)
+    {
+        if (battleEffectController == null || prefab == null) return;
+        battleEffectController.SpawnOneShotEffect(prefab, position, Quaternion.identity, returnDelay);
     }
 
     void SpawnNextEnemy()
     {
-        if (spawnedEnemyCount >= maxFloors) return;
-        if (enemyPrefabs == null || enemyPrefabs.Count == 0) return;
-        if (battlePosition == null) return;
+        if (stageFlowController == null) return;
+        if (enemyUnit == null) return;
 
-        BattleUnit prefabToSpawn = enemyPrefabs[Random.Range(0, enemyPrefabs.Count)];
-        Vector3 spawnPos = battlePosition.position + (waitOffset * spawnedEnemyCount);
+        stageFlowController.SpawnNextEnemyAfter(enemyUnit.transform.position);
+        RefreshUpcomingEnemyStandbyVisuals();
+    }
 
-        BattleUnit newEnemy = Instantiate(prefabToSpawn, spawnPos, Quaternion.identity);
-        newEnemy.transform.localScale = Vector3.one * 0.8f;
-        SetEnemyVisible(newEnemy, false);
+    void RefreshUpcomingEnemyStandbyVisuals()
+    {
+        if (stageFlowController == null) return;
 
-        upcomingEnemies.Enqueue(newEnemy);
-        spawnedEnemyCount++;
+        foreach (BattleUnit unit in stageFlowController.GetUpcomingEnemies())
+        {
+            if (unit == null) continue;
+
+            unit.transform.localScale = Vector3.one * 0.8f;
+            RestoreEnemyColors(unit);
+            SetEnemyAlpha(unit, 1f);
+            SetEnemyVisible(unit, false);
+        }
     }
 
     void ActivateEnemyAsCurrent(BattleUnit unit)
@@ -953,13 +1062,15 @@ public class PanelBattleManager : MonoBehaviour
 
     void HideAllUpcomingEnemies()
     {
+        if (stageFlowController == null) return;
+
         if (enemyPresentationController != null)
         {
-            enemyPresentationController.HideAllUpcomingEnemies(upcomingEnemies);
+            enemyPresentationController.HideAllUpcomingEnemies(stageFlowController.GetUpcomingEnemies());
             return;
         }
 
-        foreach (BattleUnit enemy in upcomingEnemies)
+        foreach (BattleUnit enemy in stageFlowController.GetUpcomingEnemies())
         {
             if (enemy == null) continue;
             SetEnemyVisible(enemy, false);
@@ -968,13 +1079,15 @@ public class PanelBattleManager : MonoBehaviour
 
     void ShiftUpcomingEnemies(float deltaX, float duration)
     {
+        if (stageFlowController == null) return;
+
         if (enemyPresentationController != null)
         {
-            enemyPresentationController.ShiftUpcomingEnemies(upcomingEnemies, deltaX, duration);
+            enemyPresentationController.ShiftUpcomingEnemies(stageFlowController.GetUpcomingEnemies(), deltaX, duration);
             return;
         }
 
-        foreach (BattleUnit enemy in upcomingEnemies)
+        foreach (BattleUnit enemy in stageFlowController.GetUpcomingEnemies())
         {
             if (enemy == null) continue;
             enemy.transform.DOMoveX(enemy.transform.position.x + deltaX, duration).SetEase(roomTravelEase);
@@ -1022,44 +1135,5 @@ public class PanelBattleManager : MonoBehaviour
             boardCanvasGroup.blocksRaycasts = isInteractable;
             boardCanvasGroup.DOFade(isInteractable ? 1.0f : 0.6f, 0.3f);
         }
-    }
-
-    GameObject GetPooledObject(GameObject prefab, Vector3 position, Quaternion rotation)
-    {
-        if (prefab == null) return null;
-
-        if (effectPoolManager == null)
-        {
-            return Instantiate(prefab, position, rotation);
-        }
-
-        return effectPoolManager.GetPooledObject(prefab, position, rotation);
-    }
-
-    void ReturnPooledObject(GameObject prefab, GameObject obj)
-    {
-        if (obj == null) return;
-
-        if (effectPoolManager == null)
-        {
-            Destroy(obj);
-            return;
-        }
-
-        effectPoolManager.ReturnPooledObject(prefab, obj);
-    }
-
-    IEnumerator ReturnPooledObjectAfterDelay(GameObject prefab, GameObject obj, float delay)
-    {
-        if (obj == null) yield break;
-
-        if (effectPoolManager == null)
-        {
-            yield return new WaitForSeconds(delay);
-            Destroy(obj);
-            yield break;
-        }
-
-        yield return effectPoolManager.ReturnPooledObjectAfterDelay(prefab, obj, delay);
     }
 }
