@@ -1,12 +1,12 @@
 using UnityEngine;
 
-
-
 public enum GunType
 {
     None,
     Pistol,
-    MachineGun
+    MachineGun,
+    Shotgun,
+    Rifle
 }
 
 [System.Serializable]

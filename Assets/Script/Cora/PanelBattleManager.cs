@@ -333,6 +333,11 @@ public class PanelBattleManager : MonoBehaviour
     public bool IsEnemyDefeatedThisTurn => isEnemyDefeatedThisTurn;
 
     private bool isEventHubSubscribed;
+    [Header("銃の追加設定")]
+    [SerializeField] private float shotgunInterval = 0.06f;
+    [SerializeField] private float rifleAfterDelay = 0.10f;
+    [SerializeField] private int shotgunDangerBonusDamage = 1;
+    [SerializeField] private int shotgunDelayChance = 30;
 
     private void SubscribeBattleEvents()
     {
@@ -692,6 +697,114 @@ public class PanelBattleManager : MonoBehaviour
             boardCanvasGroup.blocksRaycasts = isInteractable;
             boardCanvasGroup.DOFade(isInteractable ? 1.0f : 0.6f, 0.3f);
         }
+    }
+
+    public void FireShotgun()
+    {
+        if (playerCombatController == null) return;
+        if (!playerCombatController.CanUseGun()) return;
+
+        GunData gun = playerCombatController.GetGunData();
+        if (gun == null) return;
+        if (gun.gunType != GunType.Shotgun) return;
+
+        BattleUnit target = enemyUnit;
+        if (target == null) return;
+        if (target.IsDead()) return;
+
+        bool consumed = playerCombatController.ConsumeGunGauge();
+        if (!consumed) return;
+
+        StartCoroutine(FireShotgunRoutine(gun, target));
+    }
+
+    private IEnumerator FireShotgunRoutine(GunData gun, BattleUnit target)
+    {
+        bool isDangerTarget = target.currentCooldown <= 1;
+        int pelletDamage = gun.damagePerShot + (isDangerTarget ? shotgunDangerBonusDamage : 0);
+
+        for (int i = 0; i < gun.shotCount; i++)
+        {
+            if (enemyUnit == null) break;
+            if (enemyUnit.IsDead()) break;
+
+            SpawnPistolMuzzleFlash();
+            SpawnPistolHitEffect(target);
+
+            battleEventHub?.RaiseEnemyDamageRequested(pelletDamage);
+
+            yield return new WaitForSeconds(shotgunInterval);
+        }
+
+        if (enemyUnit != null && !enemyUnit.IsDead())
+        {
+            TryDelayEnemyTurnByShotgun(enemyUnit);
+        }
+
+        Debug.Log("ショットガン発射");
+
+        if (battleUIController != null)
+        {
+            battleUIController.RefreshGunUI();
+        }
+
+        yield return new WaitForSeconds(0.08f);
+        StartCoroutine(EndPlayerTurn());
+    }
+
+    public void FireRifle()
+    {
+        if (playerCombatController == null) return;
+        if (!playerCombatController.CanUseGun()) return;
+
+        GunData gun = playerCombatController.GetGunData();
+        if (gun == null) return;
+        if (gun.gunType != GunType.Rifle) return;
+
+        BattleUnit target = enemyUnit;
+        if (target == null) return;
+        if (target.IsDead()) return;
+
+        bool consumed = playerCombatController.ConsumeGunGauge();
+        if (!consumed) return;
+
+        StartCoroutine(FireRifleRoutine(gun, target));
+    }
+
+    private IEnumerator FireRifleRoutine(GunData gun, BattleUnit target)
+    {
+        if (enemyUnit == null || enemyUnit.IsDead())
+            yield break;
+
+        SpawnPistolMuzzleFlash();
+        SpawnPistolHitEffect(target);
+
+        battleEventHub?.RaiseEnemyDamageRequested(gun.damagePerShot);
+
+        Debug.Log("ライフル発射");
+
+        if (battleUIController != null)
+        {
+            battleUIController.RefreshGunUI();
+        }
+
+        yield return new WaitForSeconds(rifleAfterDelay);
+        StartCoroutine(EndPlayerTurn());
+    }
+
+    private void TryDelayEnemyTurnByShotgun(BattleUnit target)
+    {
+        if (target == null) return;
+        if (target.IsDead()) return;
+
+        bool success = UnityEngine.Random.Range(0, 100) < shotgunDelayChance;
+        if (!success) return;
+
+        target.currentCooldown += 1;
+        target.UpdateTurnUI();
+
+        Vector3 pos = target.transform.position + Vector3.up * 1.5f;
+        SpawnDamageText("STAGGER", pos, Color.yellow);
     }
 
     public void OnStageClear()

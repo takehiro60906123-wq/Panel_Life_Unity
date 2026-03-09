@@ -16,6 +16,9 @@ public class BattleUIController : MonoBehaviour
     [SerializeField] private TMP_Text gunGaugeText;
     [SerializeField] private PanelBattleManager panelBattleManager;
 
+    [SerializeField] private UnityEngine.UI.Image[] ammoImages;
+    [SerializeField] private TMP_Text ammoCountText;
+
     private void Start()
     {
         if (pistolButton != null)
@@ -39,6 +42,13 @@ public class BattleUIController : MonoBehaviour
             gunGaugeText.text = $"GUN {current}/{max}";
         }
 
+        if (ammoCountText != null)
+        {
+            ammoCountText.text = $"{current}/{max}";
+        }
+
+        RefreshAmmoIcons(current, max);
+
         if (pistolButton != null)
         {
             GunData gun = playerCombatController.GetGunData();
@@ -46,17 +56,39 @@ public class BattleUIController : MonoBehaviour
             bool canUse = false;
             if (gun != null)
             {
-                if (gun.gunType == GunType.MachineGun)
+                switch (gun.gunType)
                 {
-                    canUse = playerCombatController.CanUseMachineGun();
-                }
-                else
-                {
-                    canUse = playerCombatController.CanUseGun();
+                    case GunType.MachineGun:
+                        canUse = playerCombatController.CanUseMachineGun();
+                        break;
+
+                    case GunType.Pistol:
+                    case GunType.Shotgun:
+                    case GunType.Rifle:
+                        canUse = playerCombatController.CanUseGun();
+                        break;
                 }
             }
 
             pistolButton.interactable = canUse;
+        }
+    }
+
+    private void RefreshAmmoIcons(int current, int max)
+    {
+        if (ammoImages == null || ammoImages.Length == 0) return;
+
+        int displayCount = Mathf.Min(ammoImages.Length, max);
+
+        for (int i = 0; i < ammoImages.Length; i++)
+        {
+            if (ammoImages[i] == null) continue;
+
+            bool isActiveAmmo = i < current && i < displayCount;
+
+            ammoImages[i].color = isActiveAmmo
+                ? Color.white
+                : new Color(1f, 1f, 1f, 0.2f);
         }
     }
 
@@ -91,6 +123,14 @@ public class BattleUIController : MonoBehaviour
 
             case GunType.MachineGun:
                 panelBattleManager.FireMachineGun();
+                break;
+
+            case GunType.Shotgun:
+                panelBattleManager.FireShotgun();
+                break;
+
+            case GunType.Rifle:
+                panelBattleManager.FireRifle();
                 break;
 
             default:
