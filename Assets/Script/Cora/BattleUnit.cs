@@ -1,23 +1,24 @@
-﻿using UnityEngine;
+﻿using TMPro;
+using UnityEngine;
 using UnityEngine.UI;
-using TMPro;
-using DG.Tweening;
 
+[DisallowMultipleComponent]
+[RequireComponent(typeof(PlayerProgression))]
+[RequireComponent(typeof(EnemyTurnState))]
+[RequireComponent(typeof(BattleUnitView))]
 public class BattleUnit : MonoBehaviour
 {
     [Header("ステータス")]
-    public int maxHP = 15; // シレン風に初期値15
-    private int currentHP;
+    public int maxHP = 15;
+    [SerializeField] private int currentHP;
 
-    // ▼ 新規追加：敵が落とす経験値（プレイヤーの場合は使わないので0でOK）
+    [Header("報酬（敵専用）")]
     public int expYield = 2;
 
-    [Header("レベルシステム（プレイヤー専用）")]
+    [Header("レベルシステム（互換用）")]
     public int level = 1;
     public int currentExp = 0;
-    public TextMeshProUGUI levelText; // 「Lv 1」と表示するUI
-    // レベルアップに必要な経験値のテーブル（10でLv2, 30でLv3...）
-    private int[] expTable = { 0, 10, 30, 60, 100, 150, 220, 300, 400, 500 };
+    public TextMeshProUGUI levelText;
 
     [Header("UI連携")]
     public Slider hpSlider;
@@ -26,83 +27,83 @@ public class BattleUnit : MonoBehaviour
     [Header("アニメーター")]
     public Animator animator;
 
-    [Header("行動ターン（敵専用）")]
-    public int attackInterval = 1; // 基本の行動間隔（1なら毎ターン攻撃）
-    [HideInInspector] public int currentCooldown; // 攻撃までの残りターン
-    public TextMeshProUGUI turnText; // 「あと〇ターン」を表示するテキスト
+    [Header("行動ターン（敵専用 / 互換用）")]
+    public int attackInterval = 1;
+    [HideInInspector] public int currentCooldown;
+    public TextMeshProUGUI turnText;
 
-    void Awake()
+    private PlayerProgression progression;
+    private EnemyTurnState turnState;
+    private BattleUnitView view;
+
+    public int CurrentHP => currentHP;
+    public bool IsReadyToAttack()
     {
-        currentHP = maxHP;
-        UpdateUI();
+        return currentCooldown <= 0;
     }
 
-    // ▼ 新規追加：戦闘開始時にターン数をセットする処理
+    public bool IsDangerEnemy()
+    {
+        return currentCooldown <= 1;
+    }
+
+    private void Awake()
+    {
+        if (currentHP <= 0)
+        {
+            currentHP = maxHP;
+        }
+
+        currentHP = Mathf.Clamp(currentHP, 0, maxHP);
+
+        progression = GetComponent<PlayerProgression>();
+        turnState = GetComponent<EnemyTurnState>();
+        view = GetComponent<BattleUnitView>();
+
+        progression.Initialize(level, currentExp);
+        turnState.Configure(attackInterval, currentCooldown);
+        view.BindLegacyReferences(hpSlider, hpText, levelText, turnText, animator);
+
+        SyncFromComponents();
+        RefreshAll();
+    }
+
     public void InitializeTurn()
     {
-        currentCooldown = attackInterval;
+        turnState.SetAttackInterval(attackInterval);
+        turnState.InitializeTurn();
+        SyncFromComponents();
         UpdateTurnUI();
     }
 
-   
-
     public void TakeDamage(int damage)
     {
-        currentHP -= damage;
-        if (currentHP < 0) currentHP = 0;
+        if (damage <= 0) return;
 
-        if (animator != null)
-        {
-            if (currentHP > 0) animator.Play("DAMAGED", 0, 0f);
-            else animator.Play("DEATH", 0, 0f);
-        }
-
-        UpdateUI();
+        currentHP = Mathf.Max(0, currentHP - damage);
+        view.PlayDamaged(currentHP <= 0);
+        RefreshAll();
     }
 
     public void Heal(int amount)
     {
-        currentHP += amount;
-        if (currentHP > maxHP) currentHP = maxHP;
+        if (amount <= 0) return;
 
-        if (animator != null) animator.SetTrigger("6_Other");
-        UpdateUI();
+        currentHP = Mathf.Min(maxHP, currentHP + amount);
+        view.PlayHeal();
+        RefreshAll();
     }
 
-    // ★重複しないように、UpdateUIはこの1つだけにします！
     public void UpdateUI()
     {
-        if (hpSlider != null)
-        {
-            hpSlider.maxValue = maxHP;
-            hpSlider.value = currentHP;
-        }
-        if (hpText != null)
-        {
-            hpText.text = $"{currentHP} / {maxHP}";
-        }
-
-        // ▼ 追加：レベルUIの更新
-        if (levelText != null)
-        {
-            levelText.text = $"Lv {level}";
-        }
+        view.RefreshHP(currentHP, maxHP);
+        view.RefreshLevel(level);
     }
 
-    // ▼ 復活：ターン表示の更新処理
     public void UpdateTurnUI()
     {
-        if (turnText != null)
-        {
-            if (currentCooldown > 0)
-            {
-                turnText.text = $"あと {currentCooldown}";
-            }
-            else
-            {
-                turnText.text = "ATTACK!";
-            }
-        }
+        currentCooldown = turnState.CurrentCooldown;
+        view.RefreshCooldown(currentCooldown);
     }
 
     public bool IsDead() => currentHP <= 0;
@@ -110,58 +111,94 @@ public class BattleUnit : MonoBehaviour
     public void Respawn()
     {
         currentHP = maxHP;
-        UpdateUI();
-        if (animator != null) animator.Play("IDLE", 0, 0f);
+        view.PlayIdle();
+        RefreshAll();
     }
 
-    // --- BattleUnit.cs の末尾あたりに追加 ---
-
-    // UIの表示/非表示を切り替えるメソッド
     public void SetUIActive(bool isActive)
     {
-        if (hpSlider != null) hpSlider.gameObject.SetActive(isActive);
-        if (hpText != null) hpText.gameObject.SetActive(isActive);
-        if (turnText != null) turnText.gameObject.SetActive(isActive); // ★追加
+        view.SetUIActive(isActive);
     }
 
-    // ▼ 修正：経験値を獲得し、レベルアップしたかどうかを返す
+    public void PlayAttackAnimation()
+    {
+        if (animator != null)
+        {
+            animator.Play("ATTACK", 0, 0f);
+        }
+    }
+
+    public void SetMoveAnimation(bool isMoving)
+    {
+        if (animator != null)
+        {
+            animator.SetBool("isMoving", isMoving);
+        }
+    }
+
+    public Animator GetAnimator()
+    {
+        return animator;
+    }
+
     public bool AddExp(int amount)
     {
-        currentExp += amount;
-        bool isLeveledUp = false; // レベルアップしたかのフラグ
+        bool leveledUp = progression.AddExp(amount, this);
+        SyncFromComponents();
+        RefreshAll();
+        return leveledUp;
+    }
 
-        // レベルアップ判定
-        while (level < expTable.Length && currentExp >= expTable[level])
+    public void IncreaseMaxHP(int amount, bool fullRecover)
+    {
+        if (amount <= 0) return;
+
+        maxHP += amount;
+
+        if (fullRecover)
         {
-            LevelUp();
-            isLeveledUp = true;
+            currentHP = maxHP;
+        }
+        else
+        {
+            currentHP = Mathf.Min(currentHP, maxHP);
         }
 
-        return isLeveledUp; // 結果をマネージャーに報告！
+        RefreshAll();
     }
 
-    // ▼ 新規追加：レベルアップ処理
-    private void LevelUp()
+    public void TickCooldown()
     {
-        level++;
-
-        // 最大HPが 4 または 5 上がる
-        int hpIncrease = Random.Range(4, 6);
-        maxHP += hpIncrease;
-
-        // ★ローグライクの醍醐味：レベルアップでHP全回復！
-        currentHP = maxHP;
-
-        // 演出（アニメーションがあれば再生）
-        if (animator != null) animator.SetTrigger("6_Other"); // 例としてHealと同じアニメ
-
-        // もしレベルアップ用のエフェクトがあればここでInstantiate(またはプールから取得)しても良いです
-        Debug.Log($"レベルアップ！ Lv{level} になった！ 最大HPが {hpIncrease} 上がった！");
-
-        UpdateUI();
+        turnState.TickDown();
+        SyncFromComponents();
+        UpdateTurnUI();
     }
 
-   
+    public void ResetCooldown()
+    {
+        turnState.ResetCooldown();
+        SyncFromComponents();
+        UpdateTurnUI();
+    }
 
-    
+    public void DelayCooldown(int amount)
+    {
+        turnState.Delay(amount);
+        SyncFromComponents();
+        UpdateTurnUI();
+    }
+
+    private void RefreshAll()
+    {
+        UpdateUI();
+        UpdateTurnUI();
+    }
+
+    private void SyncFromComponents()
+    {
+        level = progression.Level;
+        currentExp = progression.CurrentExp;
+        attackInterval = turnState.AttackInterval;
+        currentCooldown = turnState.CurrentCooldown;
+    }
 }

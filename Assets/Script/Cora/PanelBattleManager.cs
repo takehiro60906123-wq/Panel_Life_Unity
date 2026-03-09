@@ -82,15 +82,7 @@ public class PanelBattleManager : MonoBehaviour
 
     public void FirePistol()
     {
-        if (playerCombatController == null) return;
-        if (!playerCombatController.CanUseGun()) return;
-
-        GunData gun = playerCombatController.GetGunData();
-        if (gun == null) return;
-
-        BattleUnit target = enemyUnit;
-        if (target == null) return;
-        if (target.IsDead()) return;
+        if (!TryPrepareGunAction(out GunData gun, out BattleUnit target)) return;
 
         bool consumed = playerCombatController.ConsumeGunGauge();
         if (!consumed) return;
@@ -100,29 +92,8 @@ public class PanelBattleManager : MonoBehaviour
 
     private IEnumerator FirePistolRoutine(GunData gun, BattleUnit target)
     {
-        for (int i = 0; i < gun.shotCount; i++)
-        {
-            if (enemyUnit == null) break;
-            if (enemyUnit.IsDead()) break;
-
-            SpawnPistolMuzzleFlash();
-            SpawnPistolHitEffect(target);
-
-            battleEventHub?.RaiseEnemyDamageRequested(gun.damagePerShot);
-
-            yield return new WaitForSeconds(0.08f);
-        }
-
-        Debug.Log("ピストル発射");
-
-        if (battleUIController != null)
-        {
-            battleUIController.RefreshGunUI();
-        }
-
-        yield return new WaitForSeconds(0.08f);
-
-        StartCoroutine(EndPlayerTurn());
+        yield return StartCoroutine(
+            ExecuteGunRoutine(gun, target, gun.shotCount, 0.08f, "ピストル発射", 0.08f));
     }
 
     private void SpawnPistolMuzzleFlash()
@@ -143,6 +114,131 @@ public class PanelBattleManager : MonoBehaviour
         SpawnOneShotEffect(hitEffectPrefab, hitPos, 0.25f);
     }
 
+    private bool TryGetValidEnemyTarget(out BattleUnit target)
+    {
+        target = enemyUnit;
+        if (target == null) return false;
+        if (target.IsDead()) return false;
+        return true;
+    }
+
+    private IEnumerator FinishGunActionRoutine(string logMessage, float waitSeconds)
+    {
+        if (!string.IsNullOrEmpty(logMessage))
+        {
+            Debug.Log(logMessage);
+        }
+
+        if (battleUIController != null)
+        {
+            battleUIController.RefreshGunUI();
+        }
+
+        yield return new WaitForSeconds(waitSeconds);
+
+        StartCoroutine(EndPlayerTurn());
+    }
+
+    private int ResolveGunHitDamage(GunData gun, BattleUnit target)
+    {
+        if (gun == null) return 0;
+
+        int damage = gun.damagePerShot;
+
+        if (gun.gunType == GunType.Shotgun && target != null && target.IsDangerEnemy())
+        {
+            damage += shotgunDangerBonusDamage;
+        }
+
+        return damage;
+    }
+
+    private void ApplyGunAfterEffects(GunData gun, BattleUnit target)
+    {
+        if (gun == null) return;
+        if (target == null) return;
+        if (target.IsDead()) return;
+
+        if (gun.gunType == GunType.Shotgun)
+        {
+            TryDelayEnemyTurnByShotgun(target);
+        }
+    }
+
+    private IEnumerator ExecuteGunRoutine(
+    GunData gun,
+    BattleUnit target,
+    int shotCount,
+    float interval,
+    string logMessage,
+    float finishDelay)
+    {
+        if (gun == null) yield break;
+        if (target == null) yield break;
+        if (target.IsDead()) yield break;
+
+        int damagePerShot = ResolveGunHitDamage(gun, target);
+
+        if (shotCount <= 1)
+        {
+            ExecuteGunHit(gun, target, damagePerShot);
+        }
+        else
+        {
+            yield return StartCoroutine(
+                ExecuteRepeatedGunHitsRoutine(gun, target, shotCount, damagePerShot, interval));
+        }
+
+        ApplyGunAfterEffects(gun, target);
+
+        yield return StartCoroutine(FinishGunActionRoutine(logMessage, finishDelay));
+    }
+
+    private void ExecuteGunHit(GunData gun, BattleUnit target, int damage)
+    {
+        if (gun == null) return;
+        if (target == null) return;
+        if (target.IsDead()) return;
+
+        SpawnPistolMuzzleFlash();
+        SpawnPistolHitEffect(target);
+
+        battleEventHub?.RaiseEnemyDamageRequested(damage);
+    }
+
+    private IEnumerator ExecuteRepeatedGunHitsRoutine(GunData gun, BattleUnit target, int shotCount, int damagePerShot, float interval)
+    {
+        for (int i = 0; i < shotCount; i++)
+        {
+            if (enemyUnit == null) break;
+            if (enemyUnit.IsDead()) break;
+
+            ExecuteGunHit(gun, target, damagePerShot);
+
+            if (i < shotCount - 1)
+            {
+                yield return new WaitForSeconds(interval);
+            }
+        }
+    }
+
+    private bool TryPrepareGunAction(out GunData gun, out BattleUnit target, GunType? requiredGunType = null)
+    {
+        gun = null;
+        target = null;
+
+        if (playerCombatController == null) return false;
+        if (!playerCombatController.CanUseGun()) return false;
+
+        gun = playerCombatController.GetGunData();
+        if (gun == null) return false;
+
+        if (requiredGunType.HasValue && gun.gunType != requiredGunType.Value) return false;
+        if (!TryGetValidEnemyTarget(out target)) return false;
+
+        return true;
+    }
+
     private void HandleEnemyDefeatedByGun(BattleUnit defeatedEnemy)
     {
         isEnemyDefeatedThisTurn = true;
@@ -158,16 +254,7 @@ public class PanelBattleManager : MonoBehaviour
 
     public void FireMachineGun()
     {
-        if (playerCombatController == null) return;
-
-        GunData gun = playerCombatController.GetGunData();
-        if (gun == null) return;
-        if (gun.gunType != GunType.MachineGun) return;
-
-        BattleUnit target = enemyUnit;
-        if (target == null) return;
-        if (target.IsDead()) return;
-
+        if (!TryPrepareGunAction(out GunData gun, out BattleUnit target, GunType.MachineGun)) return;
         if (!playerCombatController.CanUseMachineGun()) return;
 
         int shotCount = playerCombatController.ConsumeAllGunGauge();
@@ -178,29 +265,8 @@ public class PanelBattleManager : MonoBehaviour
 
     private IEnumerator FireMachineGunRoutine(GunData gun, BattleUnit target, int shotCount)
     {
-        for (int i = 0; i < shotCount; i++)
-        {
-            if (enemyUnit == null) break;
-            if (enemyUnit.IsDead()) break;
-
-            SpawnPistolMuzzleFlash();
-            SpawnPistolHitEffect(target);
-
-            battleEventHub?.RaiseEnemyDamageRequested(gun.damagePerShot);
-
-            yield return new WaitForSeconds(0.05f);
-        }
-
-        Debug.Log($"マシンガン発射: {shotCount}連射");
-
-        if (battleUIController != null)
-        {
-            battleUIController.RefreshGunUI();
-        }
-
-        yield return new WaitForSeconds(0.08f);
-
-        StartCoroutine(EndPlayerTurn());
+        yield return StartCoroutine(
+            ExecuteGunRoutine(gun, target, shotCount, 0.05f, $"マシンガン発射: {shotCount}連射", 0.08f));
     }
 
 
@@ -701,16 +767,7 @@ public class PanelBattleManager : MonoBehaviour
 
     public void FireShotgun()
     {
-        if (playerCombatController == null) return;
-        if (!playerCombatController.CanUseGun()) return;
-
-        GunData gun = playerCombatController.GetGunData();
-        if (gun == null) return;
-        if (gun.gunType != GunType.Shotgun) return;
-
-        BattleUnit target = enemyUnit;
-        if (target == null) return;
-        if (target.IsDead()) return;
+        if (!TryPrepareGunAction(out GunData gun, out BattleUnit target, GunType.Shotgun)) return;
 
         bool consumed = playerCombatController.ConsumeGunGauge();
         if (!consumed) return;
@@ -720,50 +777,14 @@ public class PanelBattleManager : MonoBehaviour
 
     private IEnumerator FireShotgunRoutine(GunData gun, BattleUnit target)
     {
-        bool isDangerTarget = target.currentCooldown <= 1;
-        int pelletDamage = gun.damagePerShot + (isDangerTarget ? shotgunDangerBonusDamage : 0);
-
-        for (int i = 0; i < gun.shotCount; i++)
-        {
-            if (enemyUnit == null) break;
-            if (enemyUnit.IsDead()) break;
-
-            SpawnPistolMuzzleFlash();
-            SpawnPistolHitEffect(target);
-
-            battleEventHub?.RaiseEnemyDamageRequested(pelletDamage);
-
-            yield return new WaitForSeconds(shotgunInterval);
-        }
-
-        if (enemyUnit != null && !enemyUnit.IsDead())
-        {
-            TryDelayEnemyTurnByShotgun(enemyUnit);
-        }
-
-        Debug.Log("ショットガン発射");
-
-        if (battleUIController != null)
-        {
-            battleUIController.RefreshGunUI();
-        }
-
-        yield return new WaitForSeconds(0.08f);
-        StartCoroutine(EndPlayerTurn());
+        yield return StartCoroutine(
+            ExecuteGunRoutine(gun, target, gun.shotCount, shotgunInterval, "ショットガン発射", 0.08f));
     }
+
 
     public void FireRifle()
     {
-        if (playerCombatController == null) return;
-        if (!playerCombatController.CanUseGun()) return;
-
-        GunData gun = playerCombatController.GetGunData();
-        if (gun == null) return;
-        if (gun.gunType != GunType.Rifle) return;
-
-        BattleUnit target = enemyUnit;
-        if (target == null) return;
-        if (target.IsDead()) return;
+        if (!TryPrepareGunAction(out GunData gun, out BattleUnit target, GunType.Rifle)) return;
 
         bool consumed = playerCombatController.ConsumeGunGauge();
         if (!consumed) return;
@@ -773,23 +794,8 @@ public class PanelBattleManager : MonoBehaviour
 
     private IEnumerator FireRifleRoutine(GunData gun, BattleUnit target)
     {
-        if (enemyUnit == null || enemyUnit.IsDead())
-            yield break;
-
-        SpawnPistolMuzzleFlash();
-        SpawnPistolHitEffect(target);
-
-        battleEventHub?.RaiseEnemyDamageRequested(gun.damagePerShot);
-
-        Debug.Log("ライフル発射");
-
-        if (battleUIController != null)
-        {
-            battleUIController.RefreshGunUI();
-        }
-
-        yield return new WaitForSeconds(rifleAfterDelay);
-        StartCoroutine(EndPlayerTurn());
+        yield return StartCoroutine(
+            ExecuteGunRoutine(gun, target, 1, 0f, "ライフル発射", rifleAfterDelay));
     }
 
     private void TryDelayEnemyTurnByShotgun(BattleUnit target)
@@ -800,8 +806,7 @@ public class PanelBattleManager : MonoBehaviour
         bool success = UnityEngine.Random.Range(0, 100) < shotgunDelayChance;
         if (!success) return;
 
-        target.currentCooldown += 1;
-        target.UpdateTurnUI();
+        target.DelayCooldown(1);
 
         Vector3 pos = target.transform.position + Vector3.up * 1.5f;
         SpawnDamageText("STAGGER", pos, Color.yellow);

@@ -425,6 +425,15 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 2518575838125366824, guid: 2e64a5b7584190e42b7939058779004a, type: 3}
       insertIndex: -1
       addedObject: {fileID: 1270524463}
+    - targetCorrespondingSourceObject: {fileID: 2518575838125366824, guid: 2e64a5b7584190e42b7939058779004a, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1270524466}
+    - targetCorrespondingSourceObject: {fileID: 2518575838125366824, guid: 2e64a5b7584190e42b7939058779004a, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1270524465}
+    - targetCorrespondingSourceObject: {fileID: 2518575838125366824, guid: 2e64a5b7584190e42b7939058779004a, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1270524464}
   m_SourcePrefab: {fileID: 100100000, guid: 2e64a5b7584190e42b7939058779004a, type: 3}
 --- !u!1 &228695540
 GameObject:
@@ -462,11 +471,11 @@ MonoBehaviour:
       maxLink: 3
       baseAttack: 1
     gun:
-      gunType: 3
+      gunType: 1
       gunName: "\u30E9\u30A4\u30D5\u30EB"
-      gaugeCost: 4
-      shotCount: 3
-      damagePerShot: 1
+      gaugeCost: 3
+      shotCount: 10
+      damagePerShot: 100
       useAllGauge: 0
       minGaugeToFire: 0
     currentGunGauge: 1
@@ -2832,6 +2841,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   maxHP: 15
+  currentHP: 0
   expYield: 2
   level: 1
   currentExp: 0
@@ -2842,6 +2852,47 @@ MonoBehaviour:
   attackInterval: 1
   currentCooldown: 0
   turnText: {fileID: 0}
+--- !u!114 &1270524464
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1270524458}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5cda538ef23feed40944c3871789774b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+--- !u!114 &1270524465
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1270524458}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ab597e765a3f77041907690c34e6412b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  attackInterval: 1
+  currentCooldown: 0
+--- !u!114 &1270524466
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1270524458}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: bd8f5cbd52610174f92af4038e2733ee, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  level: 1
+  currentExp: 0
+  expTable: 000000000a0000001e0000003c0000006400000096000000dc0000002c01000090010000f4010000
 --- !u!1 &1283368505
 GameObject:
   m_ObjectHideFlags: 0

@@ -79,13 +79,13 @@ public class BattleTurnController : MonoBehaviour
     }
 
     public IEnumerator EnemyTurnRoutine(
-        BattleUnit enemyUnit,
-        BattleUnit playerUnit,
-        GameObject hitEffectPrefab,
-        Action<string, Vector3, Color> spawnDamageText,
-        Action<GameObject, Vector3, float> spawnOneShotEffect,
-        Action onGameOver,
-        Action<bool> setBoardInteractable)
+     BattleUnit enemyUnit,
+     BattleUnit playerUnit,
+     GameObject hitEffectPrefab,
+     Action<string, Vector3, Color> spawnDamageText,
+     Action<GameObject, Vector3, float> spawnOneShotEffect,
+     Action onGameOver,
+     Action<bool> setBoardInteractable)
     {
         if (enemyUnit == null)
         {
@@ -93,15 +93,11 @@ public class BattleTurnController : MonoBehaviour
             yield break;
         }
 
-        enemyUnit.currentCooldown--;
-        enemyUnit.UpdateTurnUI();
+        enemyUnit.TickCooldown();
 
-        if (enemyUnit.currentCooldown <= 0)
+        if (enemyUnit.IsReadyToAttack())
         {
-            if (enemyUnit.animator != null)
-            {
-                enemyUnit.animator.Play("ATTACK", 0, 0f);
-            }
+            enemyUnit.PlayAttackAnimation();
 
             yield return new WaitForSeconds(enemyAttackWindupDelay);
 
@@ -139,9 +135,7 @@ public class BattleTurnController : MonoBehaviour
                 }
             }
 
-            enemyUnit.currentCooldown = enemyUnit.attackInterval;
-            enemyUnit.UpdateTurnUI();
-
+            enemyUnit.ResetCooldown();
             yield return new WaitForSeconds(enemyPostAttackDelay);
         }
         else

@@ -160,6 +160,7 @@ public class EncounterFlowController : MonoBehaviour
         {
             enemyUnit.transform.localScale = Vector3.one;
             activateEnemyAsCurrent?.Invoke(enemyUnit);
+            enemyUnit.InitializeTurn();
             PublishEncounterState(EncounterType.Enemy, 0);
             RequestDungeonMist(true, false);
         }
@@ -259,21 +260,17 @@ public class EncounterFlowController : MonoBehaviour
             yield break;
         }
 
-        enemyUnit.currentCooldown--;
-        enemyUnit.UpdateTurnUI();
+        enemyUnit.TickCooldown();
 
-        if (enemyUnit.currentCooldown <= 0)
+        if (enemyUnit.IsReadyToAttack())
         {
-            if (enemyUnit.animator != null)
-            {
-                enemyUnit.animator.Play("ATTACK", 0, 0f);
-            }
+            enemyUnit.PlayAttackAnimation();
 
             yield return new WaitForSeconds(0.2f);
 
             bool isEvasion = UnityEngine.Random.Range(0, 100) < 15;
             bool isCritical = UnityEngine.Random.Range(0, 100) < 10;
-            Vector3 pos = playerUnit.transform.position;
+            Vector3 pos = playerUnit != null ? playerUnit.transform.position : Vector3.zero;
 
             if (isEvasion)
             {
@@ -282,23 +279,29 @@ public class EncounterFlowController : MonoBehaviour
             else
             {
                 int damage = isCritical ? 3 : 1;
-                playerUnit.TakeDamage(damage);
 
-                RequestOneShotEffect(hitEffectPrefab, pos + Vector3.up * 0.5f, 0.7f);
+                if (playerUnit != null)
+                {
+                    playerUnit.TakeDamage(damage);
+                }
+
+                if (hitEffectPrefab != null)
+                {
+                    RequestOneShotEffect(hitEffectPrefab, pos + Vector3.up * 0.5f, 0.7f);
+                }
 
                 Color textColor = isCritical ? Color.yellow : Color.red;
                 string textStr = isCritical ? $"CRITICAL!\n{damage}" : damage.ToString();
                 RequestDamageText(textStr, pos + Vector3.up * 1.5f, textColor);
 
-                if (playerUnit.IsDead())
+                if (playerUnit != null && playerUnit.IsDead())
                 {
                     RequestPlayerDefeated();
                     yield break;
                 }
             }
 
-            enemyUnit.currentCooldown = enemyUnit.attackInterval;
-            enemyUnit.UpdateTurnUI();
+            enemyUnit.ResetCooldown();
             yield return new WaitForSeconds(0.5f);
         }
         else
@@ -323,7 +326,7 @@ public class EncounterFlowController : MonoBehaviour
                 () => PublishEncounterState(encounterType, remainingSteps),
                 RequestDamageText,
                 RequestBoardInteractable,
-                EnemyRespawnRoutine);
+                () => EnemyRespawnRoutine(encounterType));
 
             PublishEncounterState(encounterType, remainingSteps);
             return;
@@ -345,17 +348,21 @@ public class EncounterFlowController : MonoBehaviour
             else
             {
                 RequestDamageText("次の部屋へ！", playerUnit.transform.position + Vector3.up * 1.5f, Color.cyan);
-                StartCoroutine(EnemyRespawnRoutine());
+                StartCoroutine(EnemyRespawnRoutine(currentEncounter));
             }
         }
     }
 
     public IEnumerator EnemyRespawnRoutine()
     {
+        EncounterType previousEncounter = getCurrentEncounter != null ? getCurrentEncounter() : EncounterType.Enemy;
+        yield return StartCoroutine(EnemyRespawnRoutine(previousEncounter));
+    }
+
+    public IEnumerator EnemyRespawnRoutine(EncounterType previousEncounter)
+    {
         RequestBoardInteractable(false);
         setIsEnemySpawning?.Invoke(true);
-
-        EncounterType prevEncounter = getCurrentEncounter != null ? getCurrentEncounter() : EncounterType.Enemy;
 
         yield return new WaitForSeconds(0.9f);
 
@@ -374,7 +381,7 @@ public class EncounterFlowController : MonoBehaviour
             yield break;
         }
 
-        StageFlowController.NextEncounterPlan plan = stageFlowController.DecideNextEncounter(prevEncounter);
+        StageFlowController.NextEncounterPlan plan = stageFlowController.DecideNextEncounter(previousEncounter);
 
         if (plan.isStageClear)
         {
@@ -454,6 +461,7 @@ public class EncounterFlowController : MonoBehaviour
         if (nextEnemy != null)
         {
             activateEnemyAsCurrent?.Invoke(nextEnemy);
+            nextEnemy.InitializeTurn();
             RequestDamageText("敵に到達した！", nextEnemy.transform.position + Vector3.up * 1.5f, Color.red);
             spawnNextEnemy?.Invoke();
         }
