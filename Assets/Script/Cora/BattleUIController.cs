@@ -79,14 +79,15 @@ public class BattleUIController : MonoBehaviour
         if (ammoImages == null || ammoImages.Length == 0) return;
 
         int displayCount = Mathf.Min(ammoImages.Length, max);
+        int filledCount = Mathf.Min(current, displayCount);
 
         for (int i = 0; i < ammoImages.Length; i++)
         {
             if (ammoImages[i] == null) continue;
 
-            bool isActiveAmmo = i < current && i < displayCount;
+            bool isFilled = i >= ammoImages.Length - filledCount;
 
-            ammoImages[i].color = isActiveAmmo
+            ammoImages[i].color = isFilled
                 ? Color.white
                 : new Color(1f, 1f, 1f, 0.2f);
         }

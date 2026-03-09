@@ -77,7 +77,6 @@ public class PanelBattleManager : MonoBehaviour
 
     public BattleContext Context => battleContext;
 
-    [SerializeField] private PlayerCombatLoadout playerLoadout;
     [SerializeField] private PlayerCombatController playerCombatController;
 
     public void FirePistol()
@@ -105,14 +104,6 @@ public class PanelBattleManager : MonoBehaviour
         SpawnOneShotEffect(pistolMuzzleFlashPrefab, spawnPos, 0.2f);
     }
 
-    private void SpawnPistolHitEffect(BattleUnit target)
-    {
-        if (target == null) return;
-        if (hitEffectPrefab == null) return;
-
-        Vector3 hitPos = target.transform.position + new Vector3(0f, 0.5f, 0f);
-        SpawnOneShotEffect(hitEffectPrefab, hitPos, 0.25f);
-    }
 
     private bool TryGetValidEnemyTarget(out BattleUnit target)
     {
@@ -201,8 +192,6 @@ public class PanelBattleManager : MonoBehaviour
         if (target.IsDead()) return;
 
         SpawnPistolMuzzleFlash();
-        SpawnPistolHitEffect(target);
-
         battleEventHub?.RaiseEnemyDamageRequested(damage);
     }
 
@@ -228,29 +217,22 @@ public class PanelBattleManager : MonoBehaviour
         target = null;
 
         if (playerCombatController == null) return false;
-        if (!playerCombatController.CanUseGun()) return false;
 
         gun = playerCombatController.GetGunData();
         if (gun == null) return false;
 
         if (requiredGunType.HasValue && gun.gunType != requiredGunType.Value) return false;
+
+        bool canUse = gun.gunType == GunType.MachineGun
+            ? playerCombatController.CanUseMachineGun()
+            : playerCombatController.CanUseGun();
+
+        if (!canUse) return false;
         if (!TryGetValidEnemyTarget(out target)) return false;
 
         return true;
     }
 
-    private void HandleEnemyDefeatedByGun(BattleUnit defeatedEnemy)
-    {
-        isEnemyDefeatedThisTurn = true;
-
-        if (battleUIController != null)
-        {
-            battleUIController.RefreshGunUI();
-        }
-
-        // まずは既存の通常撃破導線に乗せるための最低限
-        StartCoroutine(EndPlayerTurn());
-    }
 
     public void FireMachineGun()
     {
