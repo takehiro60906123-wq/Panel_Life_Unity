@@ -77,7 +77,458 @@ public class PanelBattleManager : MonoBehaviour
 
     public BattleContext Context => battleContext;
 
+    [SerializeField] private PlayerCombatLoadout playerLoadout;
     [SerializeField] private PlayerCombatController playerCombatController;
+
+    [Header("アイテム設定")]
+    [SerializeField] private BattleInventoryController battleInventoryController;
+    [SerializeField] private float itemUseDelay = 0.08f;
+    [SerializeField, Range(0f, 1f)] private float enemyItemDropChance = 0.35f;
+    [SerializeField] private List<BattleItemDropEntry> itemDropEntries = new List<BattleItemDropEntry>();
+    [SerializeField] private int scrapOnOverflow = 1;
+    [SerializeField] private int currentScrap;
+    [SerializeField] private float enemyItemDragDropRadius = 140f;
+
+    [SerializeField, Range(1f, 1.5f)] private float enemyDragHoverScale = 1.08f;
+    [SerializeField] private Color enemyDragHoverColor = new Color(1f, 0.95f, 0.8f, 1f);
+
+    private bool defeatSequenceRunning;
+    [SerializeField] private float defeatSequenceStartDelay = 0.22f;
+    [SerializeField] private float dropFeedbackHoldDelay = 0.55f;
+    [SerializeField] private float defeatSequenceBeforeRewardDelay = 0.25f;
+    [SerializeField] private float defeatSequenceAfterRewardDelay = 0.55f;
+
+    private struct PendingDropFeedback
+    {
+        public bool hasDrop;
+        public bool overflow;
+        public int slotIndex;
+        public int scrapAmount;
+        public string itemName;
+        public Vector3 worldPos;
+    }
+
+    private PendingDropFeedback pendingDropFeedback;
+
+    private bool enemyDragHoverActive;
+    private Vector3 enemyDragHoverOriginalScale = Vector3.one;
+    private BattleUnit enemyDragHoverTarget;
+
+    public BattleInventoryController GetBattleInventoryController()
+    {
+        return battleInventoryController;
+    }
+
+    private void EnsureInventoryController()
+    {
+        if (battleInventoryController == null)
+        {
+            battleInventoryController = GetComponent<BattleInventoryController>();
+        }
+
+        if (battleInventoryController == null)
+        {
+            battleInventoryController = gameObject.AddComponent<BattleInventoryController>();
+        }
+    }
+
+    private void EnsureDefaultItemDrops()
+    {
+        if (itemDropEntries != null && itemDropEntries.Count > 0)
+        {
+            return;
+        }
+
+        itemDropEntries = new List<BattleItemDropEntry>
+        {
+            new BattleItemDropEntry { itemType = BattleItemType.FieldBandage, weight = 40 },
+            new BattleItemDropEntry { itemType = BattleItemType.ShockCanister, weight = 30 },
+            new BattleItemDropEntry { itemType = BattleItemType.ActivationCell, weight = 30 }
+        };
+    }
+
+    public void TryUseInventoryItem(int slotIndex)
+    {
+        if (!isPlayerTurn) return;
+        if (battleInventoryController == null) return;
+
+        BattleItemData item = battleInventoryController.GetItemAt(slotIndex);
+        if (item == null) return;
+        if (item.useTarget == BattleItemUseTarget.Enemy) return;
+
+        BattleUnit target = null;
+        if (!CanUseBattleItem(item, target))
+        {
+            return;
+        }
+
+        StartCoroutine(UseInventoryItemRoutine(slotIndex, target));
+    }
+
+    public void TryUseInventoryItemByDrag(int slotIndex, Vector2 screenPosition)
+    {
+        if (!isPlayerTurn) return;
+        if (battleInventoryController == null) return;
+
+        BattleItemData item = battleInventoryController.GetItemAt(slotIndex);
+        if (item == null) return;
+        if (item.useTarget != BattleItemUseTarget.Enemy) return;
+
+        if (!TryGetDraggedEnemyTarget(screenPosition, out BattleUnit target))
+        {
+            return;
+        }
+
+        if (!CanUseBattleItem(item, target))
+        {
+            return;
+        }
+
+        StartCoroutine(UseInventoryItemRoutine(slotIndex, target));
+    }
+
+    private bool CanUseBattleItem(BattleItemData item, BattleUnit target)
+    {
+        if (item == null) return false;
+
+        switch (item.itemType)
+        {
+            case BattleItemType.FieldBandage:
+                return playerUnit != null && !playerUnit.IsDead();
+
+            case BattleItemType.ActivationCell:
+                return playerCombatController != null;
+
+            case BattleItemType.ShockCanister:
+                return target != null && !target.IsDead();
+        }
+
+        return false;
+    }
+
+    private bool TryGetDraggedEnemyTarget(Vector2 screenPosition, out BattleUnit target)
+    {
+        target = null;
+
+        if (!TryGetValidEnemyTarget(out BattleUnit enemy))
+        {
+            return false;
+        }
+
+        if (!IsScreenPositionNearEnemy(screenPosition, enemy))
+        {
+            return false;
+        }
+
+        target = enemy;
+        return true;
+    }
+
+    public void SetEnemyDragHoverByScreenPosition(Vector2 screenPosition)
+    {
+        if (!TryGetValidEnemyTarget(out BattleUnit enemy))
+        {
+            ClearEnemyDragHoverVisual();
+            return;
+        }
+
+        bool isHovering = IsScreenPositionNearEnemy(screenPosition, enemy);
+        ApplyEnemyDragHoverVisual(enemy, isHovering);
+    }
+
+    public void ClearEnemyDragHoverVisual()
+    {
+        if (!enemyDragHoverActive) return;
+
+        if (enemyDragHoverTarget != null)
+        {
+            enemyDragHoverTarget.transform.localScale = enemyDragHoverOriginalScale;
+
+            if (enemyPresentationController != null)
+            {
+                enemyPresentationController.RestoreEnemyColors(enemyDragHoverTarget);
+            }
+        }
+
+        enemyDragHoverActive = false;
+        enemyDragHoverTarget = null;
+    }
+
+    private void ApplyEnemyDragHoverVisual(BattleUnit target, bool isHovering)
+    {
+        if (target == null || !isHovering)
+        {
+            ClearEnemyDragHoverVisual();
+            return;
+        }
+
+        if (!enemyDragHoverActive || enemyDragHoverTarget != target)
+        {
+            ClearEnemyDragHoverVisual();
+            enemyDragHoverTarget = target;
+            enemyDragHoverOriginalScale = target.transform.localScale;
+            enemyDragHoverActive = true;
+        }
+
+        target.transform.localScale = enemyDragHoverOriginalScale * Mathf.Max(1f, enemyDragHoverScale);
+
+        SpriteRenderer[] renderers = target.GetComponentsInChildren<SpriteRenderer>(true);
+        for (int i = 0; i < renderers.Length; i++)
+        {
+            if (renderers[i] == null) continue;
+
+            Color c = renderers[i].color;
+            c.r = enemyDragHoverColor.r;
+            c.g = enemyDragHoverColor.g;
+            c.b = enemyDragHoverColor.b;
+            c.a = enemyDragHoverColor.a;
+            renderers[i].color = c;
+        }
+    }
+
+    private bool IsScreenPositionNearEnemy(Vector2 screenPosition, BattleUnit enemy)
+    {
+        if (enemy == null || enemy.IsDead())
+        {
+            return false;
+        }
+
+        Camera mainCam = Camera.main;
+        if (mainCam == null)
+        {
+            return false;
+        }
+
+        Vector3 enemyWorldPos = enemy.transform.position + Vector3.up * 0.75f;
+        Renderer enemyRenderer = enemy.GetComponentInChildren<Renderer>();
+        if (enemyRenderer != null)
+        {
+            enemyWorldPos = enemyRenderer.bounds.center;
+        }
+
+        Vector2 enemyScreenPos = RectTransformUtility.WorldToScreenPoint(mainCam, enemyWorldPos);
+        float radius = Mathf.Max(32f, enemyItemDragDropRadius);
+
+        return Vector2.Distance(screenPosition, enemyScreenPos) <= radius;
+    }
+
+    private IEnumerator UseInventoryItemRoutine(int slotIndex, BattleUnit target)
+    {
+        SetBoardInteractable(false);
+
+        BattleItemData item = battleInventoryController.RemoveAt(slotIndex);
+        if (item == null)
+        {
+            SetBoardInteractable(true);
+            yield break;
+        }
+
+        ApplyBattleItem(item, target);
+
+        if (battleUIController != null)
+        {
+            battleUIController.RefreshInventoryUI();
+            battleUIController.RefreshGunUI();
+        }
+
+        yield return new WaitForSeconds(itemUseDelay);
+        StartCoroutine(EndPlayerTurn());
+    }
+
+    private void ApplyBattleItem(BattleItemData item, BattleUnit target)
+    {
+        if (item == null) return;
+
+        switch (item.itemType)
+        {
+            case BattleItemType.FieldBandage:
+                if (playerUnit != null)
+                {
+                    playerUnit.Heal(item.power);
+                    Vector3 healPos = playerUnit.transform.position + Vector3.up * 1.5f;
+                    SpawnDamageText($"+{item.power}", healPos, Color.green);
+                }
+                break;
+
+            case BattleItemType.ActivationCell:
+                if (playerCombatController != null)
+                {
+                    playerCombatController.AddGunGauge(item.power);
+                }
+
+                if (playerUnit != null)
+                {
+                    Vector3 cellPos = playerUnit.transform.position + Vector3.up * 1.5f;
+                    SpawnDamageText($"GUN +{item.power}", cellPos, Color.cyan);
+                }
+                break;
+
+            case BattleItemType.ShockCanister:
+                if (target != null && !target.IsDead())
+                {
+                    battleEventHub?.RaiseEnemyDamageRequested(item.power);
+                }
+                break;
+        }
+    }
+
+    private void TryAwardEnemyDrop(BattleUnit defeatedEnemy)
+    {
+        if (battleInventoryController == null) return;
+        if (defeatedEnemy == null) return;
+        if (itemDropEntries == null || itemDropEntries.Count == 0) return;
+        if (UnityEngine.Random.value > enemyItemDropChance) return;
+
+        BattleItemType itemType = RollDroppedItemType();
+        if (itemType == BattleItemType.None) return;
+
+        BattleItemData item = BattleItemData.CreatePreset(itemType);
+        if (item == null) return;
+
+        pendingDropFeedback = new PendingDropFeedback
+        {
+            hasDrop = false,
+            overflow = false,
+            slotIndex = -1,
+            scrapAmount = 0,
+            itemName = item.itemName,
+            worldPos = defeatedEnemy.transform.position
+        };
+
+        int slotIndexBeforeAdd = battleInventoryController.Count;
+
+        if (battleInventoryController.TryAddItem(item))
+        {
+            pendingDropFeedback.hasDrop = true;
+            pendingDropFeedback.slotIndex = slotIndexBeforeAdd;
+        }
+        else
+        {
+            int addedScrap = Mathf.Max(0, scrapOnOverflow);
+            currentScrap += addedScrap;
+
+            pendingDropFeedback.hasDrop = true;
+            pendingDropFeedback.overflow = true;
+            pendingDropFeedback.scrapAmount = addedScrap;
+        }
+    }
+
+    private IEnumerator PlayPendingDropFeedback()
+    {
+        if (!pendingDropFeedback.hasDrop) yield break;
+
+        Vector3 effectPos = pendingDropFeedback.worldPos + Vector3.up * 0.9f;
+        Vector3 textPos = pendingDropFeedback.worldPos + Vector3.up * 1.8f;
+
+        if (pendingDropFeedback.overflow)
+        {
+            if (hitEffectPrefab != null)
+            {
+                SpawnOneShotEffect(hitEffectPrefab, effectPos, 0.25f);
+            }
+
+            SpawnDamageText("ITEM LOST", textPos + Vector3.up * 0.35f, new Color(1f, 0.6f, 0.6f));
+            SpawnDamageText($"SCRAP +{pendingDropFeedback.scrapAmount}", textPos, Color.gray);
+
+            if (battleUIController != null)
+            {
+                battleUIController.RefreshInventoryUI();
+                battleUIController.PlayItemDropFeedback(-1, true);
+            }
+        }
+        else
+        {
+            if (absorbEffectPrefab != null)
+            {
+                SpawnOneShotEffect(absorbEffectPrefab, effectPos, 0.55f);
+            }
+            else if (hitEffectPrefab != null)
+            {
+                SpawnOneShotEffect(hitEffectPrefab, effectPos, 0.25f);
+            }
+
+            SpawnDamageText("ITEM GET!", textPos + Vector3.up * 0.35f, new Color(1f, 0.9f, 0.25f));
+            SpawnDamageText(pendingDropFeedback.itemName, textPos, Color.cyan);
+
+            if (battleUIController != null)
+            {
+                battleUIController.RefreshInventoryUI();
+                battleUIController.PlayItemDropFeedback(pendingDropFeedback.slotIndex, false);
+            }
+        }
+
+        pendingDropFeedback = default;
+        yield return new WaitForSeconds(dropFeedbackHoldDelay);
+    }
+
+    public IEnumerator PlayEnemyDefeatSequence(BattleUnit defeatedEnemy, System.Action resolveAfterSequence)
+    {
+        if (defeatSequenceRunning)
+        {
+            resolveAfterSequence?.Invoke();
+            yield break;
+        }
+
+        defeatSequenceRunning = true;
+
+        yield return new WaitForSeconds(defeatSequenceStartDelay);
+
+        yield return StartCoroutine(PlayPendingDropFeedback());
+
+        yield return new WaitForSeconds(defeatSequenceBeforeRewardDelay);
+
+        resolveAfterSequence?.Invoke();
+
+        yield return new WaitForSeconds(defeatSequenceAfterRewardDelay);
+
+        if (battleUIController != null)
+        {
+            battleUIController.RefreshGunUI();
+            battleUIController.RefreshInventoryUI();
+        }
+
+        defeatSequenceRunning = false;
+    }
+
+    private BattleItemType RollDroppedItemType()
+    {
+        if (itemDropEntries == null || itemDropEntries.Count == 0)
+        {
+            return BattleItemType.None;
+        }
+
+        int totalWeight = 0;
+        for (int i = 0; i < itemDropEntries.Count; i++)
+        {
+            BattleItemDropEntry entry = itemDropEntries[i];
+            if (entry == null) continue;
+            if (entry.itemType == BattleItemType.None) continue;
+            totalWeight += Mathf.Max(0, entry.weight);
+        }
+
+        if (totalWeight <= 0)
+        {
+            return BattleItemType.None;
+        }
+
+        int roll = UnityEngine.Random.Range(0, totalWeight);
+        int cumulative = 0;
+
+        for (int i = 0; i < itemDropEntries.Count; i++)
+        {
+            BattleItemDropEntry entry = itemDropEntries[i];
+            if (entry == null) continue;
+            if (entry.itemType == BattleItemType.None) continue;
+
+            cumulative += Mathf.Max(0, entry.weight);
+            if (roll < cumulative)
+            {
+                return entry.itemType;
+            }
+        }
+
+        return BattleItemType.None;
+    }
 
     public void FirePistol()
     {
@@ -104,6 +555,14 @@ public class PanelBattleManager : MonoBehaviour
         SpawnOneShotEffect(pistolMuzzleFlashPrefab, spawnPos, 0.2f);
     }
 
+    private void SpawnPistolHitEffect(BattleUnit target)
+    {
+        if (target == null) return;
+        if (hitEffectPrefab == null) return;
+
+        Vector3 hitPos = target.transform.position + new Vector3(0f, 0.5f, 0f);
+        SpawnOneShotEffect(hitEffectPrefab, hitPos, 0.25f);
+    }
 
     private bool TryGetValidEnemyTarget(out BattleUnit target)
     {
@@ -233,6 +692,18 @@ public class PanelBattleManager : MonoBehaviour
         return true;
     }
 
+    private void HandleEnemyDefeatedByGun(BattleUnit defeatedEnemy)
+    {
+        isEnemyDefeatedThisTurn = true;
+
+        if (battleUIController != null)
+        {
+            battleUIController.RefreshGunUI();
+        }
+
+        // まずは既存の通常撃破導線に乗せるための最低限
+        StartCoroutine(EndPlayerTurn());
+    }
 
     public void FireMachineGun()
     {
@@ -349,9 +820,10 @@ public class PanelBattleManager : MonoBehaviour
     public float mistFadeDuration = 0.35f;
 
     [Header("移動演出")]
-    public float roomTravelDuration = 1.0f;
-    public Ease roomTravelEase = Ease.Linear;
+    public float roomTravelDuration = 0.58f;
+    public Ease roomTravelEase = Ease.OutCubic;
     public float enemyRevealDuration = 0.2f;
+
 
     [Header("バトル演出")]
     public GameObject damageTextPrefab;
@@ -406,6 +878,7 @@ public class PanelBattleManager : MonoBehaviour
         battleEventHub.LevelUpTextRequested += HandleLevelUpTextRequested;
         battleEventHub.StageClearRequested += HandleStageClearRequested;
         battleEventHub.PlayerDefeatedRequested += HandlePlayerDefeatedRequested;
+        battleEventHub.EnemyDefeated += HandleEnemyDefeatedForDrops;
 
         isEventHubSubscribed = true;
     }
@@ -429,6 +902,7 @@ public class PanelBattleManager : MonoBehaviour
         battleEventHub.LevelUpTextRequested -= HandleLevelUpTextRequested;
         battleEventHub.StageClearRequested -= HandleStageClearRequested;
         battleEventHub.PlayerDefeatedRequested -= HandlePlayerDefeatedRequested;
+        battleEventHub.EnemyDefeated -= HandleEnemyDefeatedForDrops;
 
         isEventHubSubscribed = false;
     }
@@ -493,6 +967,10 @@ public class PanelBattleManager : MonoBehaviour
         OnPlayerDefeated();
     }
 
+    private void HandleEnemyDefeatedForDrops(BattleUnit defeatedEnemy)
+    {
+        TryAwardEnemyDrop(defeatedEnemy);
+    }
 
     private void EnsureBattleContext()
     {
@@ -510,6 +988,8 @@ public class PanelBattleManager : MonoBehaviour
     void Awake()
     {
         EnsureBattleContext();
+        EnsureInventoryController();
+        EnsureDefaultItemDrops();
 
         if (battleBootstrapper == null)
         {
@@ -540,6 +1020,13 @@ public class PanelBattleManager : MonoBehaviour
         if (!initialized)
         {
             enabled = false;
+            return;
+        }
+
+        if (battleUIController != null)
+        {
+            battleUIController.RefreshInventoryUI();
+            battleUIController.RefreshGunUI();
         }
     }
 

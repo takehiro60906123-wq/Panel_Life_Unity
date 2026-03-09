@@ -11,8 +11,8 @@ public class BattleDamageResolver : MonoBehaviour
 
     [Header("表示設定")]
     [SerializeField] private float hitEffectReturnDelay = 0.7f;
-    [SerializeField] private float expTextDelay = 0.2f;
-    [SerializeField] private float levelUpTextDelay = 0.45f;
+    [SerializeField] private float expTextDelay = 0.4f;
+    [SerializeField] private float levelUpTextDelay = 1.05f;
     [SerializeField] private float damageTextHeight = 1.5f;
     [SerializeField] private float hitEffectHeight = 0.5f;
     [SerializeField] private float expTextHeight = 1.0f;
@@ -28,6 +28,9 @@ public class BattleDamageResolver : MonoBehaviour
     private Func<IEnumerator> enemyRespawnRoutineFactory;
 
     private bool isSubscribed;
+    private PanelBattleManager panelBattleManager;
+    [SerializeField] private float postDefeatRespawnDelay = 0.55f;
+
 
     public void Initialize(
         BattleEventHub battleEventHub,
@@ -130,8 +133,47 @@ public class BattleDamageResolver : MonoBehaviour
 
     private void HandleEnemyDefeat(BattleUnit defeatedEnemy)
     {
-        setIsEnemyDefeatedThisTurn?.Invoke(true);
+        StartCoroutine(HandleEnemyDefeatSequenceRoutine(defeatedEnemy));
+    }
 
+    private IEnumerator HandleEnemyDefeatSequenceRoutine(BattleUnit defeatedEnemy)
+    {
+        if (defeatedEnemy == null) yield break;
+
+        setIsEnemyDefeatedThisTurn?.Invoke(true);
+        battleEventHub?.RaiseEnemyDefeated(defeatedEnemy);
+
+        if (panelBattleManager == null)
+        {
+            panelBattleManager = GetComponent<PanelBattleManager>();
+        }
+
+        if (panelBattleManager != null)
+        {
+            yield return StartCoroutine(panelBattleManager.PlayEnemyDefeatSequence(defeatedEnemy, () =>
+            {
+                ApplyEnemyDefeatRewards(defeatedEnemy);
+            }));
+        }
+        else
+        {
+            ApplyEnemyDefeatRewards(defeatedEnemy);
+        }
+
+        yield return new WaitForSeconds(postDefeatRespawnDelay);
+
+        if (enemyRespawnRoutineFactory != null)
+        {
+            IEnumerator routine = enemyRespawnRoutineFactory();
+            if (routine != null)
+            {
+                StartCoroutine(routine);
+            }
+        }
+    }
+
+    private void ApplyEnemyDefeatRewards(BattleUnit defeatedEnemy)
+    {
         Vector3 expTextPos = defeatedEnemy.transform.position + Vector3.up * expTextHeight;
         battleEventHub?.RaiseExpTextRequested(defeatedEnemy.expYield, expTextPos, expTextDelay);
 
@@ -149,15 +191,6 @@ public class BattleDamageResolver : MonoBehaviour
             }
 
             battleEventHub?.RaiseLevelUpTextRequested(levelUpTextDelay);
-        }
-
-        if (enemyRespawnRoutineFactory != null)
-        {
-            IEnumerator routine = enemyRespawnRoutineFactory();
-            if (routine != null)
-            {
-                StartCoroutine(routine);
-            }
         }
     }
 }

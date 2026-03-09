@@ -16,6 +16,7 @@ public class BattleEventHub : MonoBehaviour
     public event Action<float> LevelUpTextRequested;
     public event Action StageClearRequested;
     public event Action PlayerDefeatedRequested;
+    public event Action<BattleUnit> EnemyDefeated;
 
     public void RaiseBoardInteractableRequested(bool isInteractable)
     {
@@ -80,5 +81,9 @@ public class BattleEventHub : MonoBehaviour
     public void RaisePlayerDefeatedRequested()
     {
         PlayerDefeatedRequested?.Invoke();
+    }
+    public void RaiseEnemyDefeated(BattleUnit defeatedEnemy)
+    {
+        EnemyDefeated?.Invoke(defeatedEnemy);
     }
 }

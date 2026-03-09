@@ -95,7 +95,7 @@ public class PanelActionController : MonoBehaviour
                 break;
 
             case PanelType.Heal:
-                if (playerUnit != null) playerUnit.Heal(chainCount * 5);
+                if (playerUnit != null) playerUnit.Heal(chainCount);
                 yield return StartCoroutine(FinishTurn());
                 break;
 

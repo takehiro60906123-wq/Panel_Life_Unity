@@ -440,13 +440,6 @@ public class EncounterFlowController : MonoBehaviour
 
         refreshUpcomingEnemyStandbyVisuals?.Invoke();
 
-        if (nextEnemy != null)
-        {
-            revealWaitingEnemy?.Invoke(nextEnemy);
-            RequestDamageText("敵の気配…", nextEnemy.transform.position + Vector3.up * 1.5f, Color.red);
-            yield return new WaitForSeconds(enemyRevealDuration);
-        }
-
         RequestDamageText("先へ走る…", playerUnit.transform.position + Vector3.up * 1.5f, Color.white);
         setMoveAnimation?.Invoke(playerUnit.animator, true);
 
@@ -456,13 +449,21 @@ public class EncounterFlowController : MonoBehaviour
         }
 
         setMoveAnimation?.Invoke(playerUnit.animator, false);
+
+        yield return new WaitForSeconds(0.12f);
+
         setEnemyUnit?.Invoke(nextEnemy);
 
         if (nextEnemy != null)
         {
+            revealWaitingEnemy?.Invoke(nextEnemy);
+            RequestDamageText("敵発見", nextEnemy.transform.position + Vector3.up * 1.5f, Color.red);
+
+            yield return new WaitForSeconds(enemyRevealDuration + 0.08f);
+
             activateEnemyAsCurrent?.Invoke(nextEnemy);
-            nextEnemy.InitializeTurn();
-            RequestDamageText("敵に到達した！", nextEnemy.transform.position + Vector3.up * 1.5f, Color.red);
+            RequestDamageText("戦闘開始", nextEnemy.transform.position + Vector3.up * 2.0f, Color.red);
+
             spawnNextEnemy?.Invoke();
         }
     }
