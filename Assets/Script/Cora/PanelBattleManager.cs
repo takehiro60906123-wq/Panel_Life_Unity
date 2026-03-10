@@ -611,7 +611,7 @@ public class PanelBattleManager : MonoBehaviour
     private IEnumerator FirePistolRoutine(GunData gun, BattleUnit target)
     {
         yield return StartCoroutine(
-            ExecuteGunRoutine(gun, target, gun.shotCount, 0.08f, "ピストル発射", 0.08f));
+            ExecuteGunRoutine(gun, target, gun.shotCount, 0.08f, "ピストル発射", 0.24f));
     }
 
     private void SpawnPistolMuzzleFlash()
@@ -654,6 +654,12 @@ public class PanelBattleManager : MonoBehaviour
 
         yield return new WaitForSeconds(waitSeconds);
 
+        PlayerAnimationPresenter playerAnim = GetPlayerAnimationPresenter();
+        if (playerAnim != null)
+        {
+            playerAnim.PlayIdle();
+        }
+
         StartCoroutine(EndPlayerTurn());
     }
 
@@ -683,17 +689,29 @@ public class PanelBattleManager : MonoBehaviour
         }
     }
 
+    private PlayerAnimationPresenter GetPlayerAnimationPresenter()
+    {
+        if (playerUnit == null) return null;
+        return playerUnit.GetComponent<PlayerAnimationPresenter>();
+    }
+
     private IEnumerator ExecuteGunRoutine(
-    GunData gun,
-    BattleUnit target,
-    int shotCount,
-    float interval,
-    string logMessage,
-    float finishDelay)
+ GunData gun,
+ BattleUnit target,
+ int shotCount,
+ float interval,
+ string logMessage,
+ float finishDelay)
     {
         if (gun == null) yield break;
         if (target == null) yield break;
         if (target.IsDead()) yield break;
+
+        PlayerAnimationPresenter playerAnim = GetPlayerAnimationPresenter();
+        if (playerAnim != null)
+        {
+            playerAnim.PlayRunShoot();
+        }
 
         int damagePerShot = ResolveGunHitDamage(gun, target);
 
@@ -923,7 +941,7 @@ public class PanelBattleManager : MonoBehaviour
     private bool isEventHubSubscribed;
     [Header("銃の追加設定")]
     [SerializeField] private float shotgunInterval = 0.06f;
-    [SerializeField] private float rifleAfterDelay = 0.10f;
+    [SerializeField] private float rifleAfterDelay = 0.30f;
     [SerializeField] private int shotgunDangerBonusDamage = 1;
     [SerializeField] private int shotgunDelayChance = 30;
 
@@ -1187,9 +1205,21 @@ public class PanelBattleManager : MonoBehaviour
 
     public IEnumerator TravelForward()
     {
+        PlayerAnimationPresenter playerAnim = GetPlayerAnimationPresenter();
+        if (playerAnim != null)
+        {
+            playerAnim.PlayRun();
+        }
+
         if (roomTravelController != null)
         {
             yield return roomTravelController.TravelForward(playerUnit.transform, waitOffset);
+
+            if (playerAnim != null)
+            {
+                playerAnim.PlayIdle();
+            }
+
             yield break;
         }
 
@@ -1211,6 +1241,11 @@ public class PanelBattleManager : MonoBehaviour
         }
 
         yield return new WaitForSeconds(roomTravelDuration);
+
+        if (playerAnim != null)
+        {
+            playerAnim.PlayIdle();
+        }
     }
 
     public void SpawnMagicBullet()
@@ -1315,7 +1350,7 @@ public class PanelBattleManager : MonoBehaviour
     private IEnumerator FireShotgunRoutine(GunData gun, BattleUnit target)
     {
         yield return StartCoroutine(
-            ExecuteGunRoutine(gun, target, gun.shotCount, shotgunInterval, "ショットガン発射", 0.08f));
+            ExecuteGunRoutine(gun, target, gun.shotCount, shotgunInterval, "ショットガン発射", 0.24f));
     }
 
 

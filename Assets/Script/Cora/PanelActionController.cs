@@ -13,6 +13,18 @@ public class PanelActionController : MonoBehaviour
     private Func<IEnumerator> endPlayerTurnRoutine;
 
     private bool isProcessing;
+    [Header("ãﬂê⁄DoTweenââèo")]
+    [SerializeField] private string playerMeleeVisualRootName = "PlayerVisual";
+    [SerializeField] private float meleeAttackDirectionX = 1f;
+    [SerializeField] private float meleeWindupDistance = 0.08f;
+    [SerializeField] private float meleeLungeDistance = 0.26f;
+    [SerializeField] private float meleeHopY = 0.05f;
+    [SerializeField] private float meleeWindupDuration = 0.05f;
+    [SerializeField] private float meleeLungeDuration = 0.08f;
+    [SerializeField] private float meleeRecoverDuration = 0.10f;
+    [SerializeField] private float meleeHitScale = 1.10f;
+    [SerializeField] private float meleePunchRotation = 10f;
+    [SerializeField] private float meleeComboInterval = 0.03f;
 
     public void Initialize(
         BattleEventHub battleEventHub,
@@ -110,18 +122,92 @@ public class PanelActionController : MonoBehaviour
         }
     }
 
+    private Transform ResolvePlayerMeleeVisualRoot()
+    {
+        if (playerUnit == null) return null;
+
+        Transform t = playerUnit.transform.Find(playerMeleeVisualRootName);
+        if (t != null) return t;
+
+        t = playerUnit.transform.Find("VisualRoot");
+        if (t != null) return t;
+
+        t = playerUnit.transform.Find("UnitRoot");
+        if (t != null) return t;
+
+        for (int i = 0; i < playerUnit.transform.childCount; i++)
+        {
+            Transform child = playerUnit.transform.GetChild(i);
+            if (child.name.Contains("Canvas")) continue;
+
+            if (child.GetComponentInChildren<SpriteRenderer>(true) != null ||
+                child.GetComponentInChildren<Animator>(true) != null)
+            {
+                return child;
+            }
+        }
+
+        return playerUnit.transform;
+    }
+
+    private IEnumerator PlaySingleMeleeHitTween()
+    {
+        Transform visualRoot = ResolvePlayerMeleeVisualRoot();
+
+        if (visualRoot == null)
+        {
+            yield return new WaitForSeconds(0.18f);
+            yield break;
+        }
+
+        visualRoot.DOKill();
+
+        Vector3 baseLocalPos = visualRoot.localPosition;
+        Vector3 baseLocalScale = visualRoot.localScale;
+        Quaternion baseLocalRotation = visualRoot.localRotation;
+
+        Vector3 windupPos = baseLocalPos + new Vector3(-meleeAttackDirectionX * meleeWindupDistance, -meleeHopY * 0.35f, 0f);
+        Vector3 strikePos = baseLocalPos + new Vector3(meleeAttackDirectionX * meleeLungeDistance, meleeHopY, 0f);
+
+        float totalDuration = meleeWindupDuration + meleeLungeDuration + meleeRecoverDuration;
+        float hitMoment = meleeWindupDuration + (meleeLungeDuration * 0.75f);
+
+        Sequence seq = DOTween.Sequence();
+        seq.Append(visualRoot.DOLocalMove(windupPos, meleeWindupDuration).SetEase(Ease.OutQuad));
+        seq.Join(visualRoot.DOScale(baseLocalScale * 0.94f, meleeWindupDuration).SetEase(Ease.OutQuad));
+
+        seq.Append(visualRoot.DOLocalMove(strikePos, meleeLungeDuration).SetEase(Ease.OutExpo));
+        seq.Join(visualRoot.DOScale(baseLocalScale * meleeHitScale, meleeLungeDuration).SetEase(Ease.OutBack));
+        seq.Join(
+            visualRoot.DOPunchRotation(
+                new Vector3(0f, 0f, -meleePunchRotation * Mathf.Sign(meleeAttackDirectionX)),
+                meleeLungeDuration + 0.03f,
+                4,
+                0.8f));
+
+        seq.Append(visualRoot.DOLocalMove(baseLocalPos, meleeRecoverDuration).SetEase(Ease.InOutQuad));
+        seq.Join(visualRoot.DOScale(baseLocalScale, meleeRecoverDuration).SetEase(Ease.OutQuad));
+
+        yield return new WaitForSeconds(hitMoment);
+
+        battleEventHub?.RaiseEnemyDamageRequested(1);
+
+        yield return new WaitForSeconds(Mathf.Max(0f, totalDuration - hitMoment));
+
+        visualRoot.localPosition = baseLocalPos;
+        visualRoot.localScale = baseLocalScale;
+        visualRoot.localRotation = baseLocalRotation;
+    }
+
     private IEnumerator PlayMeleeAttack(int count)
     {
+        count = Mathf.Max(1, count);
+
         BattleUnit enemyUnit = getEnemyUnit != null ? getEnemyUnit() : null;
 
         if (enemyUnit == null || enemyUnit.IsDead())
         {
-            if (playerUnit != null && playerUnit.animator != null)
-            {
-                playerUnit.animator.Play("ATTACK", 0, 0f);
-            }
-
-            yield return new WaitForSeconds(0.4f);
+            yield return StartCoroutine(PlaySingleMeleeHitTween());
             yield return StartCoroutine(FinishTurn());
             yield break;
         }
@@ -131,14 +217,18 @@ public class PanelActionController : MonoBehaviour
             enemyUnit = getEnemyUnit != null ? getEnemyUnit() : null;
             if (enemyUnit == null || enemyUnit.IsDead()) break;
 
-            if (playerUnit != null && playerUnit.animator != null)
-            {
-                playerUnit.animator.Play("ATTACK", 0, 0f);
-            }
+            yield return StartCoroutine(PlaySingleMeleeHitTween());
 
-            yield return new WaitForSeconds(0.12f);
-            battleEventHub?.RaiseEnemyDamageRequested(1);
-            yield return new WaitForSeconds(0.08f);
+            if (i < count - 1)
+            {
+                yield return new WaitForSeconds(meleeComboInterval);
+            }
+        }
+
+        BattleUnitView playerView = playerUnit != null ? playerUnit.GetComponent<BattleUnitView>() : null;
+        if (playerView != null)
+        {
+            playerView.PlayIdle();
         }
 
         yield return StartCoroutine(FinishTurn());

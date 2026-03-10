@@ -158,13 +158,6 @@ public class EncounterFlowController : MonoBehaviour
         BattleUnit enemyUnit = getEnemyUnit != null ? getEnemyUnit() : null;
         if (enemyUnit != null)
         {
-            if (enemyUnit != null)
-            {
-                activateEnemyAsCurrent?.Invoke(enemyUnit);
-                enemyUnit.InitializeTurn();
-                PublishEncounterState(EncounterType.Enemy, 0);
-                RequestDungeonMist(true, false);
-            }
             activateEnemyAsCurrent?.Invoke(enemyUnit);
             enemyUnit.InitializeTurn();
             PublishEncounterState(EncounterType.Enemy, 0);
@@ -447,14 +440,11 @@ public class EncounterFlowController : MonoBehaviour
         refreshUpcomingEnemyStandbyVisuals?.Invoke();
 
         RequestDamageText("先へ走る…", playerUnit.transform.position + Vector3.up * 1.5f, Color.white);
-        setMoveAnimation?.Invoke(playerUnit.animator, true);
 
         if (travelForwardRoutine != null)
         {
             yield return StartCoroutine(travelForwardRoutine());
         }
-
-        setMoveAnimation?.Invoke(playerUnit.animator, false);
 
         yield return new WaitForSeconds(0.12f);
 
@@ -480,14 +470,11 @@ public class EncounterFlowController : MonoBehaviour
         RequestDungeonMist(false, false);
 
         RequestDamageText(popupText, playerUnit.transform.position + Vector3.up * 1.5f, popupColor);
-        setMoveAnimation?.Invoke(playerUnit.animator, true);
         shiftUpcomingEnemies?.Invoke(waitOffset.x, roomTravelDuration);
 
         if (travelForwardRoutine != null)
         {
             yield return StartCoroutine(travelForwardRoutine());
         }
-
-        setMoveAnimation?.Invoke(playerUnit.animator, false);
     }
 }

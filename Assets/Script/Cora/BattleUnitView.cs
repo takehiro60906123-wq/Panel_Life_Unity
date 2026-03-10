@@ -9,7 +9,9 @@ public class BattleUnitView : MonoBehaviour
     private TextMeshProUGUI levelText;
     private TextMeshProUGUI turnText;
     private Animator animator;
+
     private EnemyTweenPresenter tweenPresenter;
+    private PlayerAnimationPresenter playerAnimationPresenter;
 
     public void BindLegacyReferences(
         Slider slider,
@@ -27,6 +29,11 @@ public class BattleUnitView : MonoBehaviour
         if (tweenPresenter == null)
         {
             tweenPresenter = GetComponent<EnemyTweenPresenter>();
+        }
+
+        if (playerAnimationPresenter == null)
+        {
+            playerAnimationPresenter = GetComponent<PlayerAnimationPresenter>();
         }
 
         tweenPresenter?.EnsureSetup();
@@ -70,6 +77,20 @@ public class BattleUnitView : MonoBehaviour
 
     public void PlayDamaged(bool dead)
     {
+        if (playerAnimationPresenter != null)
+        {
+            if (dead)
+            {
+                playerAnimationPresenter.PlaySpin();
+            }
+            else
+            {
+                playerAnimationPresenter.PlayHurt();
+            }
+
+            return;
+        }
+
         if (tweenPresenter != null)
         {
             if (dead)
@@ -96,6 +117,12 @@ public class BattleUnitView : MonoBehaviour
 
     public void PlayAttack()
     {
+        if (playerAnimationPresenter != null)
+        {
+            playerAnimationPresenter.PlayRunShoot();
+            return;
+        }
+
         if (tweenPresenter != null)
         {
             tweenPresenter.PlayAttackTween();
@@ -107,6 +134,12 @@ public class BattleUnitView : MonoBehaviour
 
     public void PlayHeal()
     {
+        if (playerAnimationPresenter != null)
+        {
+            playerAnimationPresenter.PlayIdle();
+            return;
+        }
+
         if (animator != null && HasTriggerParameter("6_Other"))
         {
             animator.SetTrigger("6_Other");
@@ -115,6 +148,12 @@ public class BattleUnitView : MonoBehaviour
 
     public void PlayIdle()
     {
+        if (playerAnimationPresenter != null)
+        {
+            playerAnimationPresenter.PlayIdle();
+            return;
+        }
+
         tweenPresenter?.PlayIdleReset();
         TryPlayState("IDLE");
     }

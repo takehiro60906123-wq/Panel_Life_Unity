@@ -1,14 +1,14 @@
-using System.Collections;
+﻿using System.Collections;
 using UnityEngine;
 using DG.Tweening;
 
 public class RoomTravelController : MonoBehaviour
 {
-    [Header("�ړ����o�ݒ�")]
-    public float roomTravelDuration = 0.72f;
-    public Ease roomTravelEase = Ease.OutExpo;
-    public float dashOvershootDistance = 0.65f;
-    public float dashZoomInSizeDelta = 0.35f;
+    [Header("ړoݒ")]
+    public float roomTravelDuration = 1.1f;
+    public Ease roomTravelEase = Ease.OutCubic;
+    [Range(0.6f, 0.98f)] public float leadRatio = 0.84f;
+    public float dashZoomInSizeDelta = 0.18f;
 
     public void Configure(float travelDuration, Ease travelEase)
     {
@@ -23,61 +23,29 @@ public class RoomTravelController : MonoBehaviour
             yield break;
         }
 
-        Vector3 moveDir = moveOffset.sqrMagnitude > 0.0001f
-            ? moveOffset.normalized
-            : Vector3.right;
-
-        Vector3 playerStart = playerTransform.position;
-        Vector3 playerMainTarget = playerStart + moveOffset;
-        Vector3 playerOvershootTarget = playerMainTarget + moveDir * dashOvershootDistance;
-
-        float dashDuration = roomTravelDuration * 0.78f;
-        float settleDuration = roomTravelDuration - dashDuration;
-
-        Sequence playerSeq = DOTween.Sequence();
-        playerSeq.Append(
-            playerTransform.DOMove(playerOvershootTarget, dashDuration).SetEase(roomTravelEase)
-        );
-        playerSeq.Append(
-            playerTransform.DOMove(playerMainTarget, settleDuration).SetEase(Ease.OutCubic)
-        );
+        playerTransform.DOKill(false);
 
         Camera mainCam = Camera.main;
-        Sequence camSeq = null;
+        if (mainCam != null)
+        {
+            mainCam.transform.DOKill(false);
+        }
+
+        Vector3 playerTarget = playerTransform.position + moveOffset;
+
+        // 1本の Tween で滑らかに減速させる（2段階分割による速度不連続を解消）
+        Tween playerTween = playerTransform
+            .DOMove(playerTarget, roomTravelDuration)
+            .SetEase(roomTravelEase);
 
         if (mainCam != null)
         {
-            Vector3 camStart = mainCam.transform.position;
-            Vector3 camMainTarget = camStart + moveOffset;
-            Vector3 camOvershootTarget = camMainTarget + moveDir * dashOvershootDistance;
-
-            camSeq = DOTween.Sequence();
-            camSeq.Append(
-                mainCam.transform.DOMove(camOvershootTarget, dashDuration).SetEase(roomTravelEase)
-            );
-            camSeq.Append(
-                mainCam.transform.DOMove(camMainTarget, settleDuration).SetEase(Ease.OutCubic)
-            );
-
-            if (mainCam.orthographic)
-            {
-                float startSize = mainCam.orthographicSize;
-                camSeq.Join(
-                    DOTween.Sequence()
-                        .Append(DOTween.To(
-                            () => mainCam.orthographicSize,
-                            x => mainCam.orthographicSize = x,
-                            startSize - dashZoomInSizeDelta,
-                            dashDuration * 0.65f))
-                        .Append(DOTween.To(
-                            () => mainCam.orthographicSize,
-                            x => mainCam.orthographicSize = x,
-                            startSize,
-                            roomTravelDuration - (dashDuration * 0.65f)))
-                );
-            }
+            Vector3 camTarget = mainCam.transform.position + moveOffset;
+            mainCam.transform
+                .DOMove(camTarget, roomTravelDuration)
+                .SetEase(roomTravelEase);
         }
 
-        yield return playerSeq.WaitForCompletion();
+        yield return playerTween.WaitForCompletion();
     }
 }
