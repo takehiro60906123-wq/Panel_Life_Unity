@@ -39,6 +39,12 @@ public class BattleItemDragSlot : MonoBehaviour, IBeginDragHandler, IDragHandler
             return;
         }
 
+        if (battleUIController != null && !battleUIController.CanUseInventoryItemAt(slotIndex))
+        {
+            eventData.pointerDrag = null;
+            return;
+        }
+
         if (canvasGroup != null)
         {
             canvasGroup.alpha = 0.65f;

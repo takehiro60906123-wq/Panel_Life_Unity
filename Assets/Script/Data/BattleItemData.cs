@@ -5,7 +5,8 @@ public enum BattleItemType
     None,
     FieldBandage,
     ShockCanister,
-    ActivationCell
+    ActivationCell,
+    MagneticCollectorCanister
 }
 
 public enum BattleItemUseTarget
@@ -64,6 +65,15 @@ public class BattleItemData
                     itemName = "起動セル",
                     useTarget = BattleItemUseTarget.Self,
                     power = 3
+                };
+
+            case BattleItemType.MagneticCollectorCanister:
+                return new BattleItemData
+                {
+                    itemType = BattleItemType.MagneticCollectorCanister,
+                    itemName = "磁気回収筒",
+                    useTarget = BattleItemUseTarget.Self,
+                    power = 0
                 };
         }
 

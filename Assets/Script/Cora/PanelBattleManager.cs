@@ -140,11 +140,12 @@ public class PanelBattleManager : MonoBehaviour
         }
 
         itemDropEntries = new List<BattleItemDropEntry>
-        {
-            new BattleItemDropEntry { itemType = BattleItemType.FieldBandage, weight = 40 },
-            new BattleItemDropEntry { itemType = BattleItemType.ShockCanister, weight = 30 },
-            new BattleItemDropEntry { itemType = BattleItemType.ActivationCell, weight = 30 }
-        };
+    {
+        new BattleItemDropEntry { itemType = BattleItemType.FieldBandage, weight = 35 },
+        new BattleItemDropEntry { itemType = BattleItemType.ShockCanister, weight = 25 },
+        new BattleItemDropEntry { itemType = BattleItemType.ActivationCell, weight = 25 },
+        new BattleItemDropEntry { itemType = BattleItemType.MagneticCollectorCanister, weight = 15 }
+    };
     }
 
     public void TryUseInventoryItem(int slotIndex)
@@ -194,16 +195,49 @@ public class PanelBattleManager : MonoBehaviour
         switch (item.itemType)
         {
             case BattleItemType.FieldBandage:
-                return playerUnit != null && !playerUnit.IsDead();
+                return playerUnit != null
+                    && !playerUnit.IsDead()
+                    && playerUnit.CurrentHP < playerUnit.maxHP;
 
             case BattleItemType.ActivationCell:
-                return playerCombatController != null;
+                return playerCombatController != null
+                    && playerCombatController.GetGunGauge() < playerCombatController.GetGunGaugeMax();
 
             case BattleItemType.ShockCanister:
                 return target != null && !target.IsDead();
+
+            case BattleItemType.MagneticCollectorCanister:
+                return panelBoardController != null
+                    && panelBoardController.GetPanelCount(PanelType.Coin) > 0;
         }
 
         return false;
+    }
+
+    public bool CanUseInventoryItemAt(int slotIndex)
+    {
+        if (!isPlayerTurn) return false;
+        if (battleInventoryController == null) return false;
+
+        BattleItemData item = battleInventoryController.GetItemAt(slotIndex);
+        if (item == null) return false;
+
+        BattleUnit target = null;
+
+        if (item.useTarget == BattleItemUseTarget.Enemy)
+        {
+            if (!TryGetValidEnemyTarget(out target))
+            {
+                return false;
+            }
+        }
+
+        return CanUseBattleItem(item, target);
+    }
+
+    public int GetCurrentScrap()
+    {
+        return currentScrap;
     }
 
     private bool TryGetDraggedEnemyTarget(Vector2 screenPosition, out BattleUnit target)
@@ -312,6 +346,22 @@ public class PanelBattleManager : MonoBehaviour
         return Vector2.Distance(screenPosition, enemyScreenPos) <= radius;
     }
 
+    private float GetBattleItemResolveDelay(BattleItemData item)
+    {
+        if (item == null)
+        {
+            return itemUseDelay;
+        }
+
+        switch (item.itemType)
+        {
+            case BattleItemType.MagneticCollectorCanister:
+                return Mathf.Max(itemUseDelay, 0.45f);
+        }
+
+        return itemUseDelay;
+    }
+
     private IEnumerator UseInventoryItemRoutine(int slotIndex, BattleUnit target)
     {
         SetBoardInteractable(false);
@@ -331,7 +381,7 @@ public class PanelBattleManager : MonoBehaviour
             battleUIController.RefreshGunUI();
         }
 
-        yield return new WaitForSeconds(itemUseDelay);
+        yield return new WaitForSeconds(GetBattleItemResolveDelay(item));
         StartCoroutine(EndPlayerTurn());
     }
 
@@ -367,6 +417,24 @@ public class PanelBattleManager : MonoBehaviour
                 if (target != null && !target.IsDead())
                 {
                     battleEventHub?.RaiseEnemyDamageRequested(item.power);
+                }
+                break;
+
+            case BattleItemType.MagneticCollectorCanister:
+                if (panelBoardController != null)
+                {
+                    int collectedCoinPanels = panelBoardController.CollectAllPanelsOfType(PanelType.Coin);
+                    if (collectedCoinPanels > 0)
+                    {
+                        int gainedCoins = collectedCoinPanels * 10;
+                        AddCoins(gainedCoins);
+
+                        Vector3 coinPos = playerUnit != null
+                            ? playerUnit.transform.position + Vector3.up * 1.5f
+                            : transform.position + Vector3.up * 1.5f;
+
+                        SpawnDamageText($"+{gainedCoins}G", coinPos, new Color(1f, 0.9f, 0.2f));
+                    }
                 }
                 break;
         }

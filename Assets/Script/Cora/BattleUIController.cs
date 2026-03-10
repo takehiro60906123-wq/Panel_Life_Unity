@@ -26,6 +26,8 @@ public class BattleUIController : MonoBehaviour
     [SerializeField] private TMP_Text[] itemSlotTexts;
     [SerializeField] private Image[] itemSlotIcons;
     [SerializeField] private TMP_Text inventoryCountText;
+    [SerializeField] private TMP_Text scrapText;
+    [SerializeField] private Color disabledItemColor = new Color(1f, 1f, 1f, 0.4f);
 
     [Header("アイテムドラッグ演出")]
     [SerializeField] private Canvas dragVisualCanvas;
@@ -135,6 +137,12 @@ public class BattleUIController : MonoBehaviour
             }
         }
 
+        if (scrapText != null)
+        {
+            int scrap = panelBattleManager != null ? panelBattleManager.GetCurrentScrap() : 0;
+            scrapText.text = $"SCRAP {scrap}";
+        }
+
         int slotCount = 0;
         if (itemSlotButtons != null) slotCount = Mathf.Max(slotCount, itemSlotButtons.Length);
         if (itemSlotTexts != null) slotCount = Mathf.Max(slotCount, itemSlotTexts.Length);
@@ -144,33 +152,47 @@ public class BattleUIController : MonoBehaviour
         {
             BattleItemData item = inventory != null ? inventory.GetItemAt(i) : null;
             bool hasItem = item != null;
+            bool canUseNow = hasItem && panelBattleManager != null && panelBattleManager.CanUseInventoryItemAt(i);
+
+            bool keepButtonInteractive = hasItem;
+            if (hasItem && item.useTarget == BattleItemUseTarget.Self)
+            {
+                keepButtonInteractive = canUseNow;
+            }
+
+            Color slotColor = Color.white;
+            if (hasItem && !canUseNow)
+            {
+                slotColor = disabledItemColor;
+            }
 
             if (itemSlotButtons != null && i < itemSlotButtons.Length && itemSlotButtons[i] != null)
             {
-                itemSlotButtons[i].interactable = hasItem;
+                itemSlotButtons[i].interactable = keepButtonInteractive;
             }
 
             if (itemSlotTexts != null && i < itemSlotTexts.Length && itemSlotTexts[i] != null)
             {
                 itemSlotTexts[i].text = hasItem ? item.itemName : "---";
+                itemSlotTexts[i].color = hasItem ? slotColor : disabledItemColor;
             }
 
             if (itemSlotIcons != null && i < itemSlotIcons.Length && itemSlotIcons[i] != null)
             {
                 if (hasItem)
                 {
-                    // item.icon がある時だけ差し替える
                     if (item.icon != null)
                     {
                         itemSlotIcons[i].sprite = item.icon;
                     }
 
                     itemSlotIcons[i].enabled = itemSlotIcons[i].sprite != null;
-                    itemSlotIcons[i].color = Color.white;
+                    itemSlotIcons[i].color = slotColor;
                 }
                 else
                 {
                     itemSlotIcons[i].enabled = false;
+                    itemSlotIcons[i].color = disabledItemColor;
                 }
             }
         }
@@ -241,6 +263,11 @@ public class BattleUIController : MonoBehaviour
             : null;
 
         return inventory != null ? inventory.GetItemAt(slotIndex) : null;
+    }
+
+    public bool CanUseInventoryItemAt(int slotIndex)
+    {
+        return panelBattleManager != null && panelBattleManager.CanUseInventoryItemAt(slotIndex);
     }
 
     public void HandleItemDragEnd(int slotIndex, Vector2 screenPosition)

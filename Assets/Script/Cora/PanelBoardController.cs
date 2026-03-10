@@ -113,6 +113,80 @@ public class PanelBoardController : MonoBehaviour
         return gridData[row, col];
     }
 
+    public int GetPanelCount(PanelType targetType)
+    {
+        if (gridData == null) return 0;
+
+        int count = 0;
+
+        for (int r = 0; r < rows; r++)
+        {
+            for (int c = 0; c < cols; c++)
+            {
+                if (gridData[r, c] == targetType)
+                {
+                    count++;
+                }
+            }
+        }
+
+        return count;
+    }
+
+    public int CollectAllPanelsOfType(PanelType targetType)
+    {
+        if (gridData == null || panelObjects == null) return 0;
+
+        List<Vector2Int> positions = new List<Vector2Int>();
+
+        for (int r = 0; r < rows; r++)
+        {
+            for (int c = 0; c < cols; c++)
+            {
+                if (gridData[r, c] == targetType)
+                {
+                    positions.Add(new Vector2Int(r, c));
+                }
+            }
+        }
+
+        if (positions.Count == 0)
+        {
+            return 0;
+        }
+
+        foreach (Vector2Int pos in positions)
+        {
+            gridData[pos.x, pos.y] = PanelType.None;
+
+            GameObject panelObj = panelObjects[pos.x, pos.y];
+            if (panelObj == null) continue;
+
+            Transform iconTransform = panelObj.transform.Find("IconImage");
+            if (iconTransform != null)
+            {
+                iconTransform.DOScale(Vector3.zero, 0.2f)
+                    .SetEase(Ease.InBack)
+                    .OnComplete(() =>
+                    {
+                        Image img = iconTransform.GetComponent<Image>();
+                        if (img != null) img.sprite = null;
+                        iconTransform.localScale = Vector3.one;
+                    });
+            }
+        }
+
+        DOVirtual.DelayedCall(0.25f, () =>
+        {
+            if (this != null)
+            {
+                DropAndFillPanels();
+            }
+        });
+
+        return positions.Count;
+    }
+
     public List<Vector2Int> FindChain(int startRow, int startCol, PanelType targetType)
     {
         List<Vector2Int> chain = new List<Vector2Int>();

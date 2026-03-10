@@ -9,6 +9,7 @@ public class BattleUnitView : MonoBehaviour
     private TextMeshProUGUI levelText;
     private TextMeshProUGUI turnText;
     private Animator animator;
+    private EnemyTweenPresenter tweenPresenter;
 
     public void BindLegacyReferences(
         Slider slider,
@@ -22,6 +23,13 @@ public class BattleUnitView : MonoBehaviour
         levelText = level;
         turnText = turn;
         animator = anim;
+
+        if (tweenPresenter == null)
+        {
+            tweenPresenter = GetComponent<EnemyTweenPresenter>();
+        }
+
+        tweenPresenter?.EnsureSetup();
     }
 
     public void RefreshHP(int currentHP, int maxHP)
@@ -62,21 +70,44 @@ public class BattleUnitView : MonoBehaviour
 
     public void PlayDamaged(bool dead)
     {
-        if (animator == null) return;
+        if (tweenPresenter != null)
+        {
+            if (dead)
+            {
+                tweenPresenter.PlayDeathTween();
+            }
+            else
+            {
+                tweenPresenter.PlayHitTween();
+            }
+
+            return;
+        }
 
         if (dead)
         {
-            animator.Play("DEATH", 0, 0f);
+            TryPlayState("DEATH");
         }
         else
         {
-            animator.Play("DAMAGED", 0, 0f);
+            TryPlayState("DAMAGED");
         }
+    }
+
+    public void PlayAttack()
+    {
+        if (tweenPresenter != null)
+        {
+            tweenPresenter.PlayAttackTween();
+            return;
+        }
+
+        TryPlayState("ATTACK");
     }
 
     public void PlayHeal()
     {
-        if (animator != null)
+        if (animator != null && HasTriggerParameter("6_Other"))
         {
             animator.SetTrigger("6_Other");
         }
@@ -84,10 +115,8 @@ public class BattleUnitView : MonoBehaviour
 
     public void PlayIdle()
     {
-        if (animator != null)
-        {
-            animator.Play("IDLE", 0, 0f);
-        }
+        tweenPresenter?.PlayIdleReset();
+        TryPlayState("IDLE");
     }
 
     public void SetUIActive(bool isActive)
@@ -96,5 +125,35 @@ public class BattleUnitView : MonoBehaviour
         if (hpText != null) hpText.gameObject.SetActive(isActive);
         if (levelText != null) levelText.gameObject.SetActive(isActive);
         if (turnText != null) turnText.gameObject.SetActive(isActive);
+    }
+
+    private bool TryPlayState(string stateName)
+    {
+        if (animator == null) return false;
+
+        int stateHash = Animator.StringToHash(stateName);
+        if (!animator.HasState(0, stateHash))
+        {
+            return false;
+        }
+
+        animator.Play(stateHash, 0, 0f);
+        return true;
+    }
+
+    private bool HasTriggerParameter(string paramName)
+    {
+        if (animator == null) return false;
+
+        for (int i = 0; i < animator.parameters.Length; i++)
+        {
+            AnimatorControllerParameter p = animator.parameters[i];
+            if (p.type == AnimatorControllerParameterType.Trigger && p.name == paramName)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 }

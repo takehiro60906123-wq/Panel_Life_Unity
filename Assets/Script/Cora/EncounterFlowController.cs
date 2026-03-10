@@ -158,7 +158,13 @@ public class EncounterFlowController : MonoBehaviour
         BattleUnit enemyUnit = getEnemyUnit != null ? getEnemyUnit() : null;
         if (enemyUnit != null)
         {
-            enemyUnit.transform.localScale = Vector3.one;
+            if (enemyUnit != null)
+            {
+                activateEnemyAsCurrent?.Invoke(enemyUnit);
+                enemyUnit.InitializeTurn();
+                PublishEncounterState(EncounterType.Enemy, 0);
+                RequestDungeonMist(true, false);
+            }
             activateEnemyAsCurrent?.Invoke(enemyUnit);
             enemyUnit.InitializeTurn();
             PublishEncounterState(EncounterType.Enemy, 0);

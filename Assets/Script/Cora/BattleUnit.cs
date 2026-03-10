@@ -122,6 +122,12 @@ public class BattleUnit : MonoBehaviour
 
     public void PlayAttackAnimation()
     {
+        if (view != null)
+        {
+            view.PlayAttack();
+            return;
+        }
+
         if (animator != null)
         {
             animator.Play("ATTACK", 0, 0f);
@@ -130,9 +136,16 @@ public class BattleUnit : MonoBehaviour
 
     public void SetMoveAnimation(bool isMoving)
     {
-        if (animator != null)
+        if (animator == null) return;
+
+        for (int i = 0; i < animator.parameters.Length; i++)
         {
-            animator.SetBool("isMoving", isMoving);
+            AnimatorControllerParameter p = animator.parameters[i];
+            if (p.type == AnimatorControllerParameterType.Bool && p.name == "isMoving")
+            {
+                animator.SetBool("isMoving", isMoving);
+                return;
+            }
         }
     }
 
