@@ -144,6 +144,29 @@ public class BattleUnit : MonoBehaviour
         }
     }
 
+    public void PlayChargeAnimation()
+    {
+        if (view != null) { view.PlayCharge(); return; }
+        PlayAttackAnimation();
+    }
+
+    public void PlayHeavyAttackAnimation()
+    {
+        if (view != null) { view.PlayHeavyAttack(); return; }
+        PlayAttackAnimation();
+    }
+
+    public void PlayCorruptSkillAnimation()
+    {
+        if (view != null) { view.PlayCorruptSkill(); return; }
+        PlayAttackAnimation();
+    }
+
+    public void PlayEnemyHealAnimation()
+    {
+        if (view != null) { view.PlayEnemyHeal(); return; }
+    }
+
     public void SetMoveAnimation(bool isMoving)
     {
         if (animator == null) return;

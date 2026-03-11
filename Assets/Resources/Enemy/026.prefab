@@ -502,7 +502,7 @@ MonoBehaviour:
   hpSlider: {fileID: 7166529566945923798}
   hpText: {fileID: 2662779214851339163}
   animator: {fileID: 7649217041576899481}
-  attackInterval: 1
+  attackInterval: 2
   currentCooldown: 0
   turnText: {fileID: 6957822152843867208}
 --- !u!114 &2791046625075093319
@@ -578,6 +578,19 @@ MonoBehaviour:
   deathDropY: 0.18
   deathDuration: 0.3
   deathEndScale: 0.15
+  chargePulseDuration: 0.35
+  chargeScaleUp: 1.18
+  chargeFlashColor: {r: 1, g: 0.6, b: 0.2, a: 1}
+  chargeShakeVibrato: 12
+  chargeShakeStrength: 0.04
+  skillPulseDuration: 0.3
+  skillScaleUp: 1.12
+  corruptFlashColor: {r: 0.7, g: 0.2, b: 0.8, a: 1}
+  healFlashColor: {r: 0.3, g: 1, b: 0.5, a: 1}
+  heavyLungeDistance: 0.6
+  heavyLungeDuration: 0.14
+  heavyRecoverDuration: 0.18
+  heavyFlashColor: {r: 1, g: 0.4, b: 0.1, a: 1}
 --- !u!1 &6339814748571956640
 GameObject:
   m_ObjectHideFlags: 0

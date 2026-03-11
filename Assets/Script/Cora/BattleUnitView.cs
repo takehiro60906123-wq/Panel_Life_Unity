@@ -67,11 +67,11 @@ public class BattleUnitView : MonoBehaviour
 
         if (cooldown > 0)
         {
-            turnText.text = $"あと {cooldown}";
+            turnText.text = cooldown.ToString();
         }
         else
         {
-            turnText.text = "ATTACK!";
+            turnText.text = "!";
         }
     }
 
@@ -115,6 +115,10 @@ public class BattleUnitView : MonoBehaviour
         }
     }
 
+    // =============================================================
+    // 通常攻撃（既存）
+    // =============================================================
+
     public void PlayAttack()
     {
         if (playerAnimationPresenter != null)
@@ -131,6 +135,70 @@ public class BattleUnitView : MonoBehaviour
 
         TryPlayState("ATTACK");
     }
+
+    // =============================================================
+    // 特殊攻撃演出
+    // =============================================================
+
+    /// <summary>
+    /// HeavyHit 溜めターン：体が震えてオレンジに光る
+    /// </summary>
+    public void PlayCharge()
+    {
+        if (tweenPresenter != null)
+        {
+            tweenPresenter.PlayChargeTween();
+            return;
+        }
+
+        TryPlayState("ATTACK");
+    }
+
+    /// <summary>
+    /// HeavyHit 発射ターン：通常より大きく突進して赤オレンジに光る
+    /// </summary>
+    public void PlayHeavyAttack()
+    {
+        if (tweenPresenter != null)
+        {
+            tweenPresenter.PlayHeavyAttackTween();
+            return;
+        }
+
+        TryPlayState("ATTACK");
+    }
+
+    /// <summary>
+    /// PanelCorrupt スキル発動：紫に脈動して波動を放つ
+    /// </summary>
+    public void PlayCorruptSkill()
+    {
+        if (tweenPresenter != null)
+        {
+            tweenPresenter.PlayCorruptSkillTween();
+            return;
+        }
+
+        TryPlayState("ATTACK");
+    }
+
+    /// <summary>
+    /// SelfBuff 回復：緑に光って少し浮く
+    /// </summary>
+    public void PlayEnemyHeal()
+    {
+        if (tweenPresenter != null)
+        {
+            tweenPresenter.PlayHealTween();
+            return;
+        }
+
+        PlayHeal();
+    }
+
+    // =============================================================
+    // 既存メソッド
+    // =============================================================
 
     public void PlayHeal()
     {

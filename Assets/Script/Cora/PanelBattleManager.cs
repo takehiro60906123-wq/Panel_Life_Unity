@@ -632,6 +632,15 @@ public class PanelBattleManager : MonoBehaviour
         SpawnOneShotEffect(hitEffectPrefab, hitPos, 0.25f);
     }
 
+    // PanelBattleManager に追加
+    public void UpdateFloorUI()
+    {
+        if (battleUIController == null || stageFlowController == null) return;
+        battleUIController.SetFloorText(
+            stageFlowController.DefeatedEnemyCount + 1,
+            stageFlowController.TotalBattles);
+    }
+
     private bool TryGetValidEnemyTarget(out BattleUnit target)
     {
         target = enemyUnit;

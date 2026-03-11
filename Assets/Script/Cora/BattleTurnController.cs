@@ -111,11 +111,13 @@ public class BattleTurnController : MonoBehaviour
             {
                 enemyUnit.isChargingHeavyHit = true;
 
+                enemyUnit.PlayChargeAnimation();
+
                 Vector3 chargePos = enemyUnit.transform.position;
                 spawnDamageText?.Invoke("…力を溜めている", chargePos + Vector3.up * 2.0f, new Color(1f, 0.6f, 0.2f));
 
                 enemyUnit.ResetCooldown();
-                yield return new WaitForSeconds(0.5f);
+                yield return new WaitForSeconds(0.7f);
                 setBoardInteractable?.Invoke(true);
                 yield break;
             }
@@ -128,6 +130,8 @@ public class BattleTurnController : MonoBehaviour
 
                 if (choosesHeal)
                 {
+                    enemyUnit.PlayEnemyHealAnimation();
+
                     int healAmount = Mathf.Max(1, enemyUnit.attackPower * 2);
                     enemyUnit.Heal(healAmount);
 
@@ -141,8 +145,15 @@ public class BattleTurnController : MonoBehaviour
                 }
             }
 
-            // === 攻撃（演出つき） ===
-            enemyUnit.PlayAttackAnimation();
+            // === 攻撃（パターン別演出） ===
+            if (pattern == EnemyAttackPattern.HeavyHit && enemyUnit.isChargingHeavyHit)
+            {
+                enemyUnit.PlayHeavyAttackAnimation();
+            }
+            else
+            {
+                enemyUnit.PlayAttackAnimation();
+            }
             yield return new WaitForSeconds(enemyAttackWindupDelay);
 
             int baseDamage = Mathf.Max(1, enemyUnit.attackPower);
@@ -227,8 +238,12 @@ public class BattleTurnController : MonoBehaviour
             {
                 yield return new WaitForSeconds(0.15f);
 
+                enemyUnit.PlayCorruptSkillAnimation();
+
                 Vector3 corruptPos = enemyUnit.transform.position;
                 spawnDamageText?.Invoke("盤面汚染!", corruptPos + Vector3.up * 2.0f, new Color(0.7f, 0.2f, 0.8f));
+
+                yield return new WaitForSeconds(0.35f);
 
                 OnPanelCorruptRequested?.Invoke(panelCorruptCount);
 

@@ -3,10 +3,6 @@ using UnityEngine;
 using UnityEditor;
 using System.Collections.Generic;
 
-/// <summary>
-/// Tools → Battle → Generate All Enemy Data で一括生成。
-/// 配置: Assets/Editor/
-/// </summary>
 public static class EnemyDataGenerator
 {
     private const string EnemyDataFolder = "Assets/Data/Enemies";
@@ -21,7 +17,7 @@ public static class EnemyDataGenerator
         public EnemyAttackPattern pattern;
         public int hp;
         public int atk;
-        public int interval;  // 基本は全員 1
+        public int interval;
         public int exp;
         public int appearBattle;
         public int hpPerLevel;
@@ -30,70 +26,71 @@ public static class EnemyDataGenerator
     }
 
     // =========================================================
-    // 全33体 — interval=1（毎ターン攻撃）
+    // 全33体 — interval リバランス
     //
-    // バランス方針（シレン参考）：
-    //   プレイヤーHP 15 スタート。レベルアップで +4〜6。
-    //   序盤: ATK 2〜3 → 回復なしで 5〜7ターン耐える
-    //   中盤: ATK 3〜5 → 装備や銃がないと3〜4ターンで死ぬ
-    //   終盤: ATK 5〜8 → 銃・回復・LvUpパネル判断がすべて必要
-    //   MultiHit は 2回攻撃なので ATK はやや控えめ（実質×2）
-    //   HeavyHit は ATK×2 なので基礎は中程度（溜め1ターンのリスク）
-    //   SelfBuff の回復量 = ATK×2 なので ATK 上げると回復も強力に
+    // 方針：
+    //   Rushing = 1（毎ターン。それが個性）
+    //   HeavyHit = 1（溜め1ターン+攻撃1ターンの内蔵2ターン制）
+    //   序盤 Normal/Armored = 2（余裕あり）
+    //   中盤 = 1〜2（圧が増す）
+    //   終盤 = 1（毎ターン殴ってくる地獄）
+    //   SelfBuff = 2（回復ターンがあるので実質もっと遅い）
+    //   PanelCorrupt = 2（汚染自体が十分脅威）
+    //   蟲巣(018) = 2（ATK0なので間隔短くても痛くない）
     // =========================================================
 
     private static readonly EnemyDef[] AllEnemies = new EnemyDef[]
     {
-        // === A. 蛾系（Floating） 近接半減で実質HP倍===
-        new EnemyDef { id=1,  name="腐蛾",     type=EnemyType.Floating, pattern=EnemyAttackPattern.Normal,       hp=4,  atk=2, interval=1, exp=2,  appearBattle=1,  hpPerLevel=2, healPerLevel=1, expPerLevel=1 },
-        new EnemyDef { id=2,  name="胞子蛾",   type=EnemyType.Floating, pattern=EnemyAttackPattern.Normal,       hp=8,  atk=3, interval=1, exp=4,  appearBattle=7,  hpPerLevel=3, healPerLevel=1, expPerLevel=1 },
+        // === A. 蛾系（Floating）===
+        new EnemyDef { id=1,  name="腐蛾",     type=EnemyType.Floating, pattern=EnemyAttackPattern.Normal,       hp=4,  atk=2, interval=2, exp=2,  appearBattle=1,  hpPerLevel=2, healPerLevel=1, expPerLevel=1 },
+        new EnemyDef { id=2,  name="胞子蛾",   type=EnemyType.Floating, pattern=EnemyAttackPattern.Normal,       hp=8,  atk=3, interval=2, exp=4,  appearBattle=7,  hpPerLevel=3, healPerLevel=1, expPerLevel=1 },
         new EnemyDef { id=6,  name="蟲翼獣",   type=EnemyType.Floating, pattern=EnemyAttackPattern.Normal,       hp=14, atk=6, interval=1, exp=7,  appearBattle=16, hpPerLevel=4, healPerLevel=2, expPerLevel=2 },
 
-        // === B. 赤蟲系（Rushing）HP低め・火力高め ===
+        // === B. 赤蟲系（Rushing）interval=1が個性 ===
         new EnemyDef { id=3,  name="火蟲",     type=EnemyType.Rushing,  pattern=EnemyAttackPattern.Normal,       hp=3,  atk=3, interval=1, exp=2,  appearBattle=2,  hpPerLevel=2, healPerLevel=1, expPerLevel=1 },
         new EnemyDef { id=15, name="突撃蟲",   type=EnemyType.Rushing,  pattern=EnemyAttackPattern.MultiHit,     hp=6,  atk=2, interval=1, exp=4,  appearBattle=10, hpPerLevel=2, healPerLevel=1, expPerLevel=1 },
         new EnemyDef { id=16, name="蟲戦車",   type=EnemyType.Rushing,  pattern=EnemyAttackPattern.MultiHit,     hp=10, atk=4, interval=1, exp=7,  appearBattle=19, hpPerLevel=3, healPerLevel=1, expPerLevel=2 },
 
-        // === C. 岩殻系（Armored）HP高い・小ダメ軽減 ===
-        new EnemyDef { id=4,  name="岩蟲",     type=EnemyType.Armored,  pattern=EnemyAttackPattern.Normal,       hp=7,  atk=2, interval=1, exp=3,  appearBattle=3,  hpPerLevel=3, healPerLevel=1, expPerLevel=1 },
-        new EnemyDef { id=5,  name="棘殻",     type=EnemyType.Armored,  pattern=EnemyAttackPattern.Normal,       hp=10, atk=3, interval=1, exp=5,  appearBattle=9,  hpPerLevel=3, healPerLevel=1, expPerLevel=1 },
+        // === C. 岩殻系（Armored）===
+        new EnemyDef { id=4,  name="岩蟲",     type=EnemyType.Armored,  pattern=EnemyAttackPattern.Normal,       hp=7,  atk=2, interval=2, exp=3,  appearBattle=3,  hpPerLevel=3, healPerLevel=1, expPerLevel=1 },
+        new EnemyDef { id=5,  name="棘殻",     type=EnemyType.Armored,  pattern=EnemyAttackPattern.Normal,       hp=10, atk=3, interval=2, exp=5,  appearBattle=9,  hpPerLevel=3, healPerLevel=1, expPerLevel=1 },
         new EnemyDef { id=7,  name="結晶獣",   type=EnemyType.Armored,  pattern=EnemyAttackPattern.HeavyHit,     hp=16, atk=4, interval=1, exp=8,  appearBattle=17, hpPerLevel=4, healPerLevel=2, expPerLevel=2 },
 
-        // === D. 多脚系（MultiHit）ATK控えめ×2回 ===
-        new EnemyDef { id=8,  name="蔓脚蟲",   type=EnemyType.Normal,   pattern=EnemyAttackPattern.MultiHit,     hp=5,  atk=2, interval=1, exp=3,  appearBattle=4,  hpPerLevel=2, healPerLevel=1, expPerLevel=1 },
-        new EnemyDef { id=9,  name="蠕蟲",     type=EnemyType.Normal,   pattern=EnemyAttackPattern.MultiHit,     hp=8,  atk=3, interval=1, exp=5,  appearBattle=12, hpPerLevel=3, healPerLevel=1, expPerLevel=1 },
+        // === D. 多脚系 ===
+        new EnemyDef { id=8,  name="蔓脚蟲",   type=EnemyType.Normal,   pattern=EnemyAttackPattern.MultiHit,     hp=5,  atk=2, interval=2, exp=3,  appearBattle=4,  hpPerLevel=2, healPerLevel=1, expPerLevel=1 },
+        new EnemyDef { id=9,  name="蠕蟲",     type=EnemyType.Normal,   pattern=EnemyAttackPattern.MultiHit,     hp=8,  atk=3, interval=2, exp=5,  appearBattle=12, hpPerLevel=3, healPerLevel=1, expPerLevel=1 },
 
-        // === E. 毛獣系 正統派アタッカー ===
-        new EnemyDef { id=10, name="毛獣",     type=EnemyType.Normal,   pattern=EnemyAttackPattern.Normal,       hp=5,  atk=2, interval=1, exp=2,  appearBattle=2,  hpPerLevel=2, healPerLevel=1, expPerLevel=1 },
+        // === E. 毛獣系 ===
+        new EnemyDef { id=10, name="毛獣",     type=EnemyType.Normal,   pattern=EnemyAttackPattern.Normal,       hp=5,  atk=2, interval=2, exp=2,  appearBattle=2,  hpPerLevel=2, healPerLevel=1, expPerLevel=1 },
         new EnemyDef { id=21, name="重牙獣",   type=EnemyType.Normal,   pattern=EnemyAttackPattern.HeavyHit,     hp=12, atk=4, interval=1, exp=6,  appearBattle=13, hpPerLevel=3, healPerLevel=1, expPerLevel=2 },
-        new EnemyDef { id=22, name="暗雲獣",   type=EnemyType.Normal,   pattern=EnemyAttackPattern.PanelCorrupt, hp=15, atk=5, interval=1, exp=7,  appearBattle=20, hpPerLevel=4, healPerLevel=2, expPerLevel=2 },
+        new EnemyDef { id=22, name="暗雲獣",   type=EnemyType.Normal,   pattern=EnemyAttackPattern.PanelCorrupt, hp=15, atk=5, interval=2, exp=7,  appearBattle=20, hpPerLevel=4, healPerLevel=2, expPerLevel=2 },
 
-        // === F. 苔系（SelfBuff）ATK低め→回復量=ATK×2 ===
-        new EnemyDef { id=11, name="苔玉",     type=EnemyType.Normal,   pattern=EnemyAttackPattern.SelfBuff,     hp=5,  atk=2, interval=1, exp=2,  appearBattle=5,  hpPerLevel=2, healPerLevel=1, expPerLevel=1 },
-        new EnemyDef { id=19, name="苔塊",     type=EnemyType.Normal,   pattern=EnemyAttackPattern.SelfBuff,     hp=9,  atk=3, interval=1, exp=4,  appearBattle=11, hpPerLevel=3, healPerLevel=2, expPerLevel=1 },
-        new EnemyDef { id=20, name="暗苔塊",   type=EnemyType.Armored,  pattern=EnemyAttackPattern.SelfBuff,     hp=14, atk=4, interval=1, exp=7,  appearBattle=18, hpPerLevel=4, healPerLevel=2, expPerLevel=2 },
+        // === F. 苔系 ===
+        new EnemyDef { id=11, name="苔玉",     type=EnemyType.Normal,   pattern=EnemyAttackPattern.SelfBuff,     hp=5,  atk=2, interval=2, exp=2,  appearBattle=5,  hpPerLevel=2, healPerLevel=1, expPerLevel=1 },
+        new EnemyDef { id=19, name="苔塊",     type=EnemyType.Normal,   pattern=EnemyAttackPattern.SelfBuff,     hp=9,  atk=3, interval=2, exp=4,  appearBattle=11, hpPerLevel=3, healPerLevel=2, expPerLevel=1 },
+        new EnemyDef { id=20, name="暗苔塊",   type=EnemyType.Armored,  pattern=EnemyAttackPattern.SelfBuff,     hp=14, atk=4, interval=2, exp=7,  appearBattle=18, hpPerLevel=4, healPerLevel=2, expPerLevel=2 },
 
-        // === G. 幽体系（Floating）浮遊＋嫌がらせ ===
-        new EnemyDef { id=12, name="幽体蟲",   type=EnemyType.Floating, pattern=EnemyAttackPattern.Normal,       hp=6,  atk=2, interval=1, exp=3,  appearBattle=6,  hpPerLevel=2, healPerLevel=1, expPerLevel=1 },
-        new EnemyDef { id=13, name="雷光水母", type=EnemyType.Floating, pattern=EnemyAttackPattern.PanelCorrupt, hp=10, atk=4, interval=1, exp=6,  appearBattle=14, hpPerLevel=3, healPerLevel=1, expPerLevel=2 },
+        // === G. 幽体系 ===
+        new EnemyDef { id=12, name="幽体蟲",   type=EnemyType.Floating, pattern=EnemyAttackPattern.Normal,       hp=6,  atk=2, interval=2, exp=3,  appearBattle=6,  hpPerLevel=2, healPerLevel=1, expPerLevel=1 },
+        new EnemyDef { id=13, name="雷光水母", type=EnemyType.Floating, pattern=EnemyAttackPattern.PanelCorrupt, hp=10, atk=4, interval=2, exp=6,  appearBattle=14, hpPerLevel=3, healPerLevel=1, expPerLevel=2 },
 
-        // === H. 甲虫系 序盤バランス→装甲化→汚染専門 ===
-        new EnemyDef { id=14, name="甲蟲",     type=EnemyType.Normal,   pattern=EnemyAttackPattern.Normal,       hp=6,  atk=2, interval=1, exp=3,  appearBattle=5,  hpPerLevel=2, healPerLevel=1, expPerLevel=1 },
-        new EnemyDef { id=17, name="鉄甲蟲",   type=EnemyType.Armored,  pattern=EnemyAttackPattern.Normal,       hp=10, atk=3, interval=1, exp=5,  appearBattle=11, hpPerLevel=3, healPerLevel=1, expPerLevel=1 },
-        new EnemyDef { id=18, name="蟲巣",     type=EnemyType.Normal,   pattern=EnemyAttackPattern.PanelCorrupt, hp=12, atk=0, interval=1, exp=5,  appearBattle=20, hpPerLevel=3, healPerLevel=1, expPerLevel=2 },
+        // === H. 甲虫系 ===
+        new EnemyDef { id=14, name="甲蟲",     type=EnemyType.Normal,   pattern=EnemyAttackPattern.Normal,       hp=6,  atk=2, interval=2, exp=3,  appearBattle=5,  hpPerLevel=2, healPerLevel=1, expPerLevel=1 },
+        new EnemyDef { id=17, name="鉄甲蟲",   type=EnemyType.Armored,  pattern=EnemyAttackPattern.Normal,       hp=10, atk=3, interval=2, exp=5,  appearBattle=11, hpPerLevel=3, healPerLevel=1, expPerLevel=1 },
+        new EnemyDef { id=18, name="蟲巣",     type=EnemyType.Normal,   pattern=EnemyAttackPattern.PanelCorrupt, hp=12, atk=0, interval=2, exp=5,  appearBattle=20, hpPerLevel=3, healPerLevel=1, expPerLevel=2 },
 
-        // === I. 炎植物系（Ranged）高火力アタッカー ===
+        // === I. 炎植物系 ===
         new EnemyDef { id=23, name="焔蟲",     type=EnemyType.Ranged,   pattern=EnemyAttackPattern.Normal,       hp=8,  atk=5, interval=1, exp=6,  appearBattle=15, hpPerLevel=3, healPerLevel=1, expPerLevel=2 },
-        new EnemyDef { id=24, name="蝕炎草",   type=EnemyType.Ranged,   pattern=EnemyAttackPattern.PanelCorrupt, hp=12, atk=5, interval=1, exp=7,  appearBattle=21, hpPerLevel=3, healPerLevel=2, expPerLevel=2 },
+        new EnemyDef { id=24, name="蝕炎草",   type=EnemyType.Ranged,   pattern=EnemyAttackPattern.PanelCorrupt, hp=12, atk=5, interval=2, exp=7,  appearBattle=21, hpPerLevel=3, healPerLevel=2, expPerLevel=2 },
 
-        // === J. 棘獣系 進化で突撃→装甲に変化 ===
-        new EnemyDef { id=25, name="棘紫蟲",   type=EnemyType.Normal,   pattern=EnemyAttackPattern.Normal,       hp=7,  atk=3, interval=1, exp=4,  appearBattle=8,  hpPerLevel=2, healPerLevel=1, expPerLevel=1 },
-        new EnemyDef { id=26, name="大棘獣",   type=EnemyType.Normal,   pattern=EnemyAttackPattern.Normal,       hp=11, atk=4, interval=1, exp=5,  appearBattle=14, hpPerLevel=3, healPerLevel=1, expPerLevel=2 },
+        // === J. 棘獣系 ===
+        new EnemyDef { id=25, name="棘紫蟲",   type=EnemyType.Normal,   pattern=EnemyAttackPattern.Normal,       hp=7,  atk=3, interval=2, exp=4,  appearBattle=8,  hpPerLevel=2, healPerLevel=1, expPerLevel=1 },
+        new EnemyDef { id=26, name="大棘獣",   type=EnemyType.Normal,   pattern=EnemyAttackPattern.Normal,       hp=11, atk=4, interval=2, exp=5,  appearBattle=14, hpPerLevel=3, healPerLevel=1, expPerLevel=2 },
         new EnemyDef { id=29, name="蒼棘獣",   type=EnemyType.Rushing,  pattern=EnemyAttackPattern.MultiHit,     hp=9,  atk=4, interval=1, exp=7,  appearBattle=19, hpPerLevel=3, healPerLevel=1, expPerLevel=2 },
         new EnemyDef { id=30, name="翠棘獣",   type=EnemyType.Armored,  pattern=EnemyAttackPattern.HeavyHit,     hp=18, atk=5, interval=1, exp=8,  appearBattle=23, hpPerLevel=4, healPerLevel=2, expPerLevel=2 },
 
-        // === K. 丸獣〜王蟲系 大型ライン ===
-        new EnemyDef { id=27, name="巨苔獣",   type=EnemyType.Normal,   pattern=EnemyAttackPattern.SelfBuff,     hp=9,  atk=3, interval=1, exp=4,  appearBattle=8,  hpPerLevel=3, healPerLevel=2, expPerLevel=1 },
+        // === K. 丸獣〜王蟲系 ===
+        new EnemyDef { id=27, name="巨苔獣",   type=EnemyType.Normal,   pattern=EnemyAttackPattern.SelfBuff,     hp=9,  atk=3, interval=2, exp=4,  appearBattle=8,  hpPerLevel=3, healPerLevel=2, expPerLevel=1 },
         new EnemyDef { id=28, name="眼球蟲",   type=EnemyType.Ranged,   pattern=EnemyAttackPattern.Normal,       hp=7,  atk=5, interval=1, exp=6,  appearBattle=15, hpPerLevel=3, healPerLevel=1, expPerLevel=2 },
         new EnemyDef { id=31, name="暗殻獣",   type=EnemyType.Armored,  pattern=EnemyAttackPattern.HeavyHit,     hp=18, atk=5, interval=1, exp=8,  appearBattle=22, hpPerLevel=4, healPerLevel=2, expPerLevel=2 },
         new EnemyDef { id=32, name="赤眼獣",   type=EnemyType.Rushing,  pattern=EnemyAttackPattern.MultiHit,     hp=12, atk=5, interval=1, exp=9,  appearBattle=24, hpPerLevel=4, healPerLevel=2, expPerLevel=3 },
@@ -101,7 +98,10 @@ public static class EnemyDataGenerator
     };
 
     // =========================================================
-    // Tier 定義
+    // Tier 定義 — 中ボス用 Tier 追加
+    //   戦闘10 = 中ボス（中盤プール上位）
+    //   戦闘20 = 中ボス（終盤プール上位）
+    //   戦闘25 = ラスボス固定
     // =========================================================
 
     private struct TierDef
@@ -126,9 +126,37 @@ public static class EnemyDataGenerator
             enemyIds = new[] { 2, 5, 9, 15, 17, 19, 21, 25, 26, 27, 13 },
             weights  = new[] { 10, 10, 8, 8, 10, 8, 10, 10, 8, 8, 6 }
         },
+        // 戦闘10 = 中ボス（強めの敵を高確率で出す）
+        new TierDef
+        {
+            startBattle = 10, name = "中ボス1",
+            enemyIds = new[] { 21, 5, 13, 26 },
+            weights  = new[] { 30, 20, 25, 25 }
+        },
+        // 戦闘11で通常中盤に戻す
+        new TierDef
+        {
+            startBattle = 11, name = "中盤後半",
+            enemyIds = new[] { 2, 5, 9, 15, 17, 19, 21, 25, 26, 27, 13 },
+            weights  = new[] { 10, 10, 8, 8, 10, 8, 10, 10, 8, 8, 6 }
+        },
         new TierDef
         {
             startBattle = 16, name = "終盤",
+            enemyIds = new[] { 6, 7, 16, 18, 20, 22, 23, 24, 28, 29, 30, 31 },
+            weights  = new[] { 8, 8, 8, 6, 8, 8, 8, 6, 8, 8, 6, 6 }
+        },
+        // 戦闘20 = 中ボス2（終盤上位を高確率）
+        new TierDef
+        {
+            startBattle = 20, name = "中ボス2",
+            enemyIds = new[] { 31, 30, 22, 7 },
+            weights  = new[] { 30, 25, 25, 20 }
+        },
+        // 戦闘21で通常終盤に戻す
+        new TierDef
+        {
+            startBattle = 21, name = "終盤後半",
             enemyIds = new[] { 6, 7, 16, 18, 20, 22, 23, 24, 28, 29, 30, 31 },
             weights  = new[] { 8, 8, 8, 6, 8, 8, 8, 6, 8, 8, 6, 6 }
         },
@@ -140,10 +168,6 @@ public static class EnemyDataGenerator
         },
     };
 
-    // =========================================================
-    // メイン：これ1つで全部やる
-    // =========================================================
-
     [MenuItem("Tools/Battle/Generate All Enemy Data")]
     public static void GenerateAll()
     {
@@ -153,7 +177,6 @@ public static class EnemyDataGenerator
         Dictionary<int, BattleUnit> prefabMap = LoadAllEnemyPrefabs();
         Debug.Log($"[Generator] プレハブ {prefabMap.Count}体を検出 ({PrefabFolder})");
 
-        // --- EnemyStatData 生成 ---
         Dictionary<int, EnemyStatData> dataMap = new Dictionary<int, EnemyStatData>();
         for (int i = 0; i < AllEnemies.Length; i++)
         {
@@ -167,41 +190,29 @@ public static class EnemyDataGenerator
                 AssetDatabase.CreateAsset(data, assetPath);
             }
 
-            data.enemyId = def.id;
-            data.enemyName = def.name;
-            data.enemyType = def.type;
-            data.attackPattern = def.pattern;
-            data.baseHP = def.hp;
-            data.attackPower = def.atk;
-            data.attackInterval = def.interval;
-            data.expYield = def.exp;
-            data.hpPerLevel = def.hpPerLevel;
-            data.healPerLevel = def.healPerLevel;
+            data.enemyId = def.id; data.enemyName = def.name;
+            data.enemyType = def.type; data.attackPattern = def.pattern;
+            data.baseHP = def.hp; data.attackPower = def.atk;
+            data.attackInterval = def.interval; data.expYield = def.exp;
+            data.hpPerLevel = def.hpPerLevel; data.healPerLevel = def.healPerLevel;
             data.expPerLevel = def.expPerLevel;
 
             EditorUtility.SetDirty(data);
             dataMap[def.id] = data;
         }
 
-        // --- プレハブにステータス適用 ---
         int appliedCount = 0;
         foreach (EnemyDef def in AllEnemies)
         {
             if (!prefabMap.ContainsKey(def.id)) continue;
-
             BattleUnit unit = prefabMap[def.id];
-            unit.maxHP = def.hp;
-            unit.attackPower = def.atk;
-            unit.attackInterval = def.interval;
-            unit.expYield = def.exp;
-            unit.enemyType = def.type;
-            unit.attackPattern = def.pattern;
-
+            unit.maxHP = def.hp; unit.attackPower = def.atk;
+            unit.attackInterval = def.interval; unit.expYield = def.exp;
+            unit.enemyType = def.type; unit.attackPattern = def.pattern;
             EditorUtility.SetDirty(unit.gameObject);
             appliedCount++;
         }
 
-        // --- StageConfig 生成（プレハブ自動紐づけ）---
         StageConfig config = AssetDatabase.LoadAssetAtPath<StageConfig>(StageConfigPath);
         if (config == null)
         {
@@ -226,17 +237,7 @@ public static class EnemyDataGenerator
             {
                 int enemyId = tierDef.enemyIds[e];
                 BattleUnit prefab = prefabMap.ContainsKey(enemyId) ? prefabMap[enemyId] : null;
-
-                tier.entries.Add(new StageTierEntry
-                {
-                    enemyPrefab = prefab,
-                    weight = tierDef.weights[e]
-                });
-
-                if (prefab == null)
-                {
-                    Debug.LogWarning($"[Generator] Tier '{tierDef.name}' ID {enemyId:D3} のプレハブ未検出");
-                }
+                tier.entries.Add(new StageTierEntry { enemyPrefab = prefab, weight = tierDef.weights[e] });
             }
 
             config.tiers.Add(tier);
@@ -247,38 +248,24 @@ public static class EnemyDataGenerator
         AssetDatabase.Refresh();
 
         Debug.Log("========================================");
-        Debug.Log("[Generator] 全処理完了！");
-        Debug.Log($"  EnemyStatData  : {AllEnemies.Length}体");
-        Debug.Log($"  プレハブ適用   : {appliedCount}体");
-        Debug.Log($"  StageConfig    : 4 Tier（プレハブ紐づけ済み）");
-        Debug.Log($"  全敵 interval  : 1（毎ターン攻撃）");
+        Debug.Log($"[Generator] 完了！ {appliedCount}体適用 / {AllTiers.Length} Tier（中ボス含む）");
         Debug.Log("========================================");
     }
-
-    // =========================================================
-    // ユーティリティ
-    // =========================================================
 
     private static Dictionary<int, BattleUnit> LoadAllEnemyPrefabs()
     {
         Dictionary<int, BattleUnit> map = new Dictionary<int, BattleUnit>();
         if (!AssetDatabase.IsValidFolder(PrefabFolder)) return map;
-
         string[] guids = AssetDatabase.FindAssets("t:Prefab", new[] { PrefabFolder });
         foreach (string guid in guids)
         {
             string path = AssetDatabase.GUIDToAssetPath(guid);
             GameObject prefab = AssetDatabase.LoadAssetAtPath<GameObject>(path);
             if (prefab == null) continue;
-
             BattleUnit unit = prefab.GetComponent<BattleUnit>();
             if (unit == null) continue;
-
             int id = ExtractId(prefab.name);
-            if (id >= 1 && id <= 33 && !map.ContainsKey(id))
-            {
-                map[id] = unit;
-            }
+            if (id >= 1 && id <= 33 && !map.ContainsKey(id)) map[id] = unit;
         }
         return map;
     }
@@ -301,78 +288,48 @@ public static class EnemyDataGenerator
             AssetDatabase.CreateFolder(parent, child);
     }
 
-    // =========================================================
-    // 全敵プレハブに EnemyTweenPresenter を一括追加
-    // =========================================================
-
     [MenuItem("Tools/Battle/Add EnemyTweenPresenter to All Enemies")]
     public static void AddTweenPresenterToAll()
     {
         Dictionary<int, BattleUnit> prefabMap = LoadAllEnemyPrefabs();
-
-        int addedCount = 0;
-        int alreadyCount = 0;
+        int addedCount = 0, alreadyCount = 0;
 
         foreach (var kvp in prefabMap)
         {
             BattleUnit unit = kvp.Value;
             if (unit == null) continue;
+            if (unit.GetComponent<EnemyTweenPresenter>() != null) { alreadyCount++; continue; }
 
-            // 既に持っているかチェック
-            EnemyTweenPresenter existing = unit.GetComponent<EnemyTweenPresenter>();
-            if (existing != null)
-            {
-                alreadyCount++;
-                continue;
-            }
-
-            // プレハブを編集モードで開く
             string prefabPath = AssetDatabase.GetAssetPath(unit.gameObject);
             GameObject prefabRoot = PrefabUtility.LoadPrefabContents(prefabPath);
-
             if (prefabRoot == null) continue;
 
-            // EnemyTweenPresenter を追加
             EnemyTweenPresenter newPresenter = prefabRoot.AddComponent<EnemyTweenPresenter>();
-
-            // visualRoot を自動設定（UnitRoot を探す）
             Transform unitRoot = prefabRoot.transform.Find("UnitRoot");
             if (unitRoot != null)
             {
-                // SerializedObject 経由で private/serialized フィールドに書き込み
                 SerializedObject so = new SerializedObject(newPresenter);
-                SerializedProperty visualRootProp = so.FindProperty("visualRoot");
-                if (visualRootProp != null)
-                {
-                    visualRootProp.objectReferenceValue = unitRoot;
-                    so.ApplyModifiedProperties();
-                }
+                SerializedProperty prop = so.FindProperty("visualRoot");
+                if (prop != null) { prop.objectReferenceValue = unitRoot; so.ApplyModifiedProperties(); }
             }
 
-            // 保存
             PrefabUtility.SaveAsPrefabAsset(prefabRoot, prefabPath);
             PrefabUtility.UnloadPrefabContents(prefabRoot);
-
             addedCount++;
-            Debug.Log($"[TweenPresenter] 追加: {kvp.Key:D3} ({unit.name})");
         }
 
         AssetDatabase.SaveAssets();
-        AssetDatabase.Refresh();
-
-        Debug.Log("========================================");
-        Debug.Log($"[TweenPresenter] 完了！ 追加:{addedCount}体  既存:{alreadyCount}体");
-        Debug.Log("========================================");
+        Debug.Log($"[TweenPresenter] 追加:{addedCount}  既存:{alreadyCount}");
     }
 
     [MenuItem("Tools/Battle/Log All Enemy Stats")]
     public static void LogAllStats()
     {
-        Debug.Log("=== 全33体 ステータス（全員 interval=1）===");
+        Debug.Log("=== 全33体 ===");
         for (int i = 0; i < AllEnemies.Length; i++)
         {
             EnemyDef e = AllEnemies[i];
-            Debug.Log($"{e.id:D3} {e.name,-6} | {e.type,-9} | HP:{e.hp,2} ATK:{e.atk} EXP:{e.exp,2} | {e.pattern,-13} | 戦闘#{e.appearBattle}");
+            Debug.Log($"{e.id:D3} {e.name,-6} | {e.type,-9} | HP:{e.hp,2} ATK:{e.atk} INT:{e.interval} EXP:{e.exp,2} | {e.pattern,-13} | #{e.appearBattle}");
         }
     }
 }

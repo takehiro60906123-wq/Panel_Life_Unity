@@ -39,6 +39,9 @@ public class BattleUIController : MonoBehaviour
     private RectTransform activeDragVisualRect;
     private Canvas resolvedDragVisualCanvas;
 
+    [Header("階層UI")]
+    public TMP_Text floorText;
+
     private void Start()
     {
         if (pistolButton != null)
@@ -503,6 +506,14 @@ public class BattleUIController : MonoBehaviour
             {
                 encounterStepText.text = "";
             }
+        }
+    }
+
+    public void SetFloorText(int currentBattle, int totalBattles)
+    {
+        if (floorText != null)
+        {
+            floorText.text = $"{currentBattle}F / {totalBattles}F";
         }
     }
 }

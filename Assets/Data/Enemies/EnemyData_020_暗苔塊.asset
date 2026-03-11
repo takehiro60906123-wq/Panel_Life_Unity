@@ -18,7 +18,7 @@ MonoBehaviour:
   attackPattern: 5
   baseHP: 14
   attackPower: 4
-  attackInterval: 1
+  attackInterval: 2
   expYield: 7
   hpPerLevel: 4
   healPerLevel: 2

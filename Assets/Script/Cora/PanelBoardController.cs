@@ -475,21 +475,21 @@ public class PanelBoardController : MonoBehaviour
 
         return playerCombatController.GetMaxLink();
     }
+
+
     /// <summary>
-    /// 盤面のランダムな位置に指定タイプのパネルを強制配置する。
+    /// 盤面のランダムな位置にパネルを強制配置する（演出つき）。
     /// PanelCorrupt（盤面汚染）攻撃で使用。
     /// </summary>
     public int ForceSetRandomPanels(PanelType type, int count)
     {
         if (gridData == null || panelObjects == null) return 0;
 
-        // 空きではないマスの中からランダムに選ぶ（既存パネルを上書き）
         List<Vector2Int> candidates = new List<Vector2Int>();
         for (int r = 0; r < rows; r++)
         {
             for (int c = 0; c < cols; c++)
             {
-                // 既に同じタイプなら除外
                 if (gridData[r, c] == type) continue;
                 candidates.Add(new Vector2Int(r, c));
             }
@@ -497,7 +497,7 @@ public class PanelBoardController : MonoBehaviour
 
         if (candidates.Count == 0) return 0;
 
-        // シャッフルして先頭から count 個を汚染
+        // シャッフル
         for (int i = candidates.Count - 1; i > 0; i--)
         {
             int j = UnityEngine.Random.Range(0, i + 1);
@@ -511,7 +511,38 @@ public class PanelBoardController : MonoBehaviour
         {
             Vector2Int pos = candidates[i];
             gridData[pos.x, pos.y] = type;
-            UpdatePanelVisual(pos.x, pos.y);
+
+            // --- 変更演出 ---
+            GameObject panelObj = panelObjects[pos.x, pos.y];
+            if (panelObj != null)
+            {
+                Transform icon = panelObj.transform.Find("IconImage");
+                if (icon != null)
+                {
+                    Image img = icon.GetComponent<Image>();
+                    if (img != null)
+                    {
+                        img.sprite = GetSpriteForType(type);
+                    }
+
+                    // 演出：紫フラッシュ → 縮小 → 弾けて復帰
+                    icon.localScale = Vector3.one * 0.1f;
+
+                    Image bg = panelObj.GetComponent<Image>();
+                    Color originalBg = bg != null ? bg.color : Color.white;
+
+                    if (bg != null)
+                    {
+                        bg.color = new Color(0.7f, 0.2f, 0.8f, 0.8f);
+                        bg.DOColor(originalBg, 0.4f).SetDelay(0.15f * i);
+                    }
+
+                    icon.DOScale(Vector3.one, 0.35f)
+                        .SetDelay(0.15f * i)
+                        .SetEase(Ease.OutBack);
+                }
+            }
+
             placed++;
         }
 

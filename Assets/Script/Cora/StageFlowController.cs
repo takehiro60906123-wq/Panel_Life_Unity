@@ -29,6 +29,10 @@ public class StageFlowController : MonoBehaviour
     private readonly Queue<BattleUnit> upcomingEnemies = new Queue<BattleUnit>();
     private int spawnedEnemyCount = 0;
 
+    private int defeatedEnemyCount = 0;
+    public int DefeatedEnemyCount => defeatedEnemyCount;
+    public int TotalBattles => maxFloors;
+
     /// <summary>
     /// 現在の戦闘番号（1始まり）。Tier 判定に使用。
     /// </summary>
@@ -64,6 +68,7 @@ public class StageFlowController : MonoBehaviour
 
     public bool SetupInitialStage(out BattleUnit currentEnemy, out string errorMessage)
     {
+        defeatedEnemyCount = 0;
         currentEnemy = null;
         errorMessage = string.Empty;
 
@@ -245,7 +250,7 @@ public class StageFlowController : MonoBehaviour
         {
             return upcomingEnemies.Dequeue();
         }
-
+        defeatedEnemyCount++;
         return null;
     }
 

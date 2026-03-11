@@ -4,16 +4,8 @@ using TMPro;
 using DG.Tweening;
 
 /// <summary>
-/// 敵をタッチすると旧文明スキャナー風の情報パネルを表示する。
-/// 
-/// セットアップ：
-///   1. Canvas 直下に空の Panel を作成（ScannerPanel）
-///   2. ScannerPanel の中に以下の TMP テキストを配置：
-///      - nameText, typeText, statsText, patternText, adviceText
-///   3. ScannerPanel は初期状態で非表示にしておく
-///   4. このスクリプトを PanelBattleManager と同じ GameObject に付けるか、
-///      Canvas 上の任意の GameObject に付ける
-///   5. Inspector で各参照をセット
+/// 敵をタッチするとスキャナーパネルで情報表示。
+/// 敵の近くに「SCAN」ヒントが常時パルスして、タッチ可能であることを示す。
 /// </summary>
 public class EnemyScannerUI : MonoBehaviour
 {
@@ -34,6 +26,15 @@ public class EnemyScannerUI : MonoBehaviour
     [Header("スキャンライン（任意）")]
     [SerializeField] private RectTransform scanLineImage;
 
+    [Header("スキャンヒント")]
+    [Tooltip("敵の近くに表示される常時パルスするワールドスペースのオブジェクト。\n" +
+             "SpriteRenderer または Canvas+Text を持つ小さいプレハブ。\n" +
+             "なければスクリプトが自動で TextMesh を生成する。")]
+    [SerializeField] private GameObject scanHintPrefab;
+    [SerializeField] private Vector3 scanHintOffset = new Vector3(0f, 1.8f, 0f);
+    [SerializeField] private float scanHintPulseScale = 1.2f;
+    [SerializeField] private float scanHintPulseDuration = 0.8f;
+
     [Header("演出設定")]
     [SerializeField] private float openDuration = 0.25f;
     [SerializeField] private float closeDuration = 0.15f;
@@ -49,6 +50,8 @@ public class EnemyScannerUI : MonoBehaviour
 
     private bool isOpen;
     private BattleUnit currentTarget;
+    private GameObject scanHintInstance;
+    private BattleUnit lastTrackedEnemy;
 
     private void Awake()
     {
@@ -56,27 +59,110 @@ public class EnemyScannerUI : MonoBehaviour
         {
             scannerPanel.gameObject.SetActive(false);
         }
-
         isOpen = false;
     }
 
     private void Update()
     {
+        // --- スキャンヒントの追従 ---
+        UpdateScanHintPosition();
+
         if (!Input.GetMouseButtonDown(0)) return;
 
-        // パネルが開いている → 閉じる
         if (isOpen)
         {
             CloseScanner();
             return;
         }
 
-        // 敵をタップしたか判定
         BattleUnit tappedEnemy = DetectEnemyTap();
         if (tappedEnemy != null)
         {
             OpenScanner(tappedEnemy);
         }
+    }
+
+    // =============================================================
+    // スキャンヒント（常時表示）
+    // =============================================================
+
+    private void UpdateScanHintPosition()
+    {
+        BattleUnit enemy = GetCurrentEnemy();
+
+        // 敵が変わったらヒントを再生成
+        if (enemy != lastTrackedEnemy)
+        {
+            lastTrackedEnemy = enemy;
+            DestroyScanHint();
+
+            if (enemy != null && !enemy.IsDead())
+            {
+                CreateScanHint(enemy);
+            }
+        }
+
+        // ヒントを敵に追従
+        if (scanHintInstance != null && enemy != null && !enemy.IsDead())
+        {
+            scanHintInstance.transform.position = enemy.transform.position + scanHintOffset;
+        }
+
+        // 敵が死んだらヒントを消す
+        if (enemy != null && enemy.IsDead())
+        {
+            DestroyScanHint();
+        }
+    }
+
+    private void CreateScanHint(BattleUnit enemy)
+    {
+        if (scanHintPrefab != null)
+        {
+            scanHintInstance = Instantiate(scanHintPrefab, enemy.transform.position + scanHintOffset, Quaternion.identity);
+        }
+        else
+        {
+            // プレハブがなければ自動生成（TextMesh で "SCAN" 表示）
+            scanHintInstance = new GameObject("ScanHint");
+            scanHintInstance.transform.position = enemy.transform.position + scanHintOffset;
+
+            TextMesh tm = scanHintInstance.AddComponent<TextMesh>();
+            tm.text = "SCAN";
+            tm.fontSize = 28;
+            tm.characterSize = 0.12f;
+            tm.anchor = TextAnchor.MiddleCenter;
+            tm.alignment = TextAlignment.Center;
+            tm.color = new Color(0.4f, 0.9f, 1f, 0.8f);
+
+            MeshRenderer mr = scanHintInstance.GetComponent<MeshRenderer>();
+            if (mr != null) mr.sortingOrder = 100;
+        }
+
+        // パルスアニメーション
+        if (scanHintInstance != null)
+        {
+            scanHintInstance.transform.localScale = Vector3.one;
+            scanHintInstance.transform
+                .DOScale(Vector3.one * scanHintPulseScale, scanHintPulseDuration)
+                .SetEase(Ease.InOutSine)
+                .SetLoops(-1, LoopType.Yoyo);
+        }
+    }
+
+    private void DestroyScanHint()
+    {
+        if (scanHintInstance != null)
+        {
+            scanHintInstance.transform.DOKill();
+            Destroy(scanHintInstance);
+            scanHintInstance = null;
+        }
+    }
+
+    private void OnDestroy()
+    {
+        DestroyScanHint();
     }
 
     // =============================================================
@@ -92,7 +178,6 @@ public class EnemyScannerUI : MonoBehaviour
         Camera mainCam = Camera.main;
         if (mainCam == null) return null;
 
-        // 敵のスクリーン座標を取得
         Vector3 enemyWorldPos = enemyUnit.transform.position + Vector3.up * 0.75f;
         Renderer enemyRenderer = enemyUnit.GetComponentInChildren<Renderer>();
         if (enemyRenderer != null)
@@ -116,7 +201,6 @@ public class EnemyScannerUI : MonoBehaviour
         {
             return panelBattleManager.enemyUnit;
         }
-
         return null;
     }
 
@@ -126,49 +210,31 @@ public class EnemyScannerUI : MonoBehaviour
 
     private void OpenScanner(BattleUnit enemy)
     {
-        if (scannerPanel == null) return;
-        if (enemy == null) return;
+        if (scannerPanel == null || enemy == null) return;
 
         currentTarget = enemy;
         isOpen = true;
 
-        // テキスト設定
         SetScannerTexts(enemy);
 
-        // 表示
         scannerPanel.gameObject.SetActive(true);
-
-        // 演出：スケール＋フェードイン
         scannerPanel.localScale = new Vector3(1f, 0f, 1f);
 
-        if (scannerCanvasGroup != null)
-        {
-            scannerCanvasGroup.alpha = 0f;
-        }
+        if (scannerCanvasGroup != null) scannerCanvasGroup.alpha = 0f;
 
         Sequence seq = DOTween.Sequence();
-
         seq.Append(scannerPanel.DOScaleY(1f, openDuration).SetEase(Ease.OutBack));
 
         if (scannerCanvasGroup != null)
-        {
             seq.Join(scannerCanvasGroup.DOFade(1f, openDuration));
-        }
 
-        // スキャンライン演出
         if (scanLineImage != null)
         {
             scanLineImage.gameObject.SetActive(true);
-
             float panelHeight = scannerPanel.rect.height;
             scanLineImage.anchoredPosition = new Vector2(0, panelHeight * 0.5f);
-
             seq.Append(scanLineImage.DOAnchorPosY(-panelHeight * 0.5f, scanLineDuration).SetEase(Ease.Linear));
-            seq.AppendCallback(() =>
-            {
-                if (scanLineImage != null)
-                    scanLineImage.gameObject.SetActive(false);
-            });
+            seq.AppendCallback(() => { if (scanLineImage != null) scanLineImage.gameObject.SetActive(false); });
         }
     }
 
@@ -180,18 +246,10 @@ public class EnemyScannerUI : MonoBehaviour
         currentTarget = null;
 
         Sequence seq = DOTween.Sequence();
-
         if (scannerCanvasGroup != null)
-        {
             seq.Append(scannerCanvasGroup.DOFade(0f, closeDuration));
-        }
-
         seq.Join(scannerPanel.DOScaleY(0f, closeDuration).SetEase(Ease.InBack));
-        seq.OnComplete(() =>
-        {
-            if (scannerPanel != null)
-                scannerPanel.gameObject.SetActive(false);
-        });
+        seq.OnComplete(() => { if (scannerPanel != null) scannerPanel.gameObject.SetActive(false); });
     }
 
     // =============================================================
@@ -202,15 +260,13 @@ public class EnemyScannerUI : MonoBehaviour
     {
         if (enemy == null) return;
 
-        // --- 名前 ---
+        Color typeColor = GetTypeColor(enemy.enemyType);
+
         if (nameText != null)
         {
             string lvStr = enemy.enemyLevel > 0 ? $"  Lv+{enemy.enemyLevel}" : "";
             nameText.text = $"[ SCAN ] {enemy.name.Replace("(Clone)", "")}{lvStr}";
         }
-
-        // --- タイプ ---
-        Color typeColor = GetTypeColor(enemy.enemyType);
 
         if (typeText != null)
         {
@@ -218,19 +274,15 @@ public class EnemyScannerUI : MonoBehaviour
             typeText.color = typeColor;
         }
 
-        // --- ステータス ---
         if (statsText != null)
         {
-            statsText.text = $"HP {enemy.CurrentHP}/{enemy.maxHP}    ATK {enemy.attackPower}    EXP {enemy.expYield}";
+            string intervalStr = enemy.attackInterval <= 1 ? "EVERY TURN" : $"EVERY {enemy.attackInterval} TURNS";
+            statsText.text = $"HP {enemy.CurrentHP}/{enemy.maxHP}    ATK {enemy.attackPower}    {intervalStr}    EXP {enemy.expYield}";
         }
 
-        // --- 攻撃パターン ---
         if (patternText != null)
-        {
             patternText.text = GetPatternLabel(enemy.attackPattern, enemy.attackPower);
-        }
 
-        // --- 攻略アドバイス ---
         if (adviceText != null)
         {
             adviceText.text = GetAdviceText(enemy.enemyType, enemy.attackPattern);
@@ -238,19 +290,15 @@ public class EnemyScannerUI : MonoBehaviour
         }
     }
 
-    // =============================================================
-    // タイプ関連テキスト
-    // =============================================================
-
     private string GetTypeLabel(EnemyType type)
     {
         switch (type)
         {
             case EnemyType.Floating: return "TYPE: FLOATING";
-            case EnemyType.Armored:  return "TYPE: ARMORED";
-            case EnemyType.Rushing:  return "TYPE: RUSHING";
-            case EnemyType.Ranged:   return "TYPE: RANGED";
-            default:                 return "TYPE: NORMAL";
+            case EnemyType.Armored: return "TYPE: ARMORED";
+            case EnemyType.Rushing: return "TYPE: RUSHING";
+            case EnemyType.Ranged: return "TYPE: RANGED";
+            default: return "TYPE: NORMAL";
         }
     }
 
@@ -259,43 +307,31 @@ public class EnemyScannerUI : MonoBehaviour
         switch (type)
         {
             case EnemyType.Floating: return floatingColor;
-            case EnemyType.Armored:  return armoredColor;
-            case EnemyType.Rushing:  return rushingColor;
-            case EnemyType.Ranged:   return rangedColor;
-            default:                 return normalColor;
+            case EnemyType.Armored: return armoredColor;
+            case EnemyType.Rushing: return rushingColor;
+            case EnemyType.Ranged: return rangedColor;
+            default: return normalColor;
         }
     }
-
-    // =============================================================
-    // 攻撃パターン説明
-    // =============================================================
 
     private string GetPatternLabel(EnemyAttackPattern pattern, int atk)
     {
         switch (pattern)
         {
             case EnemyAttackPattern.HeavyHit:
-                return $"攻撃: 重撃 — 1ターン溜め後 {atk * 2} ダメージ";
-
+                return $"SKILL: Heavy Hit — 1 turn charge, then {atk * 2} damage";
             case EnemyAttackPattern.MultiHit:
-                return $"攻撃: 連撃 — {atk} × 2回攻撃";
-
+                return $"SKILL: Multi Hit — {atk} x 2 strikes";
             case EnemyAttackPattern.SelfBuff:
-                return $"攻撃: {atk} — 時々自己回復 (+{atk * 2})";
-
+                return $"SKILL: Self Repair — sometimes heals +{atk * 2}";
             case EnemyAttackPattern.PanelCorrupt:
                 return atk > 0
-                    ? $"攻撃: {atk} + 盤面汚染"
-                    : "攻撃なし — 盤面汚染のみ";
-
+                    ? $"SKILL: Panel Corrupt — ATK {atk} + contaminates board"
+                    : "SKILL: Panel Corrupt — contaminates board only";
             default:
-                return $"攻撃: {atk}";
+                return $"ATK: {atk}";
         }
     }
-
-    // =============================================================
-    // 攻略アドバイス
-    // =============================================================
 
     private string GetAdviceText(EnemyType type, EnemyAttackPattern pattern)
     {
@@ -303,34 +339,21 @@ public class EnemyScannerUI : MonoBehaviour
         string patternAdvice = GetPatternAdvice(pattern);
 
         if (!string.IsNullOrEmpty(typeAdvice) && !string.IsNullOrEmpty(patternAdvice))
-        {
             return $"{typeAdvice}\n{patternAdvice}";
-        }
-
         if (!string.IsNullOrEmpty(typeAdvice)) return typeAdvice;
         if (!string.IsNullOrEmpty(patternAdvice)) return patternAdvice;
-
-        return "特記事項なし";
+        return "";
     }
 
     private string GetTypeAdvice(EnemyType type)
     {
         switch (type)
         {
-            case EnemyType.Floating:
-                return "> 近接攻撃が通りにくい。銃器の使用を推奨";
-
-            case EnemyType.Armored:
-                return "> 装甲により小ダメージを軽減。一撃の大きい攻撃が有効";
-
-            case EnemyType.Rushing:
-                return "> 攻撃頻度が高い。迎撃系の銃が有効";
-
-            case EnemyType.Ranged:
-                return "> 遠距離から攻撃。早期排除を推奨";
-
-            default:
-                return "";
+            case EnemyType.Floating: return "> Melee damage halved. Use guns.";
+            case EnemyType.Armored: return "> Reduces small damage. Use high single hits.";
+            case EnemyType.Rushing: return "> Attacks every turn. Prioritize elimination.";
+            case EnemyType.Ranged: return "> Ranged attacker. Eliminate quickly.";
+            default: return "";
         }
     }
 
@@ -338,20 +361,11 @@ public class EnemyScannerUI : MonoBehaviour
     {
         switch (pattern)
         {
-            case EnemyAttackPattern.HeavyHit:
-                return "> 溜め行動を確認したら銃で先に倒すことを推奨";
-
-            case EnemyAttackPattern.MultiHit:
-                return "> 被弾が多い。回復パネルの確保が重要";
-
-            case EnemyAttackPattern.SelfBuff:
-                return "> 放置すると回復される。火力で押すべし";
-
-            case EnemyAttackPattern.PanelCorrupt:
-                return "> 盤面にLvUpパネルを追加する。長引くと不利";
-
-            default:
-                return "";
+            case EnemyAttackPattern.HeavyHit: return "> Kill during charge turn for safety.";
+            case EnemyAttackPattern.MultiHit: return "> Multiple hits per turn. Keep HP high.";
+            case EnemyAttackPattern.SelfBuff: return "> Heals if left alone. Push damage fast.";
+            case EnemyAttackPattern.PanelCorrupt: return "> Corrupts board with LvUp panels.";
+            default: return "";
         }
     }
 }
