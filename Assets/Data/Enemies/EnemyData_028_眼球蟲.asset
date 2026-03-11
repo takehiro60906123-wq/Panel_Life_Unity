@@ -1,0 +1,26 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8ae713871deb9e649878533894c83e8d, type: 3}
+  m_Name: "EnemyData_028_\u773C\u7403\u87F2"
+  m_EditorClassIdentifier: 
+  enemyId: 28
+  enemyName: "\u773C\u7403\u87F2"
+  enemyType: 4
+  attackPattern: 0
+  baseHP: 7
+  attackPower: 5
+  attackInterval: 1
+  expYield: 6
+  hpPerLevel: 3
+  healPerLevel: 1
+  expPerLevel: 2
+  portrait: {fileID: 0}

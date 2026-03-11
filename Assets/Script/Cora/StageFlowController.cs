@@ -23,8 +23,16 @@ public class StageFlowController : MonoBehaviour
     private int maxVisibleEnemies;
     private List<BattleUnit> enemyPrefabs;
 
+    // --- Tier 対応 ---
+    private StageConfig stageConfig;
+
     private readonly Queue<BattleUnit> upcomingEnemies = new Queue<BattleUnit>();
     private int spawnedEnemyCount = 0;
+
+    /// <summary>
+    /// 現在の戦闘番号（1始まり）。Tier 判定に使用。
+    /// </summary>
+    public int CurrentBattleNumber => spawnedEnemyCount;
 
     public void Configure(
         Transform battlePositionValue,
@@ -38,6 +46,20 @@ public class StageFlowController : MonoBehaviour
         maxFloors = maxFloorsValue;
         maxVisibleEnemies = maxVisibleEnemiesValue;
         enemyPrefabs = enemyPrefabsValue;
+    }
+
+    /// <summary>
+    /// StageConfig を設定する。設定すると Tier ベースの敵選出が有効になる。
+    /// Configure() の後に呼ぶ。
+    /// </summary>
+    public void SetStageConfig(StageConfig config)
+    {
+        stageConfig = config;
+
+        if (stageConfig != null && stageConfig.totalBattles > 0)
+        {
+            maxFloors = stageConfig.totalBattles;
+        }
     }
 
     public bool SetupInitialStage(out BattleUnit currentEnemy, out string errorMessage)
@@ -90,9 +112,9 @@ public class StageFlowController : MonoBehaviour
     {
         if (!ValidateConfiguration(out _)) return;
         if (spawnedEnemyCount >= maxFloors) return;
-        if (enemyPrefabs == null || enemyPrefabs.Count == 0) return;
 
-        BattleUnit prefabToSpawn = enemyPrefabs[Random.Range(0, enemyPrefabs.Count)];
+        BattleUnit prefabToSpawn = PickEnemyPrefab();
+        if (prefabToSpawn == null) return;
 
         Vector3 spawnPos = anchorPosition + waitOffset;
 
@@ -147,9 +169,16 @@ public class StageFlowController : MonoBehaviour
     {
         errorMessage = string.Empty;
 
-        if (enemyPrefabs == null || enemyPrefabs.Count == 0)
+        // StageConfig がある場合はそちらの敵プールを使う
+        bool hasStageConfig = stageConfig != null
+            && stageConfig.tiers != null
+            && stageConfig.tiers.Count > 0;
+
+        bool hasLegacyPrefabs = enemyPrefabs != null && enemyPrefabs.Count > 0;
+
+        if (!hasStageConfig && !hasLegacyPrefabs)
         {
-            errorMessage = "enemyPrefabs が未設定です。敵プレハブを1体以上登録してください。";
+            errorMessage = "enemyPrefabs が未設定です。敵プレハブを1つ以上登録してください。";
             return false;
         }
 
@@ -171,15 +200,38 @@ public class StageFlowController : MonoBehaviour
     private void SpawnNextEnemyInternal()
     {
         if (spawnedEnemyCount >= maxFloors) return;
-        if (enemyPrefabs == null || enemyPrefabs.Count == 0) return;
         if (battlePosition == null) return;
 
-        BattleUnit prefabToSpawn = enemyPrefabs[Random.Range(0, enemyPrefabs.Count)];
+        BattleUnit prefabToSpawn = PickEnemyPrefab();
+        if (prefabToSpawn == null) return;
+
         Vector3 spawnPos = battlePosition.position + (waitOffset * spawnedEnemyCount);
 
         BattleUnit newEnemy = Instantiate(prefabToSpawn, spawnPos, Quaternion.identity);
         upcomingEnemies.Enqueue(newEnemy);
         spawnedEnemyCount++;
+    }
+
+    /// <summary>
+    /// StageConfig があれば Tier から選出、なければ従来のランダム。
+    /// </summary>
+    private BattleUnit PickEnemyPrefab()
+    {
+        // Tier ベース（StageConfig あり）
+        if (stageConfig != null && stageConfig.tiers != null && stageConfig.tiers.Count > 0)
+        {
+            int battleNumber = spawnedEnemyCount + 1;
+            BattleUnit picked = stageConfig.PickEnemyPrefab(battleNumber);
+            if (picked != null) return picked;
+        }
+
+        // フォールバック：従来のランダム選出
+        if (enemyPrefabs != null && enemyPrefabs.Count > 0)
+        {
+            return enemyPrefabs[Random.Range(0, enemyPrefabs.Count)];
+        }
+
+        return null;
     }
 
     public BattleUnit TakeNextEnemyOrSpawn(Vector3 anchorPosition)

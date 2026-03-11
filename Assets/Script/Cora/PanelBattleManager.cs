@@ -5,7 +5,7 @@ using UnityEngine.UI;
 using DG.Tweening;
 using TMPro;
 
-public enum PanelType { Sword, Magic, Coin, Heal, LvUp, Chick, Diamond, None }
+public enum PanelType { Sword, Magic, Coin, Heal, LvUp, Chick, Diamond, Monster, None }
 
 public enum EncounterType
 {
@@ -926,6 +926,7 @@ public class PanelBattleManager : MonoBehaviour
     public int maxFloors = 100;
     public int maxVisibleEnemies = 3;
     public List<BattleUnit> enemyPrefabs;
+    public StageConfig stageConfig;
 
     private CanvasGroup boardCanvasGroup;
     private EffectPoolManager effectPoolManager;

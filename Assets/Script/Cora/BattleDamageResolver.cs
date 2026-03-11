@@ -17,6 +17,10 @@ public class BattleDamageResolver : MonoBehaviour
     [SerializeField] private float hitEffectHeight = 0.5f;
     [SerializeField] private float expTextHeight = 1.0f;
 
+    [Header("敵タイプ補正")]
+    [Tooltip("装甲敵：この値以下のダメージを1軽減（最低0）")]
+    [SerializeField] private int armorThreshold = 2;
+
     private BattleEventHub battleEventHub;
     private BattleUnit playerUnit;
     private Func<BattleUnit> getEnemyUnit;
@@ -31,6 +35,18 @@ public class BattleDamageResolver : MonoBehaviour
     private PanelBattleManager panelBattleManager;
     [SerializeField] private float postDefeatRespawnDelay = 0.55f;
 
+    // --- 銃ダメージフラグ：銃攻撃前にtrueにセットされる ---
+    private bool nextDamageIsGun;
+
+    /// <summary>
+    /// 次のダメージが銃由来かどうかをセットする。
+    /// PanelBattleManager.ExecuteGunHit から呼ばれる。
+    /// DamageEnemy 内で参照後に自動リセット。
+    /// </summary>
+    public void SetNextDamageIsGun(bool value)
+    {
+        nextDamageIsGun = value;
+    }
 
     public void Initialize(
         BattleEventHub battleEventHub,
@@ -104,6 +120,10 @@ public class BattleDamageResolver : MonoBehaviour
         if (enemyUnit.IsDead()) return;
         if (getIsEnemySpawning != null && getIsEnemySpawning()) return;
 
+        // --- フラグ取得＆リセット ---
+        bool isGun = nextDamageIsGun;
+        nextDamageIsGun = false;
+
         bool isEvasion = UnityEngine.Random.Range(0, 100) < evasionRate;
         bool isCritical = UnityEngine.Random.Range(0, 100) < criticalRate;
         Vector3 enemyPos = enemyUnit.transform.position;
@@ -116,11 +136,34 @@ public class BattleDamageResolver : MonoBehaviour
 
         int finalDamage = isCritical ? baseDamage * criticalMultiplier : baseDamage;
 
+        // ==============================================
+        // 敵タイプ補正
+        // ==============================================
+        finalDamage = ApplyEnemyTypeModifier(finalDamage, enemyUnit, isGun);
+
         enemyUnit.TakeDamage(finalDamage);
         battleEventHub?.RaiseOneShotEffectRequested(hitEffectPrefab, enemyPos + Vector3.up * hitEffectHeight, hitEffectReturnDelay);
 
-        Color textColor = isCritical ? Color.yellow : Color.white;
-        string text = isCritical ? $"CRITICAL!\n{finalDamage}" : finalDamage.ToString();
+        // --- テキスト表示 ---
+        string text;
+        Color textColor;
+
+        if (finalDamage <= 0)
+        {
+            text = "GUARD";
+            textColor = Color.gray;
+        }
+        else if (isCritical)
+        {
+            text = $"CRITICAL!\n{finalDamage}";
+            textColor = Color.yellow;
+        }
+        else
+        {
+            text = finalDamage.ToString();
+            textColor = Color.white;
+        }
+
         battleEventHub?.RaiseDamageTextRequested(text, enemyPos + Vector3.up * damageTextHeight, textColor);
 
         if (!enemyUnit.IsDead())
@@ -130,6 +173,40 @@ public class BattleDamageResolver : MonoBehaviour
 
         HandleEnemyDefeat(enemyUnit);
     }
+
+    // ==============================================
+    // 敵タイプによるダメージ補正
+    // ==============================================
+
+    private int ApplyEnemyTypeModifier(int damage, BattleUnit enemyUnit, bool isGun)
+    {
+        if (enemyUnit == null) return damage;
+
+        EnemyType type = enemyUnit.enemyType;
+
+        switch (type)
+        {
+            case EnemyType.Floating:
+                // 浮遊敵：近接ダメージ半減（銃はそのまま）
+                if (!isGun)
+                {
+                    damage = Mathf.Max(1, damage / 2);
+                }
+                break;
+
+            case EnemyType.Armored:
+                // 装甲敵：小ダメージ（閾値以下）を1軽減
+                if (damage <= armorThreshold)
+                {
+                    damage = Mathf.Max(0, damage - 1);
+                }
+                break;
+        }
+
+        return damage;
+    }
+
+    // ==============================================
 
     private void HandleEnemyDefeat(BattleUnit defeatedEnemy)
     {

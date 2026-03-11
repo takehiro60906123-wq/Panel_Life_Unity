@@ -116,6 +116,10 @@ public class PanelActionController : MonoBehaviour
                 yield return StartCoroutine(FinishTurn());
                 break;
 
+            case PanelType.LvUp:
+                yield return StartCoroutine(PlayEnemyLevelUp(chainCount));
+                break;
+
             default:
                 yield return StartCoroutine(FinishTurn());
                 break;
@@ -267,6 +271,50 @@ public class PanelActionController : MonoBehaviour
 
         yield return StartCoroutine(FinishTurn());
     }
+
+    // =============================================================
+    // LvUp パネル → 敵レベルアップ
+    // =============================================================
+
+    private IEnumerator PlayEnemyLevelUp(int chainCount)
+    {
+        BattleUnit enemyUnit = getEnemyUnit != null ? getEnemyUnit() : null;
+
+        // 敵がいない or 死亡中 → 効果なしでターン終了
+        if (enemyUnit == null || enemyUnit.IsDead())
+        {
+            yield return StartCoroutine(FinishTurn());
+            yield break;
+        }
+
+        // 敵レベルアップ適用
+        BattleUnit.EnemyLevelUpResult result = enemyUnit.EnemyLevelUp(chainCount);
+
+        // --- 演出 ---
+        Vector3 enemyPos = enemyUnit.transform.position;
+
+        // 警告テキスト（赤系）
+        battleEventHub?.RaiseDamageTextRequested(
+            "LEVEL UP!",
+            enemyPos + Vector3.up * 2.0f,
+            new Color(1f, 0.3f, 0.3f));
+
+        yield return new WaitForSeconds(0.35f);
+
+        // ステータス変化テキスト（オレンジ系）
+        string statText = $"HP+{result.hpGained}  EXP+{result.expBonusGained}";
+        battleEventHub?.RaiseDamageTextRequested(
+            statText,
+            enemyPos + Vector3.up * 1.4f,
+            new Color(1f, 0.7f, 0.3f));
+
+        yield return new WaitForSeconds(0.45f);
+
+        // ターン消費して終了
+        yield return StartCoroutine(FinishTurn());
+    }
+
+    // =============================================================
 
     private IEnumerator FinishTurn()
     {

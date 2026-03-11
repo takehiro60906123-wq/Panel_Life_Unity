@@ -15,6 +15,16 @@ public class BattleUnit : MonoBehaviour
     [Header("報酬（敵専用）")]
     public int expYield = 2;
 
+    [Header("敵戦闘パラメータ")]
+    public int attackPower = 1;
+    public EnemyType enemyType = EnemyType.Normal;
+    public EnemyAttackPattern attackPattern = EnemyAttackPattern.Normal;
+    [HideInInspector] public bool isChargingHeavyHit;
+
+    [Header("モンスターパネル強化")]
+    [Tooltip("モンスターパネルで何段階強化されたか")]
+    public int enemyLevel = 0;
+
     [Header("レベルシステム（互換用）")]
     public int level = 1;
     public int currentExp = 0;
@@ -200,6 +210,52 @@ public class BattleUnit : MonoBehaviour
         SyncFromComponents();
         UpdateTurnUI();
     }
+
+    // =============================================================
+    // モンスターパネルによる敵レベルアップ
+    // =============================================================
+
+    public struct EnemyLevelUpResult
+    {
+        public int levelsGained;
+        public int hpGained;
+        public int healAmount;
+        public int expBonusGained;
+        public int newEnemyLevel;
+    }
+
+    /// <summary>
+    /// モンスターパネルによる敵レベルアップ。
+    /// chainCount = 消したモンスターパネルの連結数。
+    /// </summary>
+    public EnemyLevelUpResult EnemyLevelUp(int chainCount, int hpPerLevel = 2, int healPerLevel = 1, int expPerLevel = 1)
+    {
+        EnemyLevelUpResult result = new EnemyLevelUpResult();
+        if (chainCount <= 0) return result;
+
+        result.levelsGained = chainCount;
+        enemyLevel += chainCount;
+
+        int hpGain = chainCount * hpPerLevel;
+        maxHP += hpGain;
+        result.hpGained = hpGain;
+
+        int heal = chainCount * healPerLevel;
+        int hpBefore = currentHP;
+        currentHP = Mathf.Min(currentHP + heal, maxHP);
+        result.healAmount = currentHP - hpBefore;
+
+        int expBonus = chainCount * expPerLevel;
+        expYield += expBonus;
+        result.expBonusGained = expBonus;
+
+        result.newEnemyLevel = enemyLevel;
+
+        RefreshAll();
+        return result;
+    }
+
+    // =============================================================
 
     private void RefreshAll()
     {

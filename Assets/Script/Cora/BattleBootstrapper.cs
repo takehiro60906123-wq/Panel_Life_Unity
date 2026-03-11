@@ -109,10 +109,21 @@ public class BattleBootstrapper : MonoBehaviour
                 manager.maxVisibleEnemies,
                 manager.enemyPrefabs);
         }
+        if (manager.stageConfig != null)
+        {
+            manager.stageFlowController.SetStageConfig(manager.stageConfig);
+        }
 
         if (manager.battleTurnController != null)
         {
             manager.battleTurnController.Configure(0.5f, 0.2f, 0.5f, 0.25f);
+            manager.battleTurnController.OnPanelCorruptRequested = (count) =>
+            {
+                if (manager.panelBoardController != null)
+                {
+                    manager.panelBoardController.ForceSetRandomPanels(PanelType.LvUp, count);
+                }
+            };
         }
 
         if (manager.panelBoardController == null)

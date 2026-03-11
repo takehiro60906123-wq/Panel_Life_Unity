@@ -475,4 +475,46 @@ public class PanelBoardController : MonoBehaviour
 
         return playerCombatController.GetMaxLink();
     }
+    /// <summary>
+    /// 盤面のランダムな位置に指定タイプのパネルを強制配置する。
+    /// PanelCorrupt（盤面汚染）攻撃で使用。
+    /// </summary>
+    public int ForceSetRandomPanels(PanelType type, int count)
+    {
+        if (gridData == null || panelObjects == null) return 0;
+
+        // 空きではないマスの中からランダムに選ぶ（既存パネルを上書き）
+        List<Vector2Int> candidates = new List<Vector2Int>();
+        for (int r = 0; r < rows; r++)
+        {
+            for (int c = 0; c < cols; c++)
+            {
+                // 既に同じタイプなら除外
+                if (gridData[r, c] == type) continue;
+                candidates.Add(new Vector2Int(r, c));
+            }
+        }
+
+        if (candidates.Count == 0) return 0;
+
+        // シャッフルして先頭から count 個を汚染
+        for (int i = candidates.Count - 1; i > 0; i--)
+        {
+            int j = UnityEngine.Random.Range(0, i + 1);
+            Vector2Int temp = candidates[i];
+            candidates[i] = candidates[j];
+            candidates[j] = temp;
+        }
+
+        int placed = 0;
+        for (int i = 0; i < Mathf.Min(count, candidates.Count); i++)
+        {
+            Vector2Int pos = candidates[i];
+            gridData[pos.x, pos.y] = type;
+            UpdatePanelVisual(pos.x, pos.y);
+            placed++;
+        }
+
+        return placed;
+    }
 }
