@@ -262,8 +262,30 @@ public class EnemyTweenPresenter : MonoBehaviour
         Vector3 hitPos = baseLocalPos + new Vector3(-attackDirectionX * hitBackDistance, 0f, 0f);
 
         Sequence seq = DOTween.Sequence();
+
         seq.Append(visualRoot.DOLocalMove(hitPos, hitBackDuration).SetEase(Ease.OutQuad));
-        seq.Append(visualRoot.DOLocalMove(baseLocalPos, hitReturnDuration).SetEase(Ease.InQuad));
+
+        seq.Join(
+            visualRoot.DOShakePosition(
+                hitBackDuration + hitReturnDuration,
+                new Vector3(0.06f, 0.02f, 0f),
+                18,
+                90f,
+                false,
+                true
+            )
+        );
+
+        seq.Join(
+            visualRoot.DOPunchScale(
+                new Vector3(0.08f, 0.08f, 0f),
+                hitBackDuration + 0.02f,
+                6,
+                0.8f
+            )
+        );
+
+        seq.Append(visualRoot.DOLocalMove(baseLocalPos, hitReturnDuration).SetEase(Ease.OutQuad));
 
         FlashColor(hitFlashColor, hitFlashDuration);
     }

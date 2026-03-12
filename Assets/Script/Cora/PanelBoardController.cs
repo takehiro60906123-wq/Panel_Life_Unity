@@ -273,17 +273,6 @@ public class PanelBoardController : MonoBehaviour
     {
         if (chain == null || chain.Count == 0) return;
 
-        if (playerCombatController != null)
-        {
-            playerCombatController.AddGunGauge(chain.Count);
-            Debug.Log("GunGauge: " + playerCombatController.GetGunGauge());
-        }
-
-        if (battleUIController != null)
-        {
-            battleUIController.RefreshGunUI();
-        }
-
         foreach (Vector2Int pos in chain)
         {
             if (!IsInRange(pos.x, pos.y)) continue;

@@ -485,17 +485,14 @@ public class BattleUIController : MonoBehaviour
                 case EncounterType.Empty:
                     encounterLabelText.text = "平穏な部屋";
                     break;
-
                 case EncounterType.Treasure:
                     encounterLabelText.text = "宝物の部屋";
                     break;
-
                 case EncounterType.Shop:
                     encounterLabelText.text = "商店";
                     break;
-
                 default:
-                    encounterLabelText.text = "";
+                    encounterLabelText.text = "戦闘";
                     break;
             }
         }
@@ -515,11 +512,9 @@ public class BattleUIController : MonoBehaviour
         }
     }
 
-    public void SetFloorText(int currentBattle, int totalBattles)
+    public void SetFloorText(int currentFloor, int totalFloors)
     {
-        if (floorText != null)
-        {
-            floorText.text = $"{currentBattle}F / {totalBattles}F";
-        }
+        if (floorText == null) return;
+        floorText.text = $"{currentFloor}/{totalFloors}階";
     }
 }

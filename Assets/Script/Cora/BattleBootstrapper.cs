@@ -161,11 +161,12 @@ public class BattleBootstrapper : MonoBehaviour
             () => manager.encounterFlowController != null ? manager.encounterFlowController.EnemyRespawnRoutine() : null);
 
         manager.panelActionController.Initialize(
-            manager.battleEventHub,
-            manager.panelBoardController,
-            manager.playerUnit,
-            () => manager.enemyUnit,
-            manager.EndPlayerTurn);
+    manager.battleEventHub,
+    manager.panelBoardController,
+    manager.playerUnit,
+    manager.PlayerCombatController,
+    () => manager.enemyUnit,
+    manager.EndPlayerTurn);
 
         manager.encounterFlowController.Initialize(
             manager.battleEventHub,

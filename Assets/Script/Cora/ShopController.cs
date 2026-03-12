@@ -33,6 +33,23 @@ public class ShopController : MonoBehaviour
     // 商店終了時コールバック
     private Action onShopClosed;
 
+    [SerializeField] private GunDefinition pistolDefinition;
+    [SerializeField] private GunDefinition machineGunDefinition;
+    [SerializeField] private GunDefinition shotgunDefinition;
+    [SerializeField] private GunDefinition rifleDefinition;
+
+    private GunDefinition GetGunDefinition(GunType gunType)
+    {
+        switch (gunType)
+        {
+            case GunType.Pistol: return pistolDefinition;
+            case GunType.MachineGun: return machineGunDefinition;
+            case GunType.Shotgun: return shotgunDefinition;
+            case GunType.Rifle: return rifleDefinition;
+            default: return null;
+        }
+    }
+
     private void Awake()
     {
         catalog = ShopItemData.CreateDefaultCatalog();
@@ -273,7 +290,15 @@ public class ShopController : MonoBehaviour
         if (playerCombatController == null) return;
         if (playerCombatController.loadout == null) return;
 
-        playerCombatController.loadout.gun = CreateGunData(item.gunType);
+        GunDefinition def = GetGunDefinition(item.gunType);
+        if (def != null)
+        {
+            playerCombatController.loadout.gun = def.ToGunData();
+        }
+        else
+        {
+            playerCombatController.loadout.gun = CreateGunData(item.gunType);
+        }
     }
 
     private void ApplyConsumablePurchase(ShopItemData item)

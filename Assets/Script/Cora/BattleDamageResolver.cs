@@ -195,10 +195,10 @@ public class BattleDamageResolver : MonoBehaviour
                 break;
 
             case EnemyType.Armored:
-                // 装甲敵：小ダメージ（閾値以下）を1軽減
+                // 装甲敵：小ダメージ（閾値以下）を1軽減。ただし最低1は通す
                 if (damage <= armorThreshold)
                 {
-                    damage = Mathf.Max(0, damage - 1);
+                    damage = Mathf.Max(1, damage - 1);
                 }
                 break;
         }

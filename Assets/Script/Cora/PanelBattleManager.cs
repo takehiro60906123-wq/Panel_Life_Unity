@@ -83,6 +83,7 @@ public class PanelBattleManager : MonoBehaviour
 
     [SerializeField] private PlayerCombatLoadout playerLoadout;
     [SerializeField] private PlayerCombatController playerCombatController;
+    public PlayerCombatController PlayerCombatController => playerCombatController;
 
     [Header("アイテム設定")]
     [SerializeField] private BattleInventoryController battleInventoryController;
@@ -615,7 +616,7 @@ public class PanelBattleManager : MonoBehaviour
     private IEnumerator FirePistolRoutine(GunData gun, BattleUnit target)
     {
         yield return StartCoroutine(
-            ExecuteGunRoutine(gun, target, gun.shotCount, 0.08f, "ピストル発射", 0.24f));
+            ExecuteGunRoutine(gun, target, gun.shotCount, 0.07f, $"{gun.gunName}発射", 0.22f));
     }
 
     private void SpawnPistolMuzzleFlash()
@@ -640,9 +641,20 @@ public class PanelBattleManager : MonoBehaviour
     public void UpdateFloorUI()
     {
         if (battleUIController == null || stageFlowController == null) return;
-        battleUIController.SetFloorText(
-            stageFlowController.DefeatedEnemyCount + 1,
-            stageFlowController.TotalBattles);
+
+        int totalFloors = stageFlowController.TotalBattles;
+
+        int currentFloor;
+        if (enemyUnit != null)
+        {
+            currentFloor = Mathf.Clamp(stageFlowController.DefeatedEnemyCount + 1, 1, totalFloors);
+        }
+        else
+        {
+            currentFloor = Mathf.Clamp(stageFlowController.DefeatedEnemyCount, 1, totalFloors);
+        }
+
+        battleUIController.SetFloorText(currentFloor, totalFloors);
     }
 
     private bool TryGetValidEnemyTarget(out BattleUnit target)
@@ -709,12 +721,12 @@ public class PanelBattleManager : MonoBehaviour
     }
 
     private IEnumerator ExecuteGunRoutine(
- GunData gun,
- BattleUnit target,
- int shotCount,
- float interval,
- string logMessage,
- float finishDelay)
+    GunData gun,
+    BattleUnit target,
+    int shotCount,
+    float interval,
+    string logMessage,
+    float finishDelay)
     {
         if (gun == null) yield break;
         if (target == null) yield break;
@@ -750,21 +762,38 @@ public class PanelBattleManager : MonoBehaviour
         if (target.IsDead()) return;
 
         SpawnPistolMuzzleFlash();
+        SpawnPistolHitEffect(target);
+
+        if (battleDamageResolver != null)
+        {
+            battleDamageResolver.SetNextDamageIsGun(true);
+        }
+
         battleEventHub?.RaiseEnemyDamageRequested(damage);
     }
 
-    private IEnumerator ExecuteRepeatedGunHitsRoutine(GunData gun, BattleUnit target, int shotCount, int damagePerShot, float interval)
+    private IEnumerator ExecuteRepeatedGunHitsRoutine(
+        GunData gun,
+        BattleUnit target,
+        int shotCount,
+        int damagePerShot,
+        float interval)
     {
-        for (int i = 0; i < shotCount; i++)
+        int safeShotCount = Mathf.Max(1, shotCount);
+        float safeInterval = Mathf.Max(0.01f, interval);
+
+        for (int i = 0; i < safeShotCount; i++)
         {
-            if (enemyUnit == null) break;
-            if (enemyUnit.IsDead()) break;
+            if (target == null || target.IsDead())
+            {
+                yield break;
+            }
 
             ExecuteGunHit(gun, target, damagePerShot);
 
-            if (i < shotCount - 1)
+            if (i < safeShotCount - 1)
             {
-                yield return new WaitForSeconds(interval);
+                yield return new WaitForSeconds(safeInterval);
             }
         }
     }
@@ -774,19 +803,21 @@ public class PanelBattleManager : MonoBehaviour
         gun = null;
         target = null;
 
+        if (!isPlayerTurn) return false;
         if (playerCombatController == null) return false;
 
         gun = playerCombatController.GetGunData();
         if (gun == null) return false;
 
-        if (requiredGunType.HasValue && gun.gunType != requiredGunType.Value) return false;
+        if (requiredGunType.HasValue && gun.gunType != requiredGunType.Value)
+        {
+            return false;
+        }
 
-        bool canUse = gun.gunType == GunType.MachineGun
-            ? playerCombatController.CanUseMachineGun()
-            : playerCombatController.CanUseGun();
-
-        if (!canUse) return false;
-        if (!TryGetValidEnemyTarget(out target)) return false;
+        if (!TryGetValidEnemyTarget(out target))
+        {
+            return false;
+        }
 
         return true;
     }
@@ -818,7 +849,7 @@ public class PanelBattleManager : MonoBehaviour
     private IEnumerator FireMachineGunRoutine(GunData gun, BattleUnit target, int shotCount)
     {
         yield return StartCoroutine(
-            ExecuteGunRoutine(gun, target, shotCount, 0.05f, $"マシンガン発射: {shotCount}連射", 0.08f));
+            ExecuteGunRoutine(gun, target, shotCount, 0.04f, $"{gun.gunName}発射: {shotCount}連射", 0.10f));
     }
 
 
@@ -832,6 +863,8 @@ public class PanelBattleManager : MonoBehaviour
             {
                 battleContext.CurrentEnemy = value;
             }
+
+            UpdateFloorUI();
         }
     }
 
@@ -1161,7 +1194,6 @@ public class PanelBattleManager : MonoBehaviour
             return;
         }
 
-        // 商店コントローラーの初期化
         InitializeShop();
 
         if (battleUIController != null)
@@ -1169,6 +1201,8 @@ public class PanelBattleManager : MonoBehaviour
             battleUIController.RefreshInventoryUI();
             battleUIController.RefreshGunUI();
         }
+
+        UpdateFloorUI();
     }
 
     private void OnDestroy()
@@ -1388,6 +1422,8 @@ public class PanelBattleManager : MonoBehaviour
         {
             enemyPresentationController.RefreshUpcomingEnemyStandbyVisuals(stageFlowController.GetUpcomingEnemies());
         }
+
+        UpdateFloorUI();
     }
 
     public void SetBoardInteractable(bool isInteractable)
@@ -1415,7 +1451,7 @@ public class PanelBattleManager : MonoBehaviour
     private IEnumerator FireShotgunRoutine(GunData gun, BattleUnit target)
     {
         yield return StartCoroutine(
-            ExecuteGunRoutine(gun, target, gun.shotCount, shotgunInterval, "ショットガン発射", 0.24f));
+            ExecuteGunRoutine(gun, target, gun.shotCount, shotgunInterval, $"{gun.gunName}発射", 0.24f));
     }
 
 
@@ -1432,7 +1468,7 @@ public class PanelBattleManager : MonoBehaviour
     private IEnumerator FireRifleRoutine(GunData gun, BattleUnit target)
     {
         yield return StartCoroutine(
-            ExecuteGunRoutine(gun, target, 1, 0f, "ライフル発射", rifleAfterDelay));
+            ExecuteGunRoutine(gun, target, gun.shotCount, 0.09f, $"{gun.gunName}発射", rifleAfterDelay));
     }
 
     private void TryDelayEnemyTurnByShotgun(BattleUnit target)

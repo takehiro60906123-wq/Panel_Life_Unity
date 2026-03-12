@@ -5,6 +5,9 @@ public class PlayerCombatController : MonoBehaviour
     [Header("Loadout")]
     public PlayerCombatLoadout loadout;
 
+    [Header("近接レベル補正")]
+    [SerializeField] private int levelAttackBonus = 0;
+
     private void Awake()
     {
         InitializeDefaultLoadout();
@@ -36,7 +39,7 @@ public class PlayerCombatController : MonoBehaviour
                 gunName = "ピストル",
                 gaugeCost = 3,
                 shotCount = 2,
-                damagePerShot = 2,       // 旧1 → 2 に上方修正
+                damagePerShot = 2,
                 useAllGauge = false,
                 minGaugeToFire = 3
             };
@@ -57,6 +60,22 @@ public class PlayerCombatController : MonoBehaviour
             return 1;
 
         return loadout.meleeWeapon.baseAttack;
+    }
+
+    public int GetLevelAttackBonus()
+    {
+        return Mathf.Max(0, levelAttackBonus);
+    }
+
+    public int GetMeleeAttack()
+    {
+        return Mathf.Max(2, GetBaseAttack() + 1 + GetLevelAttackBonus());
+    }
+
+    public void AddLevelAttackBonus(int amount)
+    {
+        if (amount <= 0) return;
+        levelAttackBonus += amount;
     }
 
     public int GetGunGauge()

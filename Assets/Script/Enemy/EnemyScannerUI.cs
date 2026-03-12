@@ -276,7 +276,10 @@ public class EnemyScannerUI : MonoBehaviour
 
         if (statsText != null)
         {
-            string intervalStr = enemy.attackInterval <= 1 ? "EVERY TURN" : $"EVERY {enemy.attackInterval} TURNS";
+            string intervalStr = enemy.attackInterval <= 1
+                ? "毎ターン攻撃"
+                : $"{enemy.attackInterval}ターンごとに攻撃";
+
             statsText.text = $"HP {enemy.CurrentHP}/{enemy.maxHP}    ATK {enemy.attackPower}    {intervalStr}    EXP {enemy.expYield}";
         }
 
@@ -289,16 +292,15 @@ public class EnemyScannerUI : MonoBehaviour
             adviceText.color = typeColor;
         }
     }
-
     private string GetTypeLabel(EnemyType type)
     {
         switch (type)
         {
-            case EnemyType.Floating: return "TYPE: FLOATING";
-            case EnemyType.Armored: return "TYPE: ARMORED";
-            case EnemyType.Rushing: return "TYPE: RUSHING";
-            case EnemyType.Ranged: return "TYPE: RANGED";
-            default: return "TYPE: NORMAL";
+            case EnemyType.Floating: return "種別: 浮遊";
+            case EnemyType.Armored: return "種別: 装甲";
+            case EnemyType.Rushing: return "種別: 突撃";
+            case EnemyType.Ranged: return "種別: 遠距離";
+            default: return "種別: 通常";
         }
     }
 
@@ -319,17 +321,17 @@ public class EnemyScannerUI : MonoBehaviour
         switch (pattern)
         {
             case EnemyAttackPattern.HeavyHit:
-                return $"SKILL: Heavy Hit — 1 turn charge, then {atk * 2} damage";
+                return $"行動: 重撃 — 1ターン溜め後に {atk * 2} ダメージ";
             case EnemyAttackPattern.MultiHit:
-                return $"SKILL: Multi Hit — {atk} x 2 strikes";
+                return $"行動: 連撃 — {atk} × 2 回攻撃";
             case EnemyAttackPattern.SelfBuff:
-                return $"SKILL: Self Repair — sometimes heals +{atk * 2}";
+                return $"行動: 自己修復 — ときどき {atk * 2} 回復";
             case EnemyAttackPattern.PanelCorrupt:
                 return atk > 0
-                    ? $"SKILL: Panel Corrupt — ATK {atk} + contaminates board"
-                    : "SKILL: Panel Corrupt — contaminates board only";
+                    ? $"行動: 盤面汚染 — {atk} ダメージ + LvUp化"
+                    : "行動: 盤面汚染 — 盤面をLvUp化";
             default:
-                return $"ATK: {atk}";
+                return $"攻撃力: {atk}";
         }
     }
 
@@ -349,10 +351,10 @@ public class EnemyScannerUI : MonoBehaviour
     {
         switch (type)
         {
-            case EnemyType.Floating: return "> Melee damage halved. Use guns.";
-            case EnemyType.Armored: return "> Reduces small damage. Use high single hits.";
-            case EnemyType.Rushing: return "> Attacks every turn. Prioritize elimination.";
-            case EnemyType.Ranged: return "> Ranged attacker. Eliminate quickly.";
+            case EnemyType.Floating: return "・近接ダメージ半減。銃で倒しやすい。";
+            case EnemyType.Armored: return "・小ダメージを軽減。高威力攻撃が有効。";
+            case EnemyType.Rushing: return "・毎ターン攻撃してくる。優先して倒したい。";
+            case EnemyType.Ranged: return "・後衛から高圧をかける。早めに処理したい。";
             default: return "";
         }
     }
@@ -361,10 +363,10 @@ public class EnemyScannerUI : MonoBehaviour
     {
         switch (pattern)
         {
-            case EnemyAttackPattern.HeavyHit: return "> Kill during charge turn for safety.";
-            case EnemyAttackPattern.MultiHit: return "> Multiple hits per turn. Keep HP high.";
-            case EnemyAttackPattern.SelfBuff: return "> Heals if left alone. Push damage fast.";
-            case EnemyAttackPattern.PanelCorrupt: return "> Corrupts board with LvUp panels.";
+            case EnemyAttackPattern.HeavyHit: return "・溜めターン中に倒せると安全。";
+            case EnemyAttackPattern.MultiHit: return "・1ターンに複数回攻撃。HP管理に注意。";
+            case EnemyAttackPattern.SelfBuff: return "・放置すると回復する。早めに押し切りたい。";
+            case EnemyAttackPattern.PanelCorrupt: return "・盤面をLvUpパネルで汚染してくる。";
             default: return "";
         }
     }

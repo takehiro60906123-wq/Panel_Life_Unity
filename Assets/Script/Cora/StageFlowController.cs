@@ -250,6 +250,9 @@ public class StageFlowController : MonoBehaviour
 
     public BattleUnit TakeNextEnemyOrSpawn(Vector3 anchorPosition)
     {
+        // ‚¢‚Ü“|‚µ‚½“G‚Ô‚ñAŠK‘w‚ğ1‚Âi‚ß‚é
+        defeatedEnemyCount++;
+
         if (upcomingEnemies.Count == 0 && spawnedEnemyCount < maxFloors)
         {
             SpawnNextEnemyAfter(anchorPosition);
@@ -259,7 +262,7 @@ public class StageFlowController : MonoBehaviour
         {
             return upcomingEnemies.Dequeue();
         }
-        defeatedEnemyCount++;
+
         return null;
     }
 

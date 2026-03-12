@@ -12,6 +12,8 @@ public class PanelActionController : MonoBehaviour
     private Func<BattleUnit> getEnemyUnit;
     private Func<IEnumerator> endPlayerTurnRoutine;
 
+    private PlayerCombatController playerCombatController;
+
     private bool isProcessing;
     [Header("ãﬂê⁄DoTweenââèo")]
     [SerializeField] private string playerMeleeVisualRootName = "PlayerVisual";
@@ -27,18 +29,28 @@ public class PanelActionController : MonoBehaviour
     [SerializeField] private float meleeComboInterval = 0.03f;
 
     public void Initialize(
-        BattleEventHub battleEventHub,
-        PanelBoardController panelBoardController,
-        BattleUnit playerUnit,
-        Func<BattleUnit> getEnemyUnit,
-        Func<IEnumerator> endPlayerTurnRoutine)
+       BattleEventHub battleEventHub,
+       PanelBoardController panelBoardController,
+       BattleUnit playerUnit,
+       PlayerCombatController playerCombatController,
+       Func<BattleUnit> getEnemyUnit,
+       Func<IEnumerator> endPlayerTurnRoutine)
     {
         this.battleEventHub = battleEventHub;
         this.panelBoardController = panelBoardController;
         this.playerUnit = playerUnit;
+        this.playerCombatController = playerCombatController;
         this.getEnemyUnit = getEnemyUnit;
         this.endPlayerTurnRoutine = endPlayerTurnRoutine;
         isProcessing = false;
+    }
+
+    private int GetCurrentMeleeDamage()
+    {
+        if (playerCombatController == null)
+            return 1;
+
+        return Mathf.Max(1, playerCombatController.GetMeleeAttack());
     }
 
     public void OnPanelClicked(int row, int col)
@@ -204,7 +216,7 @@ public class PanelActionController : MonoBehaviour
 
         yield return new WaitForSeconds(hitMoment);
 
-        battleEventHub?.RaiseEnemyDamageRequested(1);
+        battleEventHub?.RaiseEnemyDamageRequested(GetCurrentMeleeDamage());
 
         yield return new WaitForSeconds(Mathf.Max(0f, totalDuration - hitMoment));
 
