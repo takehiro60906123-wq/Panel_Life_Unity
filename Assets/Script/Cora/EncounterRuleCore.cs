@@ -5,19 +5,24 @@ public enum EncounterKind
     Enemy,
     Empty,
     Treasure,
+    Shop,
 }
 
 public sealed class EncounterRuleConfig
 {
-    public int EnemyWeight { get; set; } = 70;
-    public int EmptyWeight { get; set; } = 20;
+    public int EnemyWeight { get; set; } = 65;
+    public int EmptyWeight { get; set; } = 15;
     public int TreasureWeight { get; set; } = 10;
+    public int ShopWeight { get; set; } = 10;
 
     public int EmptyMinSteps { get; set; } = 2;
     public int EmptyMaxStepsInclusive { get; set; } = 4;
 
     public int TreasureMinSteps { get; set; } = 1;
     public int TreasureMaxStepsInclusive { get; set; } = 2;
+
+    // 商店は固定1ターン（買い物して立ち去る）
+    public int ShopSteps { get; set; } = 1;
 }
 
 public sealed class EncounterDecisionContext
@@ -65,7 +70,7 @@ public sealed class EncounterRuleCore
             };
         }
 
-        int totalWeight = config.EnemyWeight + config.EmptyWeight + config.TreasureWeight;
+        int totalWeight = config.EnemyWeight + config.EmptyWeight + config.TreasureWeight + config.ShopWeight;
         if (totalWeight <= 0)
         {
             throw new InvalidOperationException("遭遇テーブルの重み合計が 0 以下です。");
@@ -94,11 +99,23 @@ public sealed class EncounterRuleCore
             };
         }
 
+        roll -= config.EmptyWeight;
+        if (roll < config.TreasureWeight)
+        {
+            return new EncounterDecisionResult
+            {
+                IsStageClear = false,
+                Encounter = EncounterKind.Treasure,
+                Steps = random.Range(config.TreasureMinSteps, config.TreasureMaxStepsInclusive + 1),
+            };
+        }
+
+        // --- 商店 ---
         return new EncounterDecisionResult
         {
             IsStageClear = false,
-            Encounter = EncounterKind.Treasure,
-            Steps = random.Range(config.TreasureMinSteps, config.TreasureMaxStepsInclusive + 1),
+            Encounter = EncounterKind.Shop,
+            Steps = config.ShopSteps,
         };
     }
 }

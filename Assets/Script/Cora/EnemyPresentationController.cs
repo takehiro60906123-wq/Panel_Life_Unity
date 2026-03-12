@@ -8,10 +8,10 @@ public class EnemyPresentationController : MonoBehaviour
     private Ease roomTravelEase = Ease.Linear;
 
     [Header("登場演出設定")]
-    [SerializeField] private float entranceDropHeight = 0.5f;
-    [SerializeField] private float entranceBounceDuration = 0.4f;
-    [SerializeField] private float entranceScaleStart = 0.3f;
-    [SerializeField] private float entranceFlashDuration = 0.2f;
+    [SerializeField] private float entranceSlideDistance = 3.5f;
+    [SerializeField] private float entranceSlideDuration = 0.35f;
+    [SerializeField] private Ease entranceSlideEase = Ease.OutCubic;
+    [SerializeField] private float entranceFlashDuration = 0.15f;
     [SerializeField] private Color entranceFlashColor = new Color(1f, 1f, 0.8f, 1f);
 
     public void Configure(float enemyRevealDuration, Ease roomTravelEase)
@@ -39,46 +39,48 @@ public class EnemyPresentationController : MonoBehaviour
     {
         if (unit == null) return;
 
+        unit.transform.DOKill();
+
+        SpriteRenderer[] renderers = unit.GetComponentsInChildren<SpriteRenderer>(true);
+        foreach (SpriteRenderer sr in renderers)
+        {
+            if (sr == null) continue;
+            sr.DOKill();
+        }
+
         SetEnemyVisible(unit, true);
         unit.SetUIActive(true);
         RestoreEnemyColors(unit);
         SetEnemyAlpha(unit, 1f);
         unit.InitializeTurn();
 
-        // --- 登場演出 ---
         PlayEntranceAnimation(unit);
     }
 
-    /// <summary>
-    /// 敵登場演出：上から落下＋バウンス＋スケール膨張＋白フラッシュ
-    /// </summary>
     private void PlayEntranceAnimation(BattleUnit unit)
     {
         if (unit == null) return;
 
         Transform root = unit.transform;
 
-        // 開始位置（少し上）
         Vector3 targetPos = root.position;
-        root.position = targetPos + Vector3.up * entranceDropHeight;
+        Vector3 startPos = targetPos + Vector3.right * entranceSlideDistance;
+        Vector3 overPos = targetPos + Vector3.left * 0.12f;
 
-        // 開始スケール（小さい）
-        root.localScale = Vector3.one * entranceScaleStart;
+        root.position = startPos;
+        root.localScale = Vector3.one;
 
-        // ドロップ＋バウンス
-        root.DOMove(targetPos, entranceBounceDuration).SetEase(Ease.OutBounce);
+        Sequence seq = DOTween.Sequence();
+        seq.Append(root.DOMove(overPos, entranceSlideDuration * 0.8f).SetEase(Ease.OutCubic));
+        seq.Append(root.DOMove(targetPos, entranceSlideDuration * 0.2f).SetEase(Ease.OutQuad));
 
-        // スケール復帰（弾ける感じ）
-        root.DOScale(Vector3.one, entranceBounceDuration * 0.8f).SetEase(Ease.OutBack);
-
-        // 白フラッシュ
         SpriteRenderer[] renderers = unit.GetComponentsInChildren<SpriteRenderer>(true);
         foreach (SpriteRenderer sr in renderers)
         {
             if (sr == null) continue;
             Color original = sr.color;
             sr.color = entranceFlashColor;
-            sr.DOColor(original, entranceFlashDuration).SetDelay(entranceBounceDuration * 0.5f);
+            sr.DOColor(original, entranceFlashDuration);
         }
     }
 

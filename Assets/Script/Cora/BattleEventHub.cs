@@ -7,7 +7,18 @@ public class BattleEventHub : MonoBehaviour
     public event Action<int> CoinsGained;
     public event Action<int> EnemyDamageRequested;
     public event Action<Vector3, Vector3, float, float> EnergyOrbRequested;
-    public event Action MagicBulletRequested;
+
+    // ============================================
+    // 弾薬パネル収集イベント（旧 MagicBulletRequested を置換）
+    // panelCount = 消したAmmoパネルの枚数
+    // ============================================
+    public event Action<int> AmmoCollected;
+
+    // ============================================
+    // 攻撃パネル消去時のおやつゲージ加算イベント
+    // ============================================
+    public event Action SwordBonusGaugeRequested;
+
     public event Action<EncounterType, int> EncounterStateChanged;
     public event Action<bool, bool> DungeonMistRequested;
     public event Action<string, Vector3, Color> DamageTextRequested;
@@ -38,9 +49,22 @@ public class BattleEventHub : MonoBehaviour
         EnergyOrbRequested?.Invoke(startPos, targetPos, duration, delay);
     }
 
-    public void RaiseMagicBulletRequested()
+    /// <summary>
+    /// 弾薬パネル消去時に呼ぶ。panelCount = 消した枚数。
+    /// PanelBattleManager 側で枚数 × ammoGaugePerPanel を加算する。
+    /// </summary>
+    public void RaiseAmmoCollected(int panelCount)
     {
-        MagicBulletRequested?.Invoke();
+        AmmoCollected?.Invoke(panelCount);
+    }
+
+    /// <summary>
+    /// 攻撃パネル（Sword）消去時に呼ぶ。
+    /// PanelBattleManager 側で swordGaugeBonusPerAction (+1) を加算する。
+    /// </summary>
+    public void RaiseSwordBonusGaugeRequested()
+    {
+        SwordBonusGaugeRequested?.Invoke();
     }
 
     public void RaiseEncounterStateChanged(EncounterType encounterType, int remainingSteps)

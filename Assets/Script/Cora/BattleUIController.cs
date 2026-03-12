@@ -490,6 +490,10 @@ public class BattleUIController : MonoBehaviour
                     encounterLabelText.text = "宝物の部屋";
                     break;
 
+                case EncounterType.Shop:
+                    encounterLabelText.text = "商店";
+                    break;
+
                 default:
                     encounterLabelText.text = "";
                     break;
@@ -498,7 +502,9 @@ public class BattleUIController : MonoBehaviour
 
         if (encounterStepText != null)
         {
-            if (encounterType == EncounterType.Empty || encounterType == EncounterType.Treasure)
+            if (encounterType == EncounterType.Empty
+                || encounterType == EncounterType.Treasure
+                || encounterType == EncounterType.Shop)
             {
                 encounterStepText.text = $"あと {remainingSteps} ターン";
             }

@@ -34,6 +34,11 @@ public class EncounterFlowController : MonoBehaviour
     private Action<float, float> shiftUpcomingEnemies;
     private Action<Animator, bool> setMoveAnimation;
 
+    // ============================================
+    // 商店コントローラー参照
+    // ============================================
+    private ShopController shopController;
+
     public void Initialize(
         BattleEventHub battleEventHub,
         StageFlowController stageFlowController,
@@ -86,6 +91,15 @@ public class EncounterFlowController : MonoBehaviour
         this.hideAllUpcomingEnemies = hideAllUpcomingEnemies;
         this.shiftUpcomingEnemies = shiftUpcomingEnemies;
         this.setMoveAnimation = setMoveAnimation;
+    }
+
+    /// <summary>
+    /// ShopController を後から設定する。
+    /// BattleBootstrapper や PanelBattleManager から呼ぶ。
+    /// </summary>
+    public void SetShopController(ShopController controller)
+    {
+        shopController = controller;
     }
 
     private void PublishEncounterState(EncounterType encounterType, int steps)
@@ -197,7 +211,9 @@ public class EncounterFlowController : MonoBehaviour
 
         EncounterType currentEncounter = getCurrentEncounter != null ? getCurrentEncounter() : EncounterType.Enemy;
 
-        if (currentEncounter == EncounterType.Empty || currentEncounter == EncounterType.Treasure)
+        if (currentEncounter == EncounterType.Empty
+            || currentEncounter == EncounterType.Treasure
+            || currentEncounter == EncounterType.Shop)
         {
             if (getIsEnemyDefeatedThisTurn == null || !getIsEnemyDefeatedThisTurn())
             {
@@ -226,34 +242,15 @@ public class EncounterFlowController : MonoBehaviour
             yield break;
         }
 
-        if (getIsEnemyDefeatedThisTurn != null && getIsEnemyDefeatedThisTurn())
-        {
-            setIsEnemyDefeatedThisTurn?.Invoke(false);
-            yield break;
-        }
-
         yield return StartCoroutine(EnemyTurnRoutine());
     }
 
-    public IEnumerator EnemyTurnRoutine()
+    private IEnumerator EnemyTurnRoutine()
     {
+        RequestBoardInteractable(false);
+
         BattleUnit enemyUnit = getEnemyUnit != null ? getEnemyUnit() : null;
-
-        if (battleTurnController != null)
-        {
-            yield return battleTurnController.EnemyTurnRoutine(
-                enemyUnit,
-                playerUnit,
-                hitEffectPrefab,
-                RequestDamageText,
-                RequestOneShotEffect,
-                RequestPlayerDefeated,
-                RequestBoardInteractable);
-
-            yield break;
-        }
-
-        if (enemyUnit == null)
+        if (enemyUnit == null || enemyUnit.IsDead())
         {
             RequestBoardInteractable(true);
             yield break;
@@ -334,7 +331,9 @@ public class EncounterFlowController : MonoBehaviour
         EncounterType currentEncounter = getCurrentEncounter != null ? getCurrentEncounter() : EncounterType.Empty;
         int steps = getRemainingSteps != null ? getRemainingSteps() : 0;
 
-        if (currentEncounter == EncounterType.Empty || currentEncounter == EncounterType.Treasure)
+        if (currentEncounter == EncounterType.Empty
+            || currentEncounter == EncounterType.Treasure
+            || currentEncounter == EncounterType.Shop)
         {
             steps--;
             PublishEncounterState(currentEncounter, steps);
@@ -409,10 +408,18 @@ public class EncounterFlowController : MonoBehaviour
             PublishEncounterState(EncounterType.Empty, plan.steps);
             yield return StartCoroutine(EnterSafeRoomRoutine("平和な部屋だ", Color.white));
         }
-        else
+        else if (plan.encounterType == EncounterType.Treasure)
         {
             PublishEncounterState(EncounterType.Treasure, plan.steps);
             yield return StartCoroutine(EnterSafeRoomRoutine("宝箱の部屋だ！", Color.yellow));
+        }
+        // ============================================
+        // 商店部屋
+        // ============================================
+        else if (plan.encounterType == EncounterType.Shop)
+        {
+            PublishEncounterState(EncounterType.Shop, plan.steps);
+            yield return StartCoroutine(EnterShopRoutine());
         }
 
         setIsEnemySpawning?.Invoke(false);
@@ -452,12 +459,11 @@ public class EncounterFlowController : MonoBehaviour
 
         if (nextEnemy != null)
         {
-            revealWaitingEnemy?.Invoke(nextEnemy);
+            activateEnemyAsCurrent?.Invoke(nextEnemy);
             RequestDamageText("敵発見", nextEnemy.transform.position + Vector3.up * 1.5f, Color.red);
 
-            yield return new WaitForSeconds(enemyRevealDuration + 0.08f);
+            yield return new WaitForSeconds(0.4f);
 
-            activateEnemyAsCurrent?.Invoke(nextEnemy);
             RequestDamageText("戦闘開始", nextEnemy.transform.position + Vector3.up * 2.0f, Color.red);
 
             spawnNextEnemy?.Invoke();
@@ -475,6 +481,42 @@ public class EncounterFlowController : MonoBehaviour
         if (travelForwardRoutine != null)
         {
             yield return StartCoroutine(travelForwardRoutine());
+        }
+    }
+
+    // ============================================
+    // 商店部屋に入る
+    // ============================================
+    private IEnumerator EnterShopRoutine()
+    {
+        // 安全部屋と同じ移動演出
+        yield return StartCoroutine(EnterSafeRoomRoutine("商店を見つけた", new Color(1f, 0.85f, 0.3f)));
+
+        yield return new WaitForSeconds(0.3f);
+
+        // 商店UIを開く
+        if (shopController != null)
+        {
+            bool shopOpen = true;
+            shopController.OpenShop(() =>
+            {
+                shopOpen = false;
+            });
+
+            // 商店が閉じるまで待機（盤面操作はロック状態のまま）
+            while (shopOpen)
+            {
+                yield return null;
+            }
+
+            yield return new WaitForSeconds(0.2f);
+        }
+        else
+        {
+            // ShopController が未設定の場合はスキップ
+            Debug.LogWarning("ShopController が未設定です。商店をスキップします。");
+            RequestDamageText("（商店準備中…）", playerUnit.transform.position + Vector3.up * 1.5f, Color.gray);
+            yield return new WaitForSeconds(0.5f);
         }
     }
 }

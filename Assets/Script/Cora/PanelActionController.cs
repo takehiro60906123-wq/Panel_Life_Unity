@@ -54,12 +54,16 @@ public class PanelActionController : MonoBehaviour
 
         List<Vector2Int> chain = panelBoardController.FindChain(row, col, clickedType);
 
+        // 本来のパネル枚数（攻撃回数・ゲージ加算に使う）
+        int primaryCount = chain.Count;
+
+        // 武器パネルの巻き込みでLvUpが消えても、攻撃回数やゲージには加算しない
         if (clickedType == PanelType.Sword)
         {
             chain.AddRange(panelBoardController.GetAdjacentLevelPanels(chain));
         }
 
-        StartCoroutine(CollectEnergyAndAttack(clickedType, chain));
+        StartCoroutine(CollectEnergyAndAttack(clickedType, chain, primaryCount));
         panelBoardController.ClearChainPanels(chain);
 
         DOVirtual.DelayedCall(0.25f, () =>
@@ -71,7 +75,7 @@ public class PanelActionController : MonoBehaviour
         });
     }
 
-    private IEnumerator CollectEnergyAndAttack(PanelType type, List<Vector2Int> chain)
+    private IEnumerator CollectEnergyAndAttack(PanelType type, List<Vector2Int> chain, int primaryCount)
     {
         if (playerUnit == null || panelBoardController == null)
         {
@@ -91,7 +95,9 @@ public class PanelActionController : MonoBehaviour
         }
 
         yield return new WaitForSeconds(flyDuration + delay + 0.2f);
-        yield return ExecutePanelAction(type, chain.Count);
+
+        // primaryCount = 本来のパネル枚数（巻き込みLvUp分を含まない）
+        yield return ExecutePanelAction(type, primaryCount);
     }
 
     private IEnumerator ExecutePanelAction(PanelType type, int chainCount)
@@ -102,8 +108,12 @@ public class PanelActionController : MonoBehaviour
                 yield return StartCoroutine(PlayMeleeAttack(chainCount));
                 break;
 
-            case PanelType.Magic:
-                yield return StartCoroutine(PlayMagicAttack(chainCount));
+            // ============================================
+            // 旧 Magic → 弾薬パネル（Ammo）
+            // 攻撃演出なし。枚数を通知してゲージ加算。
+            // ============================================
+            case PanelType.Ammo:
+                yield return StartCoroutine(PlayAmmoCollect(chainCount));
                 break;
 
             case PanelType.Heal:
@@ -212,6 +222,10 @@ public class PanelActionController : MonoBehaviour
         if (enemyUnit == null || enemyUnit.IsDead())
         {
             yield return StartCoroutine(PlaySingleMeleeHitTween());
+
+            // おやつゲージ: 攻撃パネル消去ごとに+1
+            battleEventHub?.RaiseSwordBonusGaugeRequested();
+
             yield return StartCoroutine(FinishTurn());
             yield break;
         }
@@ -229,6 +243,9 @@ public class PanelActionController : MonoBehaviour
             }
         }
 
+        // おやつゲージ: 攻撃パネル消去ごとに+1（ヒット数ではなく1回の消去行動につき1）
+        battleEventHub?.RaiseSwordBonusGaugeRequested();
+
         BattleUnitView playerView = playerUnit != null ? playerUnit.GetComponent<BattleUnitView>() : null;
         if (playerView != null)
         {
@@ -238,36 +255,23 @@ public class PanelActionController : MonoBehaviour
         yield return StartCoroutine(FinishTurn());
     }
 
-    private IEnumerator PlayMagicAttack(int count)
+    // ============================================
+    // 弾薬パネル収集（旧 PlayMagicAttack を置換）
+    // 攻撃は行わず、枚数を通知してゲージ加算のみ。
+    // ============================================
+    private IEnumerator PlayAmmoCollect(int panelCount)
     {
-        BattleUnit enemyUnit = getEnemyUnit != null ? getEnemyUnit() : null;
-
-        if (enemyUnit == null || enemyUnit.IsDead())
+        if (panelCount <= 0)
         {
-            if (playerUnit != null && playerUnit.animator != null)
-            {
-                playerUnit.animator.Play("ATTACK", 0, 0f);
-            }
-
-            yield return new WaitForSeconds(0.4f);
             yield return StartCoroutine(FinishTurn());
             yield break;
         }
 
-        for (int i = 0; i < count; i++)
-        {
-            enemyUnit = getEnemyUnit != null ? getEnemyUnit() : null;
-            if (enemyUnit == null || enemyUnit.IsDead()) break;
+        // 弾薬収集イベント → PanelBattleManager が枚数 × ammoGaugePerPanel を加算
+        battleEventHub?.RaiseAmmoCollected(panelCount);
 
-            if (playerUnit != null && playerUnit.animator != null)
-            {
-                playerUnit.animator.Play("ATTACK", 0, 0f);
-            }
-
-            yield return new WaitForSeconds(0.08f);
-            battleEventHub?.RaiseMagicBulletRequested();
-            yield return new WaitForSeconds(0.12f);
-        }
+        // 収集の手応え用に短い待機（エネルギーオーブ演出が先行しているのでここは最小限）
+        yield return new WaitForSeconds(0.15f);
 
         yield return StartCoroutine(FinishTurn());
     }
@@ -280,7 +284,7 @@ public class PanelActionController : MonoBehaviour
     {
         BattleUnit enemyUnit = getEnemyUnit != null ? getEnemyUnit() : null;
 
-        // 敵がいない or 死亡中 → 効果なしでターン終了
+        // 敵がいない or 死亡済 → 効果なしでターン終了
         if (enemyUnit == null || enemyUnit.IsDead())
         {
             yield return StartCoroutine(FinishTurn());
@@ -310,7 +314,7 @@ public class PanelActionController : MonoBehaviour
 
         yield return new WaitForSeconds(0.45f);
 
-        // ターン消費して終了
+        // ターン処理で終了
         yield return StartCoroutine(FinishTurn());
     }
 

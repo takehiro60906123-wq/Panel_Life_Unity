@@ -5,13 +5,14 @@ using UnityEngine.UI;
 using DG.Tweening;
 using TMPro;
 
-public enum PanelType { Sword, Magic, Coin, Heal, LvUp, Chick, Diamond, Monster, None }
+public enum PanelType { Sword, Ammo, Coin, Heal, LvUp, Chick, Diamond, Monster, None }
 
 public enum EncounterType
 {
     Enemy,
     Empty,
-    Treasure
+    Treasure,
+    Shop
 }
 
 [System.Serializable]
@@ -59,6 +60,9 @@ public class PanelBattleManager : MonoBehaviour
 
     [Header("戦闘進行コントローラー")]
     public EncounterFlowController encounterFlowController;
+
+    [Header("商店コントローラー")]
+    public ShopController shopController;
 
     [Header("ダメージ解決コントローラー")]
     public BattleDamageResolver battleDamageResolver;
@@ -924,7 +928,6 @@ public class PanelBattleManager : MonoBehaviour
     public GameObject damageTextPrefab;
     public GameObject hitEffectPrefab;
     public GameObject pistolMuzzleFlashPrefab;
-    public GameObject magicBulletPrefab;
     public GameObject energyOrbPrefab;
     public GameObject absorbEffectPrefab;
     public GameObject levelUpEffectPrefab;
@@ -952,8 +955,18 @@ public class PanelBattleManager : MonoBehaviour
     [Header("銃の追加設定")]
     [SerializeField] private float shotgunInterval = 0.06f;
     [SerializeField] private float rifleAfterDelay = 0.30f;
-    [SerializeField] private int shotgunDangerBonusDamage = 1;
+    [SerializeField] private int shotgunDangerBonusDamage = 2;
     [SerializeField] private int shotgunDelayChance = 30;
+
+    // ============================================
+    // 弾薬パネルのゲージ供給量
+    // ============================================
+    [Header("弾薬パネル設定")]
+    [Tooltip("弾薬パネル1個あたりのゲージ供給量（主食）")]
+    [SerializeField] private int ammoGaugePerPanel = 2;
+
+    [Tooltip("攻撃パネル消去時のゲージ供給量（おやつ）")]
+    [SerializeField] private int swordGaugeBonusPerAction = 1;
 
     private void SubscribeBattleEvents()
     {
@@ -965,7 +978,8 @@ public class PanelBattleManager : MonoBehaviour
         battleEventHub.BoardInteractableRequested += HandleBoardInteractableRequested;
         battleEventHub.CoinsGained += HandleCoinsGained;
         battleEventHub.EnergyOrbRequested += HandleEnergyOrbRequested;
-        battleEventHub.MagicBulletRequested += HandleMagicBulletRequested;
+        battleEventHub.AmmoCollected += HandleAmmoCollected;
+        battleEventHub.SwordBonusGaugeRequested += HandleSwordBonusGauge;
         battleEventHub.EncounterStateChanged += HandleEncounterStateChanged;
         battleEventHub.DungeonMistRequested += HandleDungeonMistRequested;
         battleEventHub.DamageTextRequested += HandleDamageTextRequested;
@@ -989,7 +1003,8 @@ public class PanelBattleManager : MonoBehaviour
         battleEventHub.BoardInteractableRequested -= HandleBoardInteractableRequested;
         battleEventHub.CoinsGained -= HandleCoinsGained;
         battleEventHub.EnergyOrbRequested -= HandleEnergyOrbRequested;
-        battleEventHub.MagicBulletRequested -= HandleMagicBulletRequested;
+        battleEventHub.AmmoCollected -= HandleAmmoCollected;
+        battleEventHub.SwordBonusGaugeRequested -= HandleSwordBonusGauge;
         battleEventHub.EncounterStateChanged -= HandleEncounterStateChanged;
         battleEventHub.DungeonMistRequested -= HandleDungeonMistRequested;
         battleEventHub.DamageTextRequested -= HandleDamageTextRequested;
@@ -1018,9 +1033,36 @@ public class PanelBattleManager : MonoBehaviour
         SpawnEnergyOrb(startPos, target, duration, delay);
     }
 
-    private void HandleMagicBulletRequested()
+    // ============================================
+    // 弾薬パネル収集 → 銃ゲージ加算（主食: +2/枚）
+    // ============================================
+    private void HandleAmmoCollected(int panelCount)
     {
-        SpawnMagicBullet();
+        if (playerCombatController == null) return;
+        if (panelCount <= 0) return;
+
+        int gaugeGain = panelCount * ammoGaugePerPanel;
+        playerCombatController.AddGunGauge(gaugeGain);
+
+        if (battleUIController != null)
+        {
+            battleUIController.RefreshGunUI();
+        }
+    }
+
+    // ============================================
+    // 攻撃パネル消去 → 銃ゲージ微量加算（おやつ: +1/回）
+    // ============================================
+    private void HandleSwordBonusGauge()
+    {
+        if (playerCombatController == null) return;
+
+        playerCombatController.AddGunGauge(swordGaugeBonusPerAction);
+
+        if (battleUIController != null)
+        {
+            battleUIController.RefreshGunUI();
+        }
     }
 
     private void HandleEncounterStateChanged(EncounterType encounterType, int steps)
@@ -1119,6 +1161,9 @@ public class PanelBattleManager : MonoBehaviour
             return;
         }
 
+        // 商店コントローラーの初期化
+        InitializeShop();
+
         if (battleUIController != null)
         {
             battleUIController.RefreshInventoryUI();
@@ -1129,6 +1174,33 @@ public class PanelBattleManager : MonoBehaviour
     private void OnDestroy()
     {
         UnsubscribeBattleEvents();
+    }
+
+    // ============================================
+    // 商店の初期化
+    // ============================================
+    private void InitializeShop()
+    {
+        if (shopController == null) return;
+
+        shopController.Initialize(
+            playerCombatController,
+            battleInventoryController,
+            playerUnit,
+            battleUIController,
+            () => currentCoins,
+            (amount) => AddCoins(amount));
+
+        // EncounterFlowController に商店コントローラーを渡す
+        if (encounterFlowController != null)
+        {
+            encounterFlowController.SetShopController(shopController);
+        }
+    }
+
+    public int GetCurrentCoins()
+    {
+        return currentCoins;
     }
 
     public void SetEffectPoolManager(EffectPoolManager poolManager)
@@ -1256,23 +1328,6 @@ public class PanelBattleManager : MonoBehaviour
         {
             playerAnim.PlayIdle();
         }
-    }
-
-    public void SpawnMagicBullet()
-    {
-        if (battleEffectController == null) return;
-        if (magicBulletPrefab == null || enemyUnit == null || playerUnit == null) return;
-
-        Vector3 start = playerUnit.transform.position + new Vector3(0.5f, 0.5f, 0);
-        Vector3 target = enemyUnit.transform.position + Vector3.up * 0.5f;
-
-        battleEffectController.SpawnMagicBullet(magicBulletPrefab, start, target, () =>
-        {
-            if (!isEnemySpawning)
-            {
-                battleEventHub?.RaiseEnemyDamageRequested(1);
-            }
-        });
     }
 
     public void SpawnEnergyOrb(Vector3 startPos, Vector3 target, float duration, float delay)

@@ -149,20 +149,29 @@ public class StageFlowController : MonoBehaviour
             return new NextEncounterPlan(true, EncounterType.Enemy, 0);
         }
 
-        bool forceEnemy = previousEncounter == EncounterType.Empty || previousEncounter == EncounterType.Treasure;
+        bool forceEnemy =
+            previousEncounter == EncounterType.Empty ||
+            previousEncounter == EncounterType.Treasure ||
+            previousEncounter == EncounterType.Shop;
+
         int roll = forceEnemy ? 0 : Random.Range(0, 100);
 
-        if (forceEnemy || roll < 70)
+        if (forceEnemy || roll < 65)
         {
             return new NextEncounterPlan(false, EncounterType.Enemy, 0);
         }
 
-        if (roll < 90)
+        if (roll < 80)
         {
             return new NextEncounterPlan(false, EncounterType.Empty, 3);
         }
 
-        return new NextEncounterPlan(false, EncounterType.Treasure, 1);
+        if (roll < 90)
+        {
+            return new NextEncounterPlan(false, EncounterType.Treasure, 1);
+        }
+
+        return new NextEncounterPlan(false, EncounterType.Shop, 1);
     }
 
     private bool IsStageClear()

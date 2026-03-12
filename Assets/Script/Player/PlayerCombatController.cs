@@ -36,7 +36,7 @@ public class PlayerCombatController : MonoBehaviour
                 gunName = "ƒsƒXƒgƒ‹",
                 gaugeCost = 3,
                 shotCount = 2,
-                damagePerShot = 1,
+                damagePerShot = 2,       // ‹Œ1 ¨ 2 ‚Éã•ûC³
                 useAllGauge = false,
                 minGaugeToFire = 3
             };

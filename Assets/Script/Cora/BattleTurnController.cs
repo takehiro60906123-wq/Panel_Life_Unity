@@ -25,6 +25,16 @@ public class BattleTurnController : MonoBehaviour
         enemyIdleDelay = idleDelay;
     }
 
+    // ============================================
+    // 非戦闘エンカウンターかどうかの判定
+    // ============================================
+    private static bool IsSafeRoomEncounter(EncounterType encounter)
+    {
+        return encounter == EncounterType.Empty
+            || encounter == EncounterType.Treasure
+            || encounter == EncounterType.Shop;
+    }
+
     public IEnumerator EndPlayerTurnRoutine(
      EncounterType currentEncounter,
      Func<bool> isEnemySpawningFunc,
@@ -43,7 +53,7 @@ public class BattleTurnController : MonoBehaviour
             yield return null;
         }
 
-        if (currentEncounter == EncounterType.Empty || currentEncounter == EncounterType.Treasure)
+        if (IsSafeRoomEncounter(currentEncounter))
         {
             bool defeatedThisTurn = isEnemyDefeatedThisTurnFunc != null && isEnemyDefeatedThisTurnFunc();
 
@@ -270,7 +280,7 @@ public class BattleTurnController : MonoBehaviour
         Action<bool> setBoardInteractable,
         Func<IEnumerator> nextRoomRoutineFactory)
     {
-        if (currentEncounter != EncounterType.Empty && currentEncounter != EncounterType.Treasure)
+        if (!IsSafeRoomEncounter(currentEncounter))
         {
             return;
         }
