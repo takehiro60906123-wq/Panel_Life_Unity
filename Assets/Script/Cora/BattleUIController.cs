@@ -21,6 +21,24 @@ public class BattleUIController : MonoBehaviour
     [SerializeField] private Image[] ammoImages;
     [SerializeField] private TMP_Text ammoCountText;
 
+    private RectTransform activeDragVisualRect;
+
+    [Header("銃UI演出")]
+    [SerializeField] private float fullGaugePulseScale = 1.06f;
+    [SerializeField] private float fullGaugePulseDuration = 0.45f;
+    [SerializeField] private float readyPopScale = 1.14f;
+    [SerializeField] private float firePressScale = 0.9f;
+    [SerializeField] private float fireReturnDuration = 0.14f;
+    [SerializeField] private Color readyButtonColor = new Color(1f, 0.95f, 0.7f, 1f);
+
+    private Tween ammoCountPulseTween;
+    private Tween pistolButtonPulseTween;
+
+    private int lastGunGauge = -1;
+    private bool lastCanUseGun = false;
+    private Color cachedButtonBaseColor = Color.white;
+    private bool hasCachedButtonBaseColor = false;
+
     [Header("アイテムUI")]
     [SerializeField] private Button[] itemSlotButtons;
     [SerializeField] private TMP_Text[] itemSlotTexts;
@@ -36,7 +54,6 @@ public class BattleUIController : MonoBehaviour
     [SerializeField, Range(0.1f, 1f)] private float dragVisualAlpha = 0.9f;
 
     private Image activeDragVisual;
-    private RectTransform activeDragVisualRect;
     private Canvas resolvedDragVisualCanvas;
 
     [Header("階層UI")]
@@ -44,12 +61,19 @@ public class BattleUIController : MonoBehaviour
 
     [SerializeField] private Slider playerExpBar;
 
+    private Tween gunGaugePulseTween;
     private void Start()
     {
         if (pistolButton != null)
         {
             pistolButton.onClick.RemoveAllListeners();
             pistolButton.onClick.AddListener(OnClickPistol);
+
+            if (pistolButton.targetGraphic != null)
+            {
+                cachedButtonBaseColor = pistolButton.targetGraphic.color;
+                hasCachedButtonBaseColor = true;
+            }
         }
 
         BindItemSlotButtons();
@@ -99,11 +123,12 @@ public class BattleUIController : MonoBehaviour
 
         RefreshAmmoIcons(current, max);
 
+        bool canUse = false;
+
         if (pistolButton != null)
         {
             GunData gun = playerCombatController.GetGunData();
 
-            bool canUse = false;
             if (gun != null)
             {
                 switch (gun.gunType)
@@ -121,6 +146,108 @@ public class BattleUIController : MonoBehaviour
             }
 
             pistolButton.interactable = canUse;
+        }
+
+        UpdateGunReadyPulse(current, max);
+        PlayGunReadyAvailableFeedbackIfNeeded(canUse);
+        PlayGunGaugeDeltaFeedbackIfNeeded(current);
+
+        lastCanUseGun = canUse;
+        lastGunGauge = current;
+    }
+
+    private void PlayGunGaugeDeltaFeedbackIfNeeded(int current)
+    {
+        if (lastGunGauge < 0) return;
+        if (current <= lastGunGauge) return;
+
+        if (ammoCountText != null)
+        {
+            ammoCountText.transform.DOKill();
+            ammoCountText.transform.localScale = Vector3.one;
+            ammoCountText.transform.DOPunchScale(new Vector3(0.16f, 0.16f, 0f), 0.2f, 8, 0.85f);
+        }
+
+        if (gunGaugeText != null)
+        {
+            gunGaugeText.transform.DOKill();
+            gunGaugeText.transform.localScale = Vector3.one;
+            gunGaugeText.transform.DOPunchScale(new Vector3(0.12f, 0.12f, 0f), 0.18f, 8, 0.85f);
+        }
+    }
+
+    private void PlayGunReadyAvailableFeedbackIfNeeded(bool canUse)
+    {
+        if (lastGunGauge < 0) return;
+        if (lastCanUseGun || !canUse) return;
+
+        if (pistolButton != null)
+        {
+            RectTransform buttonRect = pistolButton.transform as RectTransform;
+            if (buttonRect != null)
+            {
+                buttonRect.DOKill();
+                buttonRect.localScale = Vector3.one;
+                buttonRect.DOPunchScale(new Vector3(0.18f, 0.18f, 0f), 0.25f, 8, 0.85f);
+            }
+
+            if (pistolButton.targetGraphic != null)
+            {
+                Color baseColor = hasCachedButtonBaseColor ? cachedButtonBaseColor : pistolButton.targetGraphic.color;
+                pistolButton.targetGraphic.DOKill();
+                pistolButton.targetGraphic.color = readyButtonColor;
+                pistolButton.targetGraphic.DOColor(baseColor, 0.22f);
+            }
+        }
+    }
+
+    private void UpdateGunReadyPulse(int current, int max)
+    {
+        bool isFull = current >= max;
+
+        if (isFull)
+        {
+            if (gunGaugeText != null && (gunGaugePulseTween == null || !gunGaugePulseTween.IsActive()))
+            {
+                gunGaugeText.transform.localScale = Vector3.one;
+                gunGaugePulseTween = gunGaugeText.transform
+                    .DOScale(Vector3.one * fullGaugePulseScale, fullGaugePulseDuration)
+                    .SetLoops(-1, LoopType.Yoyo)
+                    .SetEase(Ease.InOutSine);
+            }
+
+            if (ammoCountText != null && (ammoCountPulseTween == null || !ammoCountPulseTween.IsActive()))
+            {
+                ammoCountText.transform.localScale = Vector3.one;
+                ammoCountPulseTween = ammoCountText.transform
+                    .DOScale(Vector3.one * fullGaugePulseScale, fullGaugePulseDuration)
+                    .SetLoops(-1, LoopType.Yoyo)
+                    .SetEase(Ease.InOutSine);
+            }
+        }
+        else
+        {
+            if (gunGaugePulseTween != null)
+            {
+                gunGaugePulseTween.Kill();
+                gunGaugePulseTween = null;
+            }
+
+            if (ammoCountPulseTween != null)
+            {
+                ammoCountPulseTween.Kill();
+                ammoCountPulseTween = null;
+            }
+
+            if (gunGaugeText != null)
+            {
+                gunGaugeText.transform.localScale = Vector3.one;
+            }
+
+            if (ammoCountText != null)
+            {
+                ammoCountText.transform.localScale = Vector3.one;
+            }
         }
     }
 
@@ -230,6 +357,8 @@ public class BattleUIController : MonoBehaviour
         GunData gun = playerCombatController.GetGunData();
         if (gun == null) return;
 
+        PlayGunFireFeedback();
+
         switch (gun.gunType)
         {
             case GunType.Pistol:
@@ -249,6 +378,36 @@ public class BattleUIController : MonoBehaviour
                 break;
         }
     }
+    private void PlayGunFireFeedback()
+    {
+        if (pistolButton != null)
+        {
+            RectTransform buttonRect = pistolButton.transform as RectTransform;
+            if (buttonRect != null)
+            {
+                buttonRect.DOKill();
+                buttonRect.localScale = Vector3.one;
+
+                Sequence seq = DOTween.Sequence();
+                seq.Append(buttonRect.DOScale(Vector3.one * firePressScale, 0.05f).SetEase(Ease.OutQuad));
+                seq.Append(buttonRect.DOScale(Vector3.one, fireReturnDuration).SetEase(Ease.OutBack));
+                pistolButtonPulseTween = seq;
+            }
+        }
+
+        if (gunGaugeText != null)
+        {
+            gunGaugeText.transform.DOKill();
+            gunGaugeText.transform.DOPunchScale(new Vector3(0.08f, 0.08f, 0f), 0.16f, 8, 0.85f);
+        }
+
+        if (ammoCountText != null)
+        {
+            ammoCountText.transform.DOKill();
+            ammoCountText.transform.DOPunchScale(new Vector3(0.12f, 0.12f, 0f), 0.18f, 8, 0.85f);
+        }
+    }
+
 
     private void OnClickItemSlot(int slotIndex)
     {
@@ -596,5 +755,65 @@ public class BattleUIController : MonoBehaviour
         Debug.Log($"[BattleUIController] playerExpBar.value={playerExpBar.value}");
     }
 
+    private void KillGunUiTweens()
+    {
+        if (gunGaugePulseTween != null)
+        {
+            gunGaugePulseTween.Kill();
+            gunGaugePulseTween = null;
+        }
 
+        if (ammoCountPulseTween != null)
+        {
+            ammoCountPulseTween.Kill();
+            ammoCountPulseTween = null;
+        }
+
+        if (pistolButtonPulseTween != null)
+        {
+            pistolButtonPulseTween.Kill();
+            pistolButtonPulseTween = null;
+        }
+
+        if (gunGaugeText != null) gunGaugeText.transform.DOKill();
+        if (ammoCountText != null) ammoCountText.transform.DOKill();
+
+        if (pistolButton != null)
+        {
+            pistolButton.transform.DOKill();
+
+            if (pistolButton.targetGraphic != null)
+            {
+                pistolButton.targetGraphic.DOKill();
+            }
+        }
+    }
+    private void ResetGunUiVisualState()
+    {
+        if (gunGaugeText != null)
+        {
+            gunGaugeText.transform.localScale = Vector3.one;
+        }
+
+        if (ammoCountText != null)
+        {
+            ammoCountText.transform.localScale = Vector3.one;
+        }
+
+        if (pistolButton != null)
+        {
+            pistolButton.transform.localScale = Vector3.one;
+
+            if (pistolButton.targetGraphic != null && hasCachedButtonBaseColor)
+            {
+                pistolButton.targetGraphic.color = cachedButtonBaseColor;
+            }
+        }
+    }
+
+    private void OnDisable()
+    {
+        KillGunUiTweens();
+        ResetGunUiVisualState();
+    }
 }

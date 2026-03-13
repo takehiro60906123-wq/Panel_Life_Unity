@@ -65,7 +65,7 @@ public class EnemyScannerUI : MonoBehaviour
     private void Update()
     {
         // --- スキャンヒントの追従 ---
-        UpdateScanHintPosition();
+       // UpdateScanHintPosition();
 
         if (!Input.GetMouseButtonDown(0)) return;
 
@@ -119,35 +119,14 @@ public class EnemyScannerUI : MonoBehaviour
     {
         if (scanHintPrefab != null)
         {
-            scanHintInstance = Instantiate(scanHintPrefab, enemy.transform.position + scanHintOffset, Quaternion.identity);
-        }
-        else
-        {
-            // プレハブがなければ自動生成（TextMesh で "SCAN" 表示）
-            scanHintInstance = new GameObject("ScanHint");
-            scanHintInstance.transform.position = enemy.transform.position + scanHintOffset;
-
-            TextMesh tm = scanHintInstance.AddComponent<TextMesh>();
-            tm.text = "SCAN";
-            tm.fontSize = 28;
-            tm.characterSize = 0.12f;
-            tm.anchor = TextAnchor.MiddleCenter;
-            tm.alignment = TextAlignment.Center;
-            tm.color = new Color(0.4f, 0.9f, 1f, 0.8f);
-
-            MeshRenderer mr = scanHintInstance.GetComponent<MeshRenderer>();
-            if (mr != null) mr.sortingOrder = 100;
+            scanHintInstance = Instantiate(
+                scanHintPrefab,
+                enemy.transform.position + scanHintOffset,
+                Quaternion.identity
+            );
         }
 
-        // パルスアニメーション
-        if (scanHintInstance != null)
-        {
-            scanHintInstance.transform.localScale = Vector3.one;
-            scanHintInstance.transform
-                .DOScale(Vector3.one * scanHintPulseScale, scanHintPulseDuration)
-                .SetEase(Ease.InOutSine)
-                .SetLoops(-1, LoopType.Yoyo);
-        }
+        // プレハブが無い時の自動生成はしない
     }
 
     private void DestroyScanHint()

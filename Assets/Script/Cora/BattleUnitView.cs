@@ -115,6 +115,39 @@ public class BattleUnitView : MonoBehaviour
         }
     }
 
+    public void PlayHeavyDamaged(bool dead)
+    {
+        if (playerAnimationPresenter != null)
+        {
+            if (dead)
+            {
+                playerAnimationPresenter.PlaySpin();
+            }
+            else
+            {
+                playerAnimationPresenter.PlayHurt();
+            }
+
+            return;
+        }
+
+        if (tweenPresenter != null)
+        {
+            if (dead)
+            {
+                tweenPresenter.PlayDeathTween();
+            }
+            else
+            {
+                tweenPresenter.PlayHeavyHitTween();
+            }
+
+            return;
+        }
+
+        PlayDamaged(dead);
+    }
+
     // =============================================================
     // í èÌçUåÇÅiä˘ë∂Åj
     // =============================================================

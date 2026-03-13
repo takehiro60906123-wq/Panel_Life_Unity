@@ -571,11 +571,11 @@ MonoBehaviour:
   attackPunchRotation: 16
   attackFlashColor: {r: 1, g: 0.95, b: 0.8, a: 1}
   attackFlashDuration: 0.1
-  hitBackDistance: 0.12
-  hitBackDuration: 0.05
-  hitReturnDuration: 0.08
+  hitBackDistance: 0.16
+  hitBackDuration: 0.04
+  hitReturnDuration: 0.07
   hitFlashColor: {r: 1, g: 0.85, b: 0.85, a: 1}
-  hitFlashDuration: 0.12
+  hitFlashDuration: 0.08
   deathDropY: 0.18
   deathDuration: 0.3
   deathEndScale: 0.15

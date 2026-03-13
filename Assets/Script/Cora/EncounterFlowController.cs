@@ -362,7 +362,7 @@ public class EncounterFlowController : MonoBehaviour
         RequestBoardInteractable(false);
         setIsEnemySpawning?.Invoke(true);
 
-        yield return new WaitForSeconds(0.9f);
+        yield return new WaitForSeconds(0.05f);
 
         BattleUnit enemyUnit = getEnemyUnit != null ? getEnemyUnit() : null;
         if (enemyUnit != null && enemyUnit.IsDead())
@@ -446,26 +446,23 @@ public class EncounterFlowController : MonoBehaviour
 
         refreshUpcomingEnemyStandbyVisuals?.Invoke();
 
-        RequestDamageText("先へ走る…", playerUnit.transform.position + Vector3.up * 1.5f, Color.white);
-
         if (travelForwardRoutine != null)
         {
             yield return StartCoroutine(travelForwardRoutine());
         }
 
-        yield return new WaitForSeconds(0.12f);
+        yield return new WaitForSeconds(0.05f);
 
         setEnemyUnit?.Invoke(nextEnemy);
 
         if (nextEnemy != null)
         {
             activateEnemyAsCurrent?.Invoke(nextEnemy);
-            RequestDamageText("敵発見", nextEnemy.transform.position + Vector3.up * 1.5f, Color.red);
 
-            yield return new WaitForSeconds(0.4f);
+            // ここは1個だけで十分
+            RequestDamageText("敵発見", nextEnemy.transform.position + Vector3.up * 1.6f, Color.red);
 
-            RequestDamageText("戦闘開始", nextEnemy.transform.position + Vector3.up * 2.0f, Color.red);
-
+            // 次の待機敵はすぐ補充
             spawnNextEnemy?.Invoke();
         }
     }

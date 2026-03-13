@@ -30,6 +30,8 @@ public class PanelActionController : MonoBehaviour
     [SerializeField] private float meleePunchRotation = 10f;
     [SerializeField] private float meleeComboInterval = 0.03f;
 
+    [SerializeField] private float panelPreviewHoldDelay = 0.03f;
+
     public void Initialize(
        BattleEventHub battleEventHub,
        PanelBoardController panelBoardController,
@@ -93,10 +95,13 @@ public class PanelActionController : MonoBehaviour
             onAttachedItemsCollected?.Invoke(collectedItems);
         }
 
-        // ★ タップフィードバック（起点パネルのみ）
+        // 起点パネル反応
         panelBoardController.PlayTapFeedback(row, col);
 
-        // ★ 波紋消去 → エネルギーオーブ → アクション実行
+        // 連結全体の一瞬プレビュー
+        panelBoardController.PlayChainPreviewFeedback(chain, clickedType);
+
+        // 波紋消去 → エネルギーオーブ → アクション実行
         StartCoroutine(AnimatedClearThenAction(clickedType, chain, primaryCount));
     }
 
@@ -106,6 +111,11 @@ public class PanelActionController : MonoBehaviour
         {
             isProcessing = false;
             yield break;
+        }
+
+        if (panelPreviewHoldDelay > 0f)
+        {
+            yield return new WaitForSeconds(panelPreviewHoldDelay);
         }
 
         // エネルギーオーブ生成（パネル位置は消去開始前に取得）

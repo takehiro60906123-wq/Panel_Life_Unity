@@ -88,10 +88,27 @@ public class BattleUnit : MonoBehaviour
 
     public void TakeDamage(int damage)
     {
+        TakeDamage(damage, false);
+    }
+
+    public void TakeDamage(int damage, bool useHeavyReaction)
+    {
         if (damage <= 0) return;
 
         currentHP = Mathf.Max(0, currentHP - damage);
-        view.PlayDamaged(currentHP <= 0);
+
+        if (view != null)
+        {
+            if (useHeavyReaction)
+            {
+                view.PlayHeavyDamaged(currentHP <= 0);
+            }
+            else
+            {
+                view.PlayDamaged(currentHP <= 0);
+            }
+        }
+
         RefreshAll();
     }
 

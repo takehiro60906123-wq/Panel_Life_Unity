@@ -48,13 +48,21 @@ public class BattleEffectController : MonoBehaviour
             ReturnPooledObject(damageTextPrefab, textObj);
         });
     }
-
     public void SpawnOneShotEffect(GameObject prefab, Vector3 position, Quaternion rotation, float returnDelay)
+    {
+        SpawnOneShotEffect(prefab, position, rotation, returnDelay, Vector3.one);
+    }
+
+    public void SpawnOneShotEffect(GameObject prefab, Vector3 position, Quaternion rotation, float returnDelay, Vector3 scale)
     {
         if (prefab == null) return;
 
         GameObject effectObj = GetPooledObject(prefab, position, rotation);
         if (effectObj == null) return;
+
+        effectObj.transform.position = position;
+        effectObj.transform.rotation = rotation;
+        effectObj.transform.localScale = scale;
 
         StartCoroutine(ReturnPooledObjectAfterDelay(prefab, effectObj, returnDelay));
     }

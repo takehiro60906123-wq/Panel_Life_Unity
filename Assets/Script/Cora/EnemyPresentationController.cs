@@ -8,11 +8,16 @@ public class EnemyPresentationController : MonoBehaviour
     private Ease roomTravelEase = Ease.Linear;
 
     [Header("ìoèÍââèoê›íË")]
-    [SerializeField] private float entranceSlideDistance = 3.5f;
-    [SerializeField] private float entranceSlideDuration = 0.35f;
+    [SerializeField] private float entranceSlideDistance = 2.4f;
+    [SerializeField] private float entranceSlideDuration = 0.16f;
     [SerializeField] private Ease entranceSlideEase = Ease.OutCubic;
-    [SerializeField] private float entranceFlashDuration = 0.15f;
-    [SerializeField] private Color entranceFlashColor = new Color(1f, 1f, 0.8f, 1f);
+    [SerializeField] private float entranceOvershootDistance = 0.12f;
+    [SerializeField] private float entranceStartScale = 0.92f;
+    [SerializeField] private float entranceOvershootScale = 1.05f;
+    [SerializeField] private float entranceStartAlpha = 0.35f;
+    [SerializeField] private float entranceFlashDuration = 0.10f;
+    [SerializeField] private Color entranceFlashColor = new Color(1f, 0.96f, 0.82f, 1f);
+    [SerializeField] private float entranceLandingPunch = 0.08f;
 
     public void Configure(float enemyRevealDuration, Ease roomTravelEase)
     {
@@ -62,25 +67,67 @@ public class EnemyPresentationController : MonoBehaviour
         if (unit == null) return;
 
         Transform root = unit.transform;
+        root.DOKill();
+
+        SpriteRenderer[] renderers = unit.GetComponentsInChildren<SpriteRenderer>(true);
 
         Vector3 targetPos = root.position;
         Vector3 startPos = targetPos + Vector3.right * entranceSlideDistance;
-        Vector3 overPos = targetPos + Vector3.left * 0.12f;
+        Vector3 overPos = targetPos + Vector3.left * entranceOvershootDistance;
 
         root.position = startPos;
-        root.localScale = Vector3.one;
+        root.localScale = Vector3.one * entranceStartScale;
 
-        Sequence seq = DOTween.Sequence();
-        seq.Append(root.DOMove(overPos, entranceSlideDuration * 0.8f).SetEase(Ease.OutCubic));
-        seq.Append(root.DOMove(targetPos, entranceSlideDuration * 0.2f).SetEase(Ease.OutQuad));
-
-        SpriteRenderer[] renderers = unit.GetComponentsInChildren<SpriteRenderer>(true);
         foreach (SpriteRenderer sr in renderers)
         {
             if (sr == null) continue;
+
+            sr.DOKill();
+
             Color original = sr.color;
-            sr.color = entranceFlashColor;
-            sr.DOColor(original, entranceFlashDuration);
+            original.a = 1f;
+
+            Color startColor = entranceFlashColor;
+            startColor.a = entranceStartAlpha;
+
+            sr.color = startColor;
+            sr.DOColor(original, entranceFlashDuration).SetEase(Ease.OutQuad);
+        }
+
+        Sequence seq = DOTween.Sequence();
+
+        seq.Append(
+            root.DOMove(overPos, entranceSlideDuration * 0.78f)
+                .SetEase(entranceSlideEase)
+        );
+
+        seq.Join(
+            root.DOScale(Vector3.one * entranceOvershootScale, entranceSlideDuration * 0.78f)
+                .SetEase(Ease.OutQuad)
+        );
+
+        seq.Append(
+            root.DOMove(targetPos, entranceSlideDuration * 0.22f)
+                .SetEase(Ease.OutQuad)
+        );
+
+        seq.Join(
+            root.DOScale(Vector3.one, entranceSlideDuration * 0.22f)
+                .SetEase(Ease.OutBack)
+        );
+
+        seq.Append(
+            root.DOPunchPosition(
+                new Vector3(-entranceLandingPunch, 0f, 0f),
+                0.10f,
+                8,
+                0.75f
+            )
+        );
+
+        if (unit.animator != null)
+        {
+            unit.animator.Play("IDLE", 0, 0f);
         }
     }
 

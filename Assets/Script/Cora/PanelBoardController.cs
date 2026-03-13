@@ -23,7 +23,10 @@ public class PanelBoardController : MonoBehaviour
     [SerializeField] private int bigChainThreshold = 4;
     [SerializeField] private int maxChainThreshold = 5;
     [SerializeField] private GameObject panelBurstPrefab;
-
+    [SerializeField] private float chainPreviewScale = 1.10f;
+    [SerializeField] private float chainPreviewJumpY = 10f;
+    [SerializeField] private float chainPreviewFlashAlpha = 0.28f;
+    [SerializeField] private float chainPreviewStagger = 0.015f;
     private static Sprite cachedWhiteSprite;
     private GameObject panelPrefab;
     private Transform boardParent;
@@ -835,6 +838,108 @@ public class PanelBoardController : MonoBehaviour
                     });
                 });
         }
+    }
+
+    public void PlayChainPreviewFeedback(List<Vector2Int> chain, PanelType panelType)
+    {
+        if (chain == null || chain.Count == 0) return;
+
+        Color accent = GetChainPreviewColor(panelType);
+
+        for (int i = 0; i < chain.Count; i++)
+        {
+            Vector2Int pos = chain[i];
+            float delay = i * chainPreviewStagger;
+
+            DOVirtual.DelayedCall(delay, () =>
+            {
+                if (this == null) return;
+                PlaySingleChainPreview(pos.x, pos.y, accent);
+            });
+        }
+    }
+
+    private Color GetChainPreviewColor(PanelType panelType)
+    {
+        switch (panelType)
+        {
+            case PanelType.Sword:
+                return new Color(1f, 0.82f, 0.35f, 1f);
+
+            case PanelType.Ammo:
+                return new Color(0.45f, 0.9f, 1f, 1f);
+
+            case PanelType.Heal:
+                return new Color(0.45f, 1f, 0.55f, 1f);
+
+            case PanelType.Coin:
+                return new Color(1f, 0.9f, 0.25f, 1f);
+
+            case PanelType.LvUp:
+                return new Color(0.75f, 0.55f, 1f, 1f);
+
+            default:
+                return Color.white;
+        }
+    }
+
+    private void PlaySingleChainPreview(int row, int col, Color flashColor)
+    {
+        if (!IsInRange(row, col)) return;
+
+        GameObject panelObj = panelObjects[row, col];
+        if (panelObj == null) return;
+
+        Transform icon = panelObj.transform.Find("IconImage");
+        if (icon != null)
+        {
+            icon.DOKill();
+
+            Vector3 baseScale = Vector3.one;
+            Vector3 basePos = icon.localPosition;
+
+            Sequence seq = DOTween.Sequence();
+            seq.Append(icon.DOScale(chainPreviewScale, 0.05f).SetEase(Ease.OutQuad));
+            seq.Join(icon.DOLocalMoveY(basePos.y + chainPreviewJumpY, 0.05f).SetEase(Ease.OutQuad));
+            seq.Append(icon.DOScale(baseScale, 0.08f).SetEase(Ease.OutBack));
+            seq.Join(icon.DOLocalMoveY(basePos.y, 0.08f).SetEase(Ease.InOutQuad));
+        }
+
+        Image flash = GetOrCreateTapFlashFx(panelObj.transform);
+        if (flash != null)
+        {
+            flash.DOKill();
+            flash.enabled = true;
+            flash.gameObject.SetActive(true);
+            flash.color = new Color(flashColor.r, flashColor.g, flashColor.b, 0f);
+
+            flash.DOFade(chainPreviewFlashAlpha, 0.05f)
+                .SetEase(Ease.OutQuad)
+                .OnComplete(() =>
+                {
+                    flash.DOFade(0f, 0.08f).OnComplete(() =>
+                    {
+                        if (flash != null)
+                        {
+                            flash.enabled = false;
+                        }
+                    });
+                });
+        }
+    }
+    public void PlayImpactShake(float multiplier = 1f, float duration = 0.10f)
+    {
+        if (boardParent == null) return;
+
+        boardParent.DOKill();
+        boardParent.DOShakePosition(
+            duration,
+            boardShakeIntensity * multiplier,
+            20,
+            90f,
+            false,
+            true
+        );
     }
 
     private Image GetOrCreateTapFlashFx(Transform panelTransform)

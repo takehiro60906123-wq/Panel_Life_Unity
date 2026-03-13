@@ -26,10 +26,27 @@ public class EnemyTweenPresenter : MonoBehaviour
     [SerializeField] private Color hitFlashColor = new Color(1f, 0.85f, 0.85f, 1f);
     [SerializeField] private float hitFlashDuration = 0.12f;
 
+    [Header("強被弾演出（Shotgun）")]
+    [SerializeField] private float heavyHitBackDistance = 0.22f;
+    [SerializeField] private float heavyHitBackDuration = 0.045f;
+    [SerializeField] private float heavyHitReturnDuration = 0.09f;
+    [SerializeField] private float heavyHitPunchScale = 0.18f;
+    [SerializeField] private float heavyHitPunchRotation = 10f;
+    [SerializeField] private Color heavyHitFlashColor = new Color(1f, 1f, 1f, 1f);
+    [SerializeField] private float heavyHitFlashDuration = 0.07f;
+    [SerializeField] private float heavyHitCooldown = 0.09f;
+
+    private float lastHeavyHitTime = -999f;
+
     [Header("死亡演出")]
-    [SerializeField] private float deathDropY = 0.18f;
-    [SerializeField] private float deathDuration = 0.30f;
-    [SerializeField] private float deathEndScale = 0.15f;
+    [SerializeField] private float deathLiftY = 0.08f;
+    [SerializeField] private float deathDropY = 0.22f;
+    [SerializeField] private float deathDuration = 0.22f;
+    [SerializeField] private float deathEndScale = 0.12f;
+    [SerializeField] private float deathSquashX = 1.08f;
+    [SerializeField] private float deathSquashY = 0.72f;
+    [SerializeField] private float deathFlashDuration = 0.07f;
+    [SerializeField] private Color deathFlashColor = new Color(1f, 1f, 1f, 1f);
 
     [Header("溜め演出（HeavyHit）")]
     [SerializeField] private float chargePulseDuration = 0.35f;
@@ -259,35 +276,47 @@ public class EnemyTweenPresenter : MonoBehaviour
         EnsureSetup();
         KillTweens();
 
-        Vector3 hitPos = baseLocalPos + new Vector3(-attackDirectionX * hitBackDistance, 0f, 0f);
+        Vector3 hitPos = baseLocalPos + new Vector3(-attackDirectionX * (hitBackDistance * 1.35f), 0f, 0f);
 
         Sequence seq = DOTween.Sequence();
 
-        seq.Append(visualRoot.DOLocalMove(hitPos, hitBackDuration).SetEase(Ease.OutQuad));
+        // 被弾直後に少し縮む
+        seq.Append(
+            visualRoot.DOScale(baseLocalScale * 0.92f, hitBackDuration * 0.75f)
+                .SetEase(Ease.OutQuad)
+        );
 
+        // ノックバック
+        seq.Join(
+            visualRoot.DOLocalMove(hitPos, hitBackDuration)
+                .SetEase(Ease.OutQuad)
+        );
+
+        // 細かい揺れ
         seq.Join(
             visualRoot.DOShakePosition(
                 hitBackDuration + hitReturnDuration,
-                new Vector3(0.06f, 0.02f, 0f),
-                18,
+                new Vector3(0.08f, 0.025f, 0f),
+                20,
                 90f,
                 false,
                 true
             )
         );
 
-        seq.Join(
-            visualRoot.DOPunchScale(
-                new Vector3(0.08f, 0.08f, 0f),
-                hitBackDuration + 0.02f,
-                6,
-                0.8f
-            )
+        // 元の位置に戻る
+        seq.Append(
+            visualRoot.DOLocalMove(baseLocalPos, hitReturnDuration * 0.9f)
+                .SetEase(Ease.OutCubic)
         );
 
-        seq.Append(visualRoot.DOLocalMove(baseLocalPos, hitReturnDuration).SetEase(Ease.OutQuad));
+        seq.Join(
+            visualRoot.DOScale(baseLocalScale, hitReturnDuration)
+                .SetEase(Ease.OutBack)
+        );
 
-        FlashColor(hitFlashColor, hitFlashDuration);
+        // 白めの強いフラッシュ
+        FlashColor(new Color(1f, 1f, 1f, 1f), 0.08f);
     }
 
     // =============================================================
@@ -299,15 +328,64 @@ public class EnemyTweenPresenter : MonoBehaviour
         EnsureSetup();
         KillTweens();
 
+        Vector3 liftPos = baseLocalPos + new Vector3(0f, deathLiftY, 0f);
+        Vector3 dropPos = baseLocalPos + new Vector3(0f, -deathDropY, 0f);
+        Vector3 squashScale = new Vector3(
+            baseLocalScale.x * deathSquashX,
+            baseLocalScale.y * deathSquashY,
+            baseLocalScale.z
+        );
+        Vector3 endScale = baseLocalScale * deathEndScale;
+
         Sequence seq = DOTween.Sequence();
-        seq.Append(visualRoot.DOLocalMove(baseLocalPos + new Vector3(0f, -deathDropY, 0f), deathDuration).SetEase(Ease.InQuad));
-        seq.Join(visualRoot.DOScale(baseLocalScale * deathEndScale, deathDuration).SetEase(Ease.InBack));
+
+        // 倒れ始めに一瞬だけ浮いて、白く飛ばす
+        seq.Append(
+            visualRoot.DOLocalMove(liftPos, deathDuration * 0.18f)
+                .SetEase(Ease.OutQuad)
+        );
+
+        seq.Join(
+            visualRoot.DOScale(squashScale, deathDuration * 0.18f)
+                .SetEase(Ease.OutQuad)
+        );
+
+        FlashColor(deathFlashColor, deathFlashDuration);
+
+        // 下へ落ちながら潰れて消える
+        seq.Append(
+            visualRoot.DOLocalMove(dropPos, deathDuration * 0.82f)
+                .SetEase(Ease.InQuad)
+        );
+
+        seq.Join(
+            visualRoot.DOScale(endScale, deathDuration * 0.82f)
+                .SetEase(Ease.InBack)
+        );
+
+        seq.Join(
+            visualRoot.DOPunchRotation(
+                new Vector3(0f, 0f, attackDirectionX * -10f),
+                deathDuration * 0.35f,
+                4,
+                0.8f
+            )
+        );
 
         for (int i = 0; i < spriteRenderers.Length; i++)
         {
             SpriteRenderer sr = spriteRenderers[i];
             if (sr == null) continue;
-            sr.DOFade(0f, deathDuration);
+
+            sr.DOKill();
+
+            Color c = sr.color;
+            c.a = 1f;
+            sr.color = c;
+
+            sr.DOFade(0f, deathDuration * 0.72f)
+                .SetDelay(deathDuration * 0.10f)
+                .SetEase(Ease.OutQuad);
         }
     }
 
@@ -342,5 +420,64 @@ public class EnemyTweenPresenter : MonoBehaviour
             if (spriteRenderers[i] == null) continue;
             spriteRenderers[i].DOKill();
         }
+    }
+
+    public void PlayHeavyHitTween()
+    {
+        EnsureSetup();
+
+        if (Time.time - lastHeavyHitTime < heavyHitCooldown)
+        {
+            return;
+        }
+
+        lastHeavyHitTime = Time.time;
+
+        KillTweens();
+
+        Vector3 hitPos = baseLocalPos + new Vector3(-attackDirectionX * heavyHitBackDistance, 0f, 0f);
+
+        Sequence seq = DOTween.Sequence();
+
+        seq.Append(
+            visualRoot.DOLocalMove(hitPos, heavyHitBackDuration)
+                .SetEase(Ease.OutQuad)
+        );
+
+        seq.Join(
+            visualRoot.DOShakePosition(
+                heavyHitBackDuration + heavyHitReturnDuration,
+                new Vector3(0.10f, 0.03f, 0f),
+                22,
+                90f,
+                false,
+                true
+            )
+        );
+
+        seq.Join(
+            visualRoot.DOPunchScale(
+                new Vector3(heavyHitPunchScale, heavyHitPunchScale, 0f),
+                heavyHitBackDuration + 0.03f,
+                8,
+                0.85f
+            )
+        );
+
+        seq.Join(
+            visualRoot.DOPunchRotation(
+                new Vector3(0f, 0f, heavyHitPunchRotation * -attackDirectionX),
+                heavyHitBackDuration + 0.04f,
+                6,
+                0.85f
+            )
+        );
+
+        seq.Append(
+            visualRoot.DOLocalMove(baseLocalPos, heavyHitReturnDuration)
+                .SetEase(Ease.OutCubic)
+        );
+
+        FlashColor(heavyHitFlashColor, heavyHitFlashDuration);
     }
 }

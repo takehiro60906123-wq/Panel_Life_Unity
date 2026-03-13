@@ -8,6 +8,8 @@ public class PlayerCombatController : MonoBehaviour
     [Header("近接レベル補正")]
     [SerializeField] private int levelAttackBonus = 0;
 
+    [SerializeField] private GunDefinition defaultGunDefinition;
+
     private void Awake()
     {
         InitializeDefaultLoadout();
@@ -31,19 +33,34 @@ public class PlayerCombatController : MonoBehaviour
             };
         }
 
-        if (loadout.gun == null)
+        // Default Gun Definition があれば最優先で使う
+        if (defaultGunDefinition != null)
         {
+            loadout.gun = defaultGunDefinition.ToGunData();
+        }
+        else if (loadout.gun == null)
+        {
+            // 保険: 定義が未設定ならショットガンを直指定
             loadout.gun = new GunData
             {
-                gunType = GunType.Pistol,
-                gunName = "ピストル",
-                gaugeCost = 3,
-                shotCount = 2,
-                damagePerShot = 2,
+                gunType = GunType.Shotgun,
+                gunName = "ショットガン",
+                gaugeCost = 5,
+                shotCount = 3,
+                damagePerShot = 1,
                 useAllGauge = false,
-                minGaugeToFire = 3
+                minGaugeToFire = 5
             };
         }
+
+        // ゲージ最大が未設定なら最低限補正
+        if (loadout.maxGunGauge <= 0)
+        {
+            loadout.maxGunGauge = 10;
+        }
+
+        // 現在ゲージは範囲内に補正
+        loadout.currentGunGauge = Mathf.Clamp(loadout.currentGunGauge, 0, loadout.maxGunGauge);
     }
 
     public int GetMaxLink()

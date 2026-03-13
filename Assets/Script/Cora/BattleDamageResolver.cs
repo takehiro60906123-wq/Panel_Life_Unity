@@ -33,10 +33,12 @@ public class BattleDamageResolver : MonoBehaviour
 
     private bool isSubscribed;
     private PanelBattleManager panelBattleManager;
-    [SerializeField] private float postDefeatRespawnDelay = 0.55f;
+    [SerializeField] private float postDefeatRespawnDelay = 0.05f;
+    [SerializeField] private float damageTextDelay = 0.04f;
 
     // --- 銃ダメージフラグ：銃攻撃前にtrueにセットされる ---
     private bool nextDamageIsGun;
+    private bool nextDamageUseHeavyReaction;
 
     /// <summary>
     /// 次のダメージが銃由来かどうかをセットする。
@@ -46,6 +48,11 @@ public class BattleDamageResolver : MonoBehaviour
     public void SetNextDamageIsGun(bool value)
     {
         nextDamageIsGun = value;
+    }
+
+    public void SetNextDamageUseHeavyReaction(bool value)
+    {
+        nextDamageUseHeavyReaction = value;
     }
 
     public void Initialize(
@@ -120,9 +127,11 @@ public class BattleDamageResolver : MonoBehaviour
         if (enemyUnit.IsDead()) return;
         if (getIsEnemySpawning != null && getIsEnemySpawning()) return;
 
-        // --- フラグ取得＆リセット ---
         bool isGun = nextDamageIsGun;
+        bool useHeavyReaction = nextDamageUseHeavyReaction;
+
         nextDamageIsGun = false;
+        nextDamageUseHeavyReaction = false;
 
         bool isEvasion = UnityEngine.Random.Range(0, 100) < evasionRate;
         bool isCritical = UnityEngine.Random.Range(0, 100) < criticalRate;
@@ -141,7 +150,7 @@ public class BattleDamageResolver : MonoBehaviour
         // ==============================================
         finalDamage = ApplyEnemyTypeModifier(finalDamage, enemyUnit, isGun);
 
-        enemyUnit.TakeDamage(finalDamage);
+        enemyUnit.TakeDamage(finalDamage, useHeavyReaction);
         battleEventHub?.RaiseOneShotEffectRequested(hitEffectPrefab, enemyPos + Vector3.up * hitEffectHeight, hitEffectReturnDelay);
 
         // --- テキスト表示 ---
@@ -164,8 +173,7 @@ public class BattleDamageResolver : MonoBehaviour
             textColor = Color.white;
         }
 
-        battleEventHub?.RaiseDamageTextRequested(text, enemyPos + Vector3.up * damageTextHeight, textColor);
-
+        StartCoroutine(ShowDamageTextDelayed(text, enemyPos + Vector3.up * damageTextHeight, textColor, damageTextDelay));
         if (!enemyUnit.IsDead())
         {
             return;
@@ -173,6 +181,8 @@ public class BattleDamageResolver : MonoBehaviour
 
         HandleEnemyDefeat(enemyUnit);
     }
+
+ 
 
     // ==============================================
     // 敵タイプによるダメージ補正
@@ -277,5 +287,15 @@ public class BattleDamageResolver : MonoBehaviour
 
             battleEventHub?.RaiseLevelUpTextRequested(levelUpTextDelay);
         }
+    }
+
+    private IEnumerator ShowDamageTextDelayed(string text, Vector3 position, Color color, float delay)
+    {
+        if (delay > 0f)
+        {
+            yield return new WaitForSeconds(delay);
+        }
+
+        battleEventHub?.RaiseDamageTextRequested(text, position, color);
     }
 }
