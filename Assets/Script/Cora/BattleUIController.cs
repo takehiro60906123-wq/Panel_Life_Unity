@@ -405,6 +405,70 @@ public class BattleUIController : MonoBehaviour
         }
     }
 
+    // ============================================
+    // アイテムGET飛行オーブの到着先座標を返す
+    // ============================================
+
+    public Vector3 GetInventorySlotWorldPosition(int slotIndex)
+    {
+        if (itemSlotButtons == null) return Vector3.zero;
+        if (slotIndex < 0 || slotIndex >= itemSlotButtons.Length) return Vector3.zero;
+        if (itemSlotButtons[slotIndex] == null) return Vector3.zero;
+
+        RectTransform slotRect = itemSlotButtons[slotIndex].GetComponent<RectTransform>();
+        if (slotRect == null) return Vector3.zero;
+
+        Canvas canvas = GetComponentInParent<Canvas>();
+        Camera mainCam = Camera.main;
+        if (canvas == null || mainCam == null) return slotRect.position;
+
+        Camera uiCamera = canvas.renderMode == RenderMode.ScreenSpaceOverlay
+            ? null : canvas.worldCamera;
+        Vector2 screenPoint = RectTransformUtility.WorldToScreenPoint(uiCamera, slotRect.position);
+        Vector3 world = new Vector3(screenPoint.x, screenPoint.y,
+            Mathf.Abs(mainCam.transform.position.z));
+        return mainCam.ScreenToWorldPoint(world);
+    }
+
+    // ============================================
+    // 飛行オーブ到着時のスロットパルス演出
+    // ============================================
+
+    public void PlayInventorySlotReceivePulse(int slotIndex)
+    {
+        if (itemSlotButtons == null) return;
+        if (slotIndex < 0 || slotIndex >= itemSlotButtons.Length) return;
+        if (itemSlotButtons[slotIndex] == null) return;
+
+        RectTransform slotRect = itemSlotButtons[slotIndex].GetComponent<RectTransform>();
+        if (slotRect != null)
+        {
+            slotRect.DOKill();
+            slotRect.localScale = Vector3.one;
+            slotRect.DOPunchScale(new Vector3(0.25f, 0.25f, 0f), 0.2f, 10, 0.8f);
+        }
+
+        Image highlightImage = null;
+        if (itemSlotIcons != null && slotIndex >= 0 && slotIndex < itemSlotIcons.Length)
+        {
+            highlightImage = itemSlotIcons[slotIndex];
+        }
+
+        if (highlightImage == null && itemSlotButtons[slotIndex] != null)
+        {
+            highlightImage = itemSlotButtons[slotIndex].GetComponent<Image>();
+        }
+
+        if (highlightImage != null)
+        {
+            Color baseColor = highlightImage.color;
+            Color flashColor = new Color(1f, 0.95f, 0.5f, baseColor.a);
+            highlightImage.DOKill();
+            highlightImage.color = flashColor;
+            highlightImage.DOColor(baseColor, 0.3f);
+        }
+    }
+
     private Canvas GetOrResolveDragVisualCanvas()
     {
         if (resolvedDragVisualCanvas == null)
@@ -531,4 +595,6 @@ public class BattleUIController : MonoBehaviour
         playerExpBar.value = Mathf.Clamp01(normalized);
         Debug.Log($"[BattleUIController] playerExpBar.value={playerExpBar.value}");
     }
+
+
 }

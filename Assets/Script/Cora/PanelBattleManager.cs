@@ -97,6 +97,18 @@ public class PanelBattleManager : MonoBehaviour
     [SerializeField, Range(1f, 1.5f)] private float enemyDragHoverScale = 1.08f;
     [SerializeField] private Color enemyDragHoverColor = new Color(1f, 0.95f, 0.8f, 1f);
 
+    [Header("アイテム付きパネル設定")]
+    [SerializeField, Range(0f, 1f)] private float panelItemSpawnChanceNormal = 0.35f;
+    [SerializeField] private List<int> guaranteedPanelItemBattleNumbers = new List<int> { 10, 20, 25 };
+
+    [Header("持続アイテム設定")]
+    [SerializeField, Min(1)] private int attackOilDefaultDurationTurns = 3;
+    [SerializeField, Range(0f, 1f)] private float attackOilDamageBonusRate = 0.25f;
+
+    private int playerDamageBoostTurnsRemaining;
+    private float playerDamageBoostRate;
+    private bool skipNextPlayerBuffDecrement;
+
     private bool defeatSequenceRunning;
     [SerializeField] private float defeatSequenceStartDelay = 0.22f;
     [SerializeField] private float dropFeedbackHoldDelay = 0.55f;
@@ -148,11 +160,163 @@ public class PanelBattleManager : MonoBehaviour
 
         itemDropEntries = new List<BattleItemDropEntry>
     {
-        new BattleItemDropEntry { itemType = BattleItemType.FieldBandage, weight = 35 },
-        new BattleItemDropEntry { itemType = BattleItemType.ShockCanister, weight = 25 },
-        new BattleItemDropEntry { itemType = BattleItemType.ActivationCell, weight = 25 },
-        new BattleItemDropEntry { itemType = BattleItemType.MagneticCollectorCanister, weight = 15 }
+        new BattleItemDropEntry { itemType = BattleItemType.FieldBandage, weight = 30 },
+        new BattleItemDropEntry { itemType = BattleItemType.ShockCanister, weight = 22 },
+        new BattleItemDropEntry { itemType = BattleItemType.ActivationCell, weight = 22 },
+        new BattleItemDropEntry { itemType = BattleItemType.MagneticCollectorCanister, weight = 14 },
+        new BattleItemDropEntry { itemType = BattleItemType.AttackOil, weight = 12 }
     };
+    }
+
+    public void PrepareItemPanelForCurrentBattle()
+    {
+        if (panelBoardController == null)
+        {
+            return;
+        }
+
+        panelBoardController.ClearAllAttachedItems();
+
+        if (currentEncounter != EncounterType.Enemy)
+        {
+            return;
+        }
+
+        int battleNumber = 0;
+        if (stageFlowController != null)
+        {
+            battleNumber = enemyUnit != null
+                ? stageFlowController.DefeatedEnemyCount + 1
+                : stageFlowController.DefeatedEnemyCount;
+        }
+
+        if (battleNumber <= 0)
+        {
+            return;
+        }
+
+        bool guaranteed = guaranteedPanelItemBattleNumbers != null
+            && guaranteedPanelItemBattleNumbers.Contains(battleNumber);
+
+        float chance = guaranteed ? 1f : panelItemSpawnChanceNormal;
+        panelBoardController.TrySpawnAttachedItemPanel(chance);
+    }
+
+    public void HandleCollectedPanelItems(List<CollectedPanelItemInfo> collectedItems)
+    {
+        if (collectedItems == null || collectedItems.Count == 0)
+        {
+            return;
+        }
+
+        for (int i = 0; i < collectedItems.Count; i++)
+        {
+            CollectedPanelItemInfo info = collectedItems[i];
+            if (info == null || info.item == null)
+            {
+                continue;
+            }
+
+            int slotIndexBeforeAdd = battleInventoryController != null
+                ? battleInventoryController.Count : -1;
+
+            if (battleInventoryController != null && battleInventoryController.TryAddItem(info.item))
+            {
+                SpawnDamageText($"ITEM GET!\n{info.item.itemName}", info.worldPosition + Vector3.up * 1.2f, new Color(1f, 0.9f, 0.25f));
+
+                // ★ 飛行オーブ演出（パネル位置 → インベントリスロット）
+                Vector3 targetPos = Vector3.zero;
+                if (battleUIController != null)
+                {
+                    targetPos = battleUIController.GetInventorySlotWorldPosition(slotIndexBeforeAdd);
+                }
+
+                int capturedSlotIndex = slotIndexBeforeAdd;
+
+                if (battleEffectController != null && targetPos != Vector3.zero)
+                {
+                    battleEffectController.SpawnItemGetOrb(
+                        energyOrbPrefab,
+                        absorbEffectPrefab,
+                        info.worldPosition + Vector3.up * 0.4f,
+                        targetPos,
+                        0.4f,
+                        () =>
+                        {
+                            battleUIController?.PlayInventorySlotReceivePulse(capturedSlotIndex);
+                            battleUIController?.RefreshInventoryUI();
+                        });
+                }
+                else
+                {
+                    // フォールバック（飛行先が取れない場合は従来演出）
+                    if (absorbEffectPrefab != null)
+                    {
+                        SpawnOneShotEffect(absorbEffectPrefab, info.worldPosition + Vector3.up * 0.4f, 0.55f);
+                    }
+                }
+            }
+            else
+            {
+                int addedScrap = Mathf.Max(0, scrapOnOverflow);
+                currentScrap += addedScrap;
+                SpawnDamageText($"ITEM LOST\nSCRAP +{addedScrap}", info.worldPosition + Vector3.up * 1.2f, new Color(0.85f, 0.85f, 0.85f));
+            }
+        }
+
+        battleUIController?.RefreshInventoryUI();
+    }
+
+    public int ApplyPlayerDamageModifiers(int baseDamage)
+    {
+        if (baseDamage <= 0)
+        {
+            return 0;
+        }
+
+        float multiplier = 1f;
+        if (playerDamageBoostTurnsRemaining > 0)
+        {
+            multiplier += Mathf.Max(0f, playerDamageBoostRate);
+        }
+
+        return Mathf.Max(1, Mathf.RoundToInt(baseDamage * multiplier));
+    }
+
+    private void ApplyAttackOilBuff(BattleItemData item)
+    {
+        int duration = item != null && item.durationTurns > 0
+            ? item.durationTurns
+            : attackOilDefaultDurationTurns;
+
+        float bonusRate = item != null && item.power > 0
+            ? item.power / 100f
+            : attackOilDamageBonusRate;
+
+        playerDamageBoostTurnsRemaining = Mathf.Max(1, duration);
+        playerDamageBoostRate = Mathf.Max(0f, bonusRate);
+        skipNextPlayerBuffDecrement = true;
+    }
+
+    private void TickPlayerTimedBuffsOnTurnEnd()
+    {
+        if (playerDamageBoostTurnsRemaining <= 0)
+        {
+            return;
+        }
+
+        if (skipNextPlayerBuffDecrement)
+        {
+            skipNextPlayerBuffDecrement = false;
+            return;
+        }
+
+        playerDamageBoostTurnsRemaining--;
+        if (playerDamageBoostTurnsRemaining <= 0)
+        {
+            playerDamageBoostTurnsRemaining = 0;
+            playerDamageBoostRate = 0f;
+        }
     }
 
     public void TryUseInventoryItem(int slotIndex)
@@ -216,6 +380,9 @@ public class PanelBattleManager : MonoBehaviour
             case BattleItemType.MagneticCollectorCanister:
                 return panelBoardController != null
                     && panelBoardController.GetPanelCount(PanelType.Coin) > 0;
+
+            case BattleItemType.AttackOil:
+                return playerUnit != null && !playerUnit.IsDead();
         }
 
         return false;
@@ -442,6 +609,15 @@ public class PanelBattleManager : MonoBehaviour
 
                         SpawnDamageText($"+{gainedCoins}G", coinPos, new Color(1f, 0.9f, 0.2f));
                     }
+                }
+                break;
+
+            case BattleItemType.AttackOil:
+                ApplyAttackOilBuff(item);
+                if (playerUnit != null)
+                {
+                    Vector3 oilPos = playerUnit.transform.position + Vector3.up * 1.5f;
+                    SpawnDamageText($"攻撃UP {playerDamageBoostTurnsRemaining}T", oilPos, new Color(1f, 0.7f, 0.2f));
                 }
                 break;
         }
@@ -701,7 +877,7 @@ public class PanelBattleManager : MonoBehaviour
             damage += shotgunDangerBonusDamage;
         }
 
-        return damage;
+        return ApplyPlayerDamageModifiers(damage);
     }
 
     private void ApplyGunAfterEffects(GunData gun, BattleUnit target)
@@ -1269,6 +1445,12 @@ public class PanelBattleManager : MonoBehaviour
     {
         currentEncounter = encounterType;
         remainingSteps = steps;
+
+        if (encounterType != EncounterType.Enemy)
+        {
+            panelBoardController?.ClearAllAttachedItems();
+        }
+
         UpdateEncounterUI();
     }
 
@@ -1307,6 +1489,12 @@ public class PanelBattleManager : MonoBehaviour
         if (encounterFlowController == null)
         {
             yield break;
+        }
+
+        TickPlayerTimedBuffsOnTurnEnd();
+        if (battleUIController != null)
+        {
+            battleUIController.RefreshInventoryUI();
         }
 
         yield return StartCoroutine(encounterFlowController.EndPlayerTurnRoutine());
@@ -1427,6 +1615,7 @@ public class PanelBattleManager : MonoBehaviour
         }
 
         UpdateFloorUI();
+        PrepareItemPanelForCurrentBattle();
     }
 
     public void SetBoardInteractable(bool isInteractable)

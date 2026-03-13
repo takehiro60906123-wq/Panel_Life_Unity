@@ -119,6 +119,51 @@ public class BattleEffectController : MonoBehaviour
             Color.yellow);
     }
 
+    // ============================================
+    // アイテムGET飛行オーブ
+    // パネル位置からインベントリスロットへ弧を描いて飛ぶ。
+    // ============================================
+
+    public void SpawnItemGetOrb(
+        GameObject orbPrefab,
+        GameObject absorbEffectPrefab,
+        Vector3 startPos,
+        Vector3 targetPos,
+        float duration,
+        System.Action onArrive)
+    {
+        if (orbPrefab == null)
+        {
+            onArrive?.Invoke();
+            return;
+        }
+
+        GameObject orb = GetPooledObject(orbPrefab, startPos, Quaternion.identity);
+        if (orb == null)
+        {
+            onArrive?.Invoke();
+            return;
+        }
+
+        // 中間点を上方向にオフセットして弧を描く
+        Vector3 midPoint = Vector3.Lerp(startPos, targetPos, 0.3f) + Vector3.up * 0.8f;
+        Vector3[] path = new Vector3[] { startPos, midPoint, targetPos };
+
+        orb.transform.DOPath(path, duration, PathType.CatmullRom)
+            .SetEase(Ease.InCubic)
+            .OnComplete(() =>
+            {
+                ReturnPooledObject(orbPrefab, orb);
+
+                if (absorbEffectPrefab != null)
+                {
+                    SpawnOneShotEffect(absorbEffectPrefab, targetPos, Quaternion.identity, 0.6f);
+                }
+
+                onArrive?.Invoke();
+            });
+    }
+
     private GameObject GetPooledObject(GameObject prefab, Vector3 position, Quaternion rotation)
     {
         if (prefab == null) return null;

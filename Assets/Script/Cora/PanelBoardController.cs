@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
@@ -6,9 +7,24 @@ using DG.Tweening;
 
 public class PanelBoardController : MonoBehaviour
 {
-    [Header("�Ֆʉ��o�ݒ�")]
+    [Header("盤面レイアウト設定")]
     public float cellSize = 150f;
 
+    [Header("アイテム付きパネル演出")]
+    [SerializeField] private Color normalPanelTint = new Color(1f, 1f, 1f, 0f);
+    [SerializeField] private Color attachedItemPanelTint = new Color(1f, 0.82f, 0.15f, 1f);
+
+    [Header("パネル消去演出")]
+    [SerializeField] private float tapFlashDuration = 0.04f;
+    [SerializeField] private float tapScaleAmount = 1.15f;
+    [SerializeField] private float chainStaggerDelay = 0.04f;
+    [SerializeField] private float panelShrinkDuration = 0.15f;
+    [SerializeField] private float boardShakeIntensity = 3f;
+    [SerializeField] private int bigChainThreshold = 4;
+    [SerializeField] private int maxChainThreshold = 5;
+    [SerializeField] private GameObject panelBurstPrefab;
+
+    private static Sprite cachedWhiteSprite;
     private GameObject panelPrefab;
     private Transform boardParent;
     private List<PanelSetting> panelSettings;
@@ -19,6 +35,7 @@ public class PanelBoardController : MonoBehaviour
 
     private PanelType[,] gridData;
     private GameObject[,] panelObjects;
+    private BattleItemData[,] attachedItems;
 
     [SerializeField] private PlayerCombatController playerCombatController;
     [SerializeField] private BattleUIController battleUIController;
@@ -35,6 +52,7 @@ public class PanelBoardController : MonoBehaviour
             playerCombatController = FindObjectOfType<PlayerCombatController>();
         }
     }
+
     public bool Initialize(
         GameObject panelPrefabValue,
         Transform boardParentValue,
@@ -52,24 +70,25 @@ public class PanelBoardController : MonoBehaviour
 
         if (panelPrefab == null)
         {
-            Debug.LogError("PanelBoardController: panelPrefab �����ݒ�ł��B");
+            Debug.LogError("PanelBoardController: panelPrefab が未設定です。");
             return false;
         }
 
         if (boardParent == null)
         {
-            Debug.LogError("PanelBoardController: boardParent �����ݒ�ł��B");
+            Debug.LogError("PanelBoardController: boardParent が未設定です。");
             return false;
         }
 
         if (rows <= 0 || cols <= 0)
         {
-            Debug.LogError("PanelBoardController: rows �܂��� cols ���s���ł��B");
+            Debug.LogError("PanelBoardController: rows または cols が不正です。");
             return false;
         }
 
         gridData = new PanelType[rows, cols];
         panelObjects = new GameObject[rows, cols];
+        attachedItems = new BattleItemData[rows, cols];
 
         return true;
     }
@@ -84,12 +103,15 @@ public class PanelBoardController : MonoBehaviour
             {
                 GameObject newPanel = Instantiate(panelPrefab, boardParent);
                 newPanel.name = $"Panel_{r}_{c}";
+                SetPanelBackgroundTransparent(newPanel);
 
                 PanelType randomType = GetRandomPanelType();
                 gridData[r, c] = randomType;
                 panelObjects[r, c] = newPanel;
+                attachedItems[r, c] = null;
 
                 UpdatePanelVisual(r, c);
+                RefreshPanelHighlightVisual(r, c);
 
                 int row = r;
                 int col = c;
@@ -133,6 +155,80 @@ public class PanelBoardController : MonoBehaviour
         return count;
     }
 
+    public void ClearAllAttachedItems()
+    {
+        if (attachedItems == null || panelObjects == null) return;
+
+        for (int r = 0; r < rows; r++)
+        {
+            for (int c = 0; c < cols; c++)
+            {
+                attachedItems[r, c] = null;
+                RefreshPanelHighlightVisual(r, c);
+            }
+        }
+    }
+
+    public bool TrySpawnAttachedItemPanel(float spawnChance)
+    {
+        if (gridData == null || attachedItems == null) return false;
+        if (UnityEngine.Random.value > Mathf.Clamp01(spawnChance)) return false;
+
+        List<Vector2Int> candidates = new List<Vector2Int>();
+        for (int r = 0; r < rows; r++)
+        {
+            for (int c = 0; c < cols; c++)
+            {
+                if (gridData[r, c] == PanelType.Sword
+                    || gridData[r, c] == PanelType.Heal
+                    || gridData[r, c] == PanelType.LvUp)
+                {
+                    candidates.Add(new Vector2Int(r, c));
+                }
+            }
+        }
+
+        if (candidates.Count == 0) return false;
+
+        Vector2Int selected = candidates[UnityEngine.Random.Range(0, candidates.Count)];
+        BattleItemData item = CreateAttachedItemForPanelType(gridData[selected.x, selected.y]);
+        if (item == null) return false;
+
+        attachedItems[selected.x, selected.y] = item;
+        RefreshPanelHighlightVisual(selected.x, selected.y);
+
+        Debug.Log($"[PanelItem] Spawned at ({selected.x},{selected.y}) panel={gridData[selected.x, selected.y]} item={item.itemName}");
+
+        return true;
+    }
+
+    public List<CollectedPanelItemInfo> ConsumeAttachedItems(List<Vector2Int> positions)
+    {
+        List<CollectedPanelItemInfo> result = new List<CollectedPanelItemInfo>();
+        if (positions == null || positions.Count == 0) return result;
+        if (attachedItems == null) return result;
+
+        HashSet<Vector2Int> uniquePositions = new HashSet<Vector2Int>(positions);
+        foreach (Vector2Int pos in uniquePositions)
+        {
+            if (!IsInRange(pos.x, pos.y)) continue;
+
+            BattleItemData item = attachedItems[pos.x, pos.y];
+            if (item == null) continue;
+
+            result.Add(new CollectedPanelItemInfo
+            {
+                item = item,
+                worldPosition = GetPanelWorldPosition(pos.x, pos.y)
+            });
+
+            attachedItems[pos.x, pos.y] = null;
+            RefreshPanelHighlightVisual(pos.x, pos.y);
+        }
+
+        return result;
+    }
+
     public int CollectAllPanelsOfType(PanelType targetType)
     {
         if (gridData == null || panelObjects == null) return 0;
@@ -158,6 +254,8 @@ public class PanelBoardController : MonoBehaviour
         foreach (Vector2Int pos in positions)
         {
             gridData[pos.x, pos.y] = PanelType.None;
+            attachedItems[pos.x, pos.y] = null;
+            RefreshPanelHighlightVisual(pos.x, pos.y);
 
             GameObject panelObj = panelObjects[pos.x, pos.y];
             if (panelObj == null) continue;
@@ -278,6 +376,8 @@ public class PanelBoardController : MonoBehaviour
             if (!IsInRange(pos.x, pos.y)) continue;
 
             gridData[pos.x, pos.y] = PanelType.None;
+            attachedItems[pos.x, pos.y] = null;
+            RefreshPanelHighlightVisual(pos.x, pos.y);
 
             GameObject panelObj = panelObjects[pos.x, pos.y];
             if (panelObj == null) continue;
@@ -312,6 +412,9 @@ public class PanelBoardController : MonoBehaviour
                         gridData[writeRow, c] = gridData[r, c];
                         gridData[r, c] = PanelType.None;
 
+                        attachedItems[writeRow, c] = attachedItems[r, c];
+                        attachedItems[r, c] = null;
+
                         Transform writeIcon = panelObjects[writeRow, c].transform.Find("IconImage");
                         Transform readIcon = panelObjects[r, c].transform.Find("IconImage");
 
@@ -332,6 +435,9 @@ public class PanelBoardController : MonoBehaviour
                                 writeIcon.DOLocalMoveY(0, 0.4f).SetEase(Ease.OutBounce);
                             }
                         }
+
+                        RefreshPanelHighlightVisual(writeRow, c);
+                        RefreshPanelHighlightVisual(r, c);
                     }
 
                     writeRow--;
@@ -342,6 +448,7 @@ public class PanelBoardController : MonoBehaviour
             {
                 PanelType newType = GetRandomPanelType();
                 gridData[r, c] = newType;
+                attachedItems[r, c] = null;
 
                 Transform iconTransform = panelObjects[r, c].transform.Find("IconImage");
                 if (iconTransform != null)
@@ -357,6 +464,8 @@ public class PanelBoardController : MonoBehaviour
                         .SetDelay(0.08f * dropOrder)
                         .SetEase(Ease.OutBounce);
                 }
+
+                RefreshPanelHighlightVisual(r, c);
             }
         }
     }
@@ -412,6 +521,117 @@ public class PanelBoardController : MonoBehaviour
 
             icon.localScale = Vector3.one;
         }
+
+        SetPanelBackgroundTransparent(panelObj);
+        RefreshPanelHighlightVisual(row, col);
+    }
+
+    private void RefreshPanelHighlightVisual(int row, int col)
+    {
+        if (!IsInRange(row, col)) return;
+
+        GameObject panelObj = panelObjects[row, col];
+        if (panelObj == null) return;
+
+        bool hasItem = attachedItems != null && attachedItems[row, col] != null;
+
+        // 親パネルは常に完全透明
+        SetPanelBackgroundTransparent(panelObj);
+
+        // アイテム付き専用オーバーレイ
+        Image itemFx = GetOrCreateItemPanelFx(panelObj.transform);
+        if (itemFx != null)
+        {
+            itemFx.color = attachedItemPanelTint;
+            itemFx.enabled = hasItem;
+            itemFx.gameObject.SetActive(hasItem);
+        }
+
+        Transform badge = panelObj.transform.Find("ItemBadgeImage");
+        if (badge == null)
+        {
+            badge = panelObj.transform.Find("ItemBadge");
+        }
+
+        if (badge != null)
+        {
+            badge.gameObject.SetActive(hasItem);
+        }
+    }
+
+    private Image GetOrCreateItemPanelFx(Transform panelTransform)
+    {
+        if (panelTransform == null) return null;
+
+        Transform fx = panelTransform.Find("ItemPanelFx");
+        if (fx == null)
+        {
+            GameObject go = new GameObject("ItemPanelFx", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+            fx = go.transform;
+            fx.SetParent(panelTransform, false);
+            fx.SetSiblingIndex(0); // IconImage より後ろ
+
+            RectTransform rt = fx as RectTransform;
+            if (rt != null)
+            {
+                rt.anchorMin = Vector2.zero;
+                rt.anchorMax = Vector2.one;
+                rt.offsetMin = Vector2.zero;
+                rt.offsetMax = Vector2.zero;
+                rt.localScale = Vector3.one;
+            }
+
+            Image img = fx.GetComponent<Image>();
+            if (img != null)
+            {
+                img.sprite = GetWhiteSprite();
+                img.type = Image.Type.Simple;
+                img.raycastTarget = false;
+                img.enabled = false;
+            }
+        }
+
+        return fx.GetComponent<Image>();
+    }
+
+    private Sprite GetWhiteSprite()
+    {
+        if (cachedWhiteSprite != null) return cachedWhiteSprite;
+
+        Texture2D tex = Texture2D.whiteTexture;
+        cachedWhiteSprite = Sprite.Create(
+            tex,
+            new Rect(0f, 0f, tex.width, tex.height),
+            new Vector2(0.5f, 0.5f),
+            100f
+        );
+
+        return cachedWhiteSprite;
+    }
+
+    private BattleItemData CreateAttachedItemForPanelType(PanelType panelType)
+    {
+        int roll = UnityEngine.Random.Range(0, 100);
+
+        switch (panelType)
+        {
+            case PanelType.Sword:
+                return BattleItemData.CreatePreset(roll < 65
+                    ? BattleItemType.AttackOil
+                    : BattleItemType.ShockCanister);
+
+            case PanelType.Heal:
+                return BattleItemData.CreatePreset(roll < 75
+                    ? BattleItemType.FieldBandage
+                    : BattleItemType.ActivationCell);
+
+            case PanelType.LvUp:
+                return BattleItemData.CreatePreset(roll < 55
+                    ? BattleItemType.AttackOil
+                    : BattleItemType.ActivationCell);
+        }
+
+        return null;
     }
 
     private PanelType GetRandomPanelType()
@@ -465,10 +685,9 @@ public class PanelBoardController : MonoBehaviour
         return playerCombatController.GetMaxLink();
     }
 
-
     /// <summary>
-    /// �Ֆʂ̃����_���Ȉʒu�Ƀp�l���������z�u����i���o���j�B
-    /// PanelCorrupt�i�Ֆʉ����j�U���Ŏg�p�B
+    /// 盤面のランダムな位置にパネルを強制配置する（演出つき）。
+    /// PanelCorrupt（盤面汚染）攻撃で使用。
     /// </summary>
     public int ForceSetRandomPanels(PanelType type, int count)
     {
@@ -486,7 +705,6 @@ public class PanelBoardController : MonoBehaviour
 
         if (candidates.Count == 0) return 0;
 
-        // �V���b�t��
         for (int i = candidates.Count - 1; i > 0; i--)
         {
             int j = UnityEngine.Random.Range(0, i + 1);
@@ -501,7 +719,6 @@ public class PanelBoardController : MonoBehaviour
             Vector2Int pos = candidates[i];
             gridData[pos.x, pos.y] = type;
 
-            // --- �ύX���o ---
             GameObject panelObj = panelObjects[pos.x, pos.y];
             if (panelObj != null)
             {
@@ -514,17 +731,9 @@ public class PanelBoardController : MonoBehaviour
                         img.sprite = GetSpriteForType(type);
                     }
 
-                    // ���o�F���t���b�V�� �� �k�� �� �e���ĕ��A
                     icon.localScale = Vector3.one * 0.1f;
 
-                    Image bg = panelObj.GetComponent<Image>();
-                    Color originalBg = bg != null ? bg.color : Color.white;
-
-                    if (bg != null)
-                    {
-                        bg.color = new Color(0.7f, 0.2f, 0.8f, 0.8f);
-                        bg.DOColor(originalBg, 0.4f).SetDelay(0.15f * i);
-                    }
+                    SetPanelBackgroundTransparent(panelObj);
 
                     icon.DOScale(Vector3.one, 0.35f)
                         .SetDelay(0.15f * i)
@@ -532,9 +741,225 @@ public class PanelBoardController : MonoBehaviour
                 }
             }
 
+            RefreshPanelHighlightVisual(pos.x, pos.y);
             placed++;
         }
 
         return placed;
+    }
+
+    private void SetPanelBackgroundTransparent(GameObject panelObj)
+    {
+        if (panelObj == null) return;
+
+        Image bg = panelObj.GetComponent<Image>();
+        if (bg != null)
+        {
+            Color c = bg.color;
+            c.a = 0f;
+            bg.color = c;
+        }
+    }
+
+    public void PlayItemPanelCollectEffect(int row, int col)
+    {
+        if (!IsInRange(row, col)) return;
+
+        GameObject panelObj = panelObjects[row, col];
+        if (panelObj == null) return;
+
+        Transform icon = panelObj.transform.Find("IconImage");
+        if (icon == null) return;
+
+        Image itemFx = GetOrCreateItemPanelFx(panelObj.transform);
+
+        if (itemFx != null)
+        {
+            itemFx.color = new Color(1f, 0.85f, 0.3f, 0f);
+
+            itemFx
+                .DOFade(0.9f, 0.12f)
+                .SetEase(Ease.OutQuad)
+                .OnComplete(() =>
+                {
+                    itemFx.DOFade(0f, 0.25f);
+                });
+        }
+
+        icon
+            .DOScale(1.35f, 0.12f)
+            .SetEase(Ease.OutBack)
+            .OnComplete(() =>
+            {
+                icon.DOScale(1f, 0.1f);
+            });
+
+        icon
+            .DOLocalMoveY(icon.localPosition.y + 22f, 0.15f)
+            .SetLoops(2, LoopType.Yoyo);
+    }
+
+    // ============================================
+    // タップ瞬間フィードバック
+    // ============================================
+
+    public void PlayTapFeedback(int row, int col)
+    {
+        if (!IsInRange(row, col)) return;
+
+        GameObject panelObj = panelObjects[row, col];
+        if (panelObj == null) return;
+
+        Transform icon = panelObj.transform.Find("IconImage");
+        if (icon != null)
+        {
+            icon.DOKill();
+            icon.localScale = Vector3.one;
+            icon.DOScale(tapScaleAmount, 0.06f).SetEase(Ease.OutQuad);
+        }
+
+        Image flash = GetOrCreateTapFlashFx(panelObj.transform);
+        if (flash != null)
+        {
+            flash.DOKill();
+            flash.color = new Color(1f, 1f, 1f, 0f);
+            flash.enabled = true;
+            flash.gameObject.SetActive(true);
+            flash.DOFade(0.7f, tapFlashDuration)
+                .SetEase(Ease.OutQuad)
+                .OnComplete(() =>
+                {
+                    flash.DOFade(0f, 0.06f).OnComplete(() =>
+                    {
+                        flash.enabled = false;
+                    });
+                });
+        }
+    }
+
+    private Image GetOrCreateTapFlashFx(Transform panelTransform)
+    {
+        if (panelTransform == null) return null;
+
+        Transform fx = panelTransform.Find("TapFlashFx");
+        if (fx == null)
+        {
+            GameObject go = new GameObject("TapFlashFx", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+            fx = go.transform;
+            fx.SetParent(panelTransform, false);
+            fx.SetAsLastSibling();
+
+            RectTransform rt = fx as RectTransform;
+            if (rt != null)
+            {
+                rt.anchorMin = Vector2.zero;
+                rt.anchorMax = Vector2.one;
+                rt.offsetMin = Vector2.zero;
+                rt.offsetMax = Vector2.zero;
+                rt.localScale = Vector3.one;
+            }
+
+            Image img = fx.GetComponent<Image>();
+            if (img != null)
+            {
+                img.sprite = GetWhiteSprite();
+                img.type = Image.Type.Simple;
+                img.raycastTarget = false;
+                img.enabled = false;
+                img.color = new Color(1f, 1f, 1f, 0f);
+            }
+        }
+
+        return fx.GetComponent<Image>();
+    }
+
+    // ============================================
+    // 波紋ディレイ付き消去（コルーチン版）
+    // ClearChainPanels の演出強化版。落下補充を内包する。
+    // 既存の ClearChainPanels はそのまま残す（一括消去用）。
+    // ============================================
+
+    public IEnumerator ClearChainPanelsAnimated(List<Vector2Int> chain, Action onComplete = null)
+    {
+        if (chain == null || chain.Count == 0)
+        {
+            onComplete?.Invoke();
+            yield break;
+        }
+
+        int chainSize = chain.Count;
+
+        for (int i = 0; i < chainSize; i++)
+        {
+            Vector2Int pos = chain[i];
+            if (!IsInRange(pos.x, pos.y)) continue;
+
+            gridData[pos.x, pos.y] = PanelType.None;
+            attachedItems[pos.x, pos.y] = null;
+            RefreshPanelHighlightVisual(pos.x, pos.y);
+
+            GameObject panelObj = panelObjects[pos.x, pos.y];
+            if (panelObj == null) continue;
+
+            Transform iconTransform = panelObj.transform.Find("IconImage");
+            if (iconTransform == null) continue;
+
+            Image img = iconTransform.GetComponent<Image>();
+
+            // ① 白化フラッシュ
+            if (img != null)
+            {
+                img.DOColor(Color.white, 0.04f).SetEase(Ease.OutQuad);
+            }
+
+            // ② 縮小 + フェードアウト
+            iconTransform.DOScale(Vector3.zero, panelShrinkDuration)
+                .SetEase(Ease.InBack)
+                .OnComplete(() =>
+                {
+                    if (img != null)
+                    {
+                        img.sprite = null;
+                        img.color = Color.white;
+                    }
+                    iconTransform.localScale = Vector3.one;
+                });
+
+            if (img != null)
+            {
+                img.DOFade(0f, panelShrinkDuration * 0.8f);
+            }
+
+            // ③ 小パーティクル（Prefab設定時のみ）
+            if (panelBurstPrefab != null)
+            {
+                Vector3 burstPos = GetPanelWorldPosition(pos.x, pos.y);
+                GameObject burst = Instantiate(panelBurstPrefab, burstPos, Quaternion.identity);
+                Destroy(burst, 1.0f);
+            }
+
+            // 次パネルまでの波紋ディレイ（最後は待たない）
+            if (i < chainSize - 1)
+            {
+                yield return new WaitForSeconds(chainStaggerDelay);
+            }
+        }
+
+        // 最後のパネルの縮小完了を待つ
+        yield return new WaitForSeconds(panelShrinkDuration);
+
+        // リンク数ボーナス演出
+        if (chainSize >= bigChainThreshold && boardParent != null)
+        {
+            float intensity = chainSize >= maxChainThreshold
+                ? boardShakeIntensity * 1.5f
+                : boardShakeIntensity;
+            boardParent.DOShakePosition(0.15f, intensity, 20, 90f, false, true);
+        }
+
+        // 落下補充
+        DropAndFillPanels();
+
+        onComplete?.Invoke();
     }
 }

@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 using UnityEngine.UI;
 
 public class BattleBootstrapper : MonoBehaviour
@@ -166,7 +166,9 @@ public class BattleBootstrapper : MonoBehaviour
     manager.playerUnit,
     manager.PlayerCombatController,
     () => manager.enemyUnit,
-    manager.EndPlayerTurn);
+    manager.EndPlayerTurn,
+    manager.ApplyPlayerDamageModifiers,
+    manager.HandleCollectedPanelItems);
 
         manager.encounterFlowController.Initialize(
             manager.battleEventHub,
@@ -218,6 +220,7 @@ public class BattleBootstrapper : MonoBehaviour
         manager.UpdateEncounterUI();
         manager.panelBoardController.GenerateBoard();
         manager.encounterFlowController.SetupStage();
+        manager.PrepareItemPanelForCurrentBattle();
         return true;
     }
 

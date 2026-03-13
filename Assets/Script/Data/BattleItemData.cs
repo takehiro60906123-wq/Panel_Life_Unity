@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 
 public enum BattleItemType
 {
@@ -6,7 +6,8 @@ public enum BattleItemType
     FieldBandage,
     ShockCanister,
     ActivationCell,
-    MagneticCollectorCanister
+    MagneticCollectorCanister,
+    AttackOil
 }
 
 public enum BattleItemUseTarget
@@ -29,6 +30,7 @@ public class BattleItemData
     public string itemName;
     public BattleItemUseTarget useTarget;
     public int power;
+    public int durationTurns;
     public Sprite icon;
 
     public bool IsValid()
@@ -46,7 +48,8 @@ public class BattleItemData
                     itemType = BattleItemType.FieldBandage,
                     itemName = "野戦包帯",
                     useTarget = BattleItemUseTarget.Self,
-                    power = 6
+                    power = 6,
+                    durationTurns = 0
                 };
 
             case BattleItemType.ShockCanister:
@@ -55,7 +58,8 @@ public class BattleItemData
                     itemType = BattleItemType.ShockCanister,
                     itemName = "衝撃筒",
                     useTarget = BattleItemUseTarget.Enemy,
-                    power = 3
+                    power = 3,
+                    durationTurns = 0
                 };
 
             case BattleItemType.ActivationCell:
@@ -64,7 +68,8 @@ public class BattleItemData
                     itemType = BattleItemType.ActivationCell,
                     itemName = "起動セル",
                     useTarget = BattleItemUseTarget.Self,
-                    power = 3
+                    power = 3,
+                    durationTurns = 0
                 };
 
             case BattleItemType.MagneticCollectorCanister:
@@ -73,7 +78,18 @@ public class BattleItemData
                     itemType = BattleItemType.MagneticCollectorCanister,
                     itemName = "磁気回収筒",
                     useTarget = BattleItemUseTarget.Self,
-                    power = 0
+                    power = 0,
+                    durationTurns = 0
+                };
+
+            case BattleItemType.AttackOil:
+                return new BattleItemData
+                {
+                    itemType = BattleItemType.AttackOil,
+                    itemName = "攻撃油",
+                    useTarget = BattleItemUseTarget.Self,
+                    power = 25,
+                    durationTurns = 3
                 };
         }
 
