@@ -16,11 +16,11 @@ MonoBehaviour:
   enemyName: "\u706B\u87F2"
   enemyType: 3
   attackPattern: 0
-  baseHP: 3
-  attackPower: 3
+  baseHP: 6
+  attackPower: 4
   attackInterval: 1
-  expYield: 2
-  hpPerLevel: 2
+  expYield: 3
+  hpPerLevel: 3
   healPerLevel: 1
   expPerLevel: 1
   portrait: {fileID: 0}

@@ -42,6 +42,8 @@ public class BattleUIController : MonoBehaviour
     [Header("階層UI")]
     public TMP_Text floorText;
 
+    [SerializeField] private Slider playerExpBar;
+
     private void Start()
     {
         if (pistolButton != null)
@@ -516,5 +518,17 @@ public class BattleUIController : MonoBehaviour
     {
         if (floorText == null) return;
         floorText.text = $"{currentFloor}/{totalFloors}階";
+    }
+
+    public void SetPlayerExpBar(float normalized)
+    {
+        if (playerExpBar == null)
+        {
+            Debug.LogWarning("[BattleUIController] playerExpBar is null");
+            return;
+        }
+
+        playerExpBar.value = Mathf.Clamp01(normalized);
+        Debug.Log($"[BattleUIController] playerExpBar.value={playerExpBar.value}");
     }
 }

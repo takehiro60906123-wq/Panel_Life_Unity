@@ -260,6 +260,14 @@ public class BattleDamageResolver : MonoBehaviour
             isLevelUp = playerUnit.AddExp(defeatedEnemy.expYield);
         }
 
+        // ここを追加
+        if (panelBattleManager == null)
+        {
+            panelBattleManager = GetComponent<PanelBattleManager>();
+        }
+
+        panelBattleManager?.RefreshPlayerExpUI();
+
         if (isLevelUp)
         {
             if (playerUnit != null)

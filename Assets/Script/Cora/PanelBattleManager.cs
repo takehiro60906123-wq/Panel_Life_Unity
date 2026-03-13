@@ -103,6 +103,8 @@ public class PanelBattleManager : MonoBehaviour
     [SerializeField] private float defeatSequenceBeforeRewardDelay = 0.25f;
     [SerializeField] private float defeatSequenceAfterRewardDelay = 0.55f;
 
+    [SerializeField] private PlayerProgression playerProgression;
+
     private struct PendingDropFeedback
     {
         public bool hasDrop;
@@ -1203,6 +1205,7 @@ public class PanelBattleManager : MonoBehaviour
         }
 
         UpdateFloorUI();
+        RefreshPlayerExpUI();
     }
 
     private void OnDestroy()
@@ -1495,5 +1498,19 @@ public class PanelBattleManager : MonoBehaviour
     {
         Debug.Log("ゲームオーバー");
         SetBoardInteractable(false);
+    }
+
+    public void RefreshPlayerExpUI()
+    {
+        if (battleUIController == null) return;
+        if (playerUnit == null) return;
+
+        PlayerProgression progression = playerUnit.GetComponent<PlayerProgression>();
+        if (progression == null) return;
+
+        float progress = progression.GetExpProgress01();
+        battleUIController.SetPlayerExpBar(progress);
+
+        Debug.Log($"[PanelBattleManager] ExpBar progress={progress}");
     }
 }

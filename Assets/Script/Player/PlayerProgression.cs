@@ -29,6 +29,7 @@ public class PlayerProgression : MonoBehaviour
 
     public bool AddExp(int amount, BattleUnit unit)
     {
+        Debug.Log($"[PlayerProgression] AddExp amount={amount}  before={currentExp}  level={level}");
         if (amount <= 0) return false;
 
         currentExp += amount;
@@ -55,7 +56,24 @@ public class PlayerProgression : MonoBehaviour
             Debug.Log($"ƒŒƒxƒ‹{level}‚É‚È‚Á‚½BÅ‘åHP+2AHP+2");
             leveledUp = true;
         }
-
+        Debug.Log($"[PlayerProgression] after currentExp={currentExp}  level={level}  progress={GetExpProgress01()}");
         return leveledUp;
+    }
+
+    public float GetExpProgress01()
+    {
+        if (expTable == null || expTable.Length == 0)
+            return 0f;
+
+        if (level >= expTable.Length)
+            return 1f;
+
+        int prevRequired = level <= 1 ? 0 : expTable[level - 1];
+        int nextRequired = expTable[level];
+
+        int range = nextRequired - prevRequired;
+        if (range <= 0) return 1f;
+
+        return Mathf.Clamp01((currentExp - prevRequired) / (float)range);
     }
 }

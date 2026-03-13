@@ -488,10 +488,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b108a631691757c429759e1c1f49d15a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  maxHP: 15
+  maxHP: 28
   currentHP: 0
-  expYield: 7
-  attackPower: 5
+  expYield: 11
+  attackPower: 6
   enemyType: 0
   attackPattern: 3
   isChargingHeavyHit: 0
@@ -502,7 +502,7 @@ MonoBehaviour:
   hpSlider: {fileID: 7166529566945923798}
   hpText: {fileID: 2662779214851339163}
   animator: {fileID: 5326720565575317224}
-  attackInterval: 2
+  attackInterval: 1
   currentCooldown: 0
   turnText: {fileID: 6957822152843867208}
 --- !u!114 &2791046625075093319
@@ -519,6 +519,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   level: 1
   currentExp: 0
+  playerCombatController: {fileID: 0}
   expTable: 000000000a0000001e0000003c0000006400000096000000dc0000002c01000090010000f4010000
 --- !u!114 &4826477532343885244
 MonoBehaviour:
