@@ -224,6 +224,10 @@ public class EncounterFlowController : MonoBehaviour
             yield break;
         }
 
+        // === 状態異常: 敵腐食のターン消費（フォールバック） ===
+        // プレイヤーターン終了時に減らす。
+        TickFallbackEnemyPassiveEffectsOnPlayerTurnEnd(getEnemyUnit != null ? getEnemyUnit() : null);
+
         BattleUnit enemyUnit = getEnemyUnit != null ? getEnemyUnit() : null;
         if (enemyUnit == null)
         {
@@ -256,7 +260,24 @@ public class EncounterFlowController : MonoBehaviour
             yield break;
         }
 
-        enemyUnit.TickCooldown();
+        // === 状態異常: 敵金縛りチェック（フォールバック） ===
+        StatusEffectHolder fbEnemyStatus = enemyUnit.StatusEffects;
+        if (fbEnemyStatus != null && fbEnemyStatus.HasEffect(StatusEffectType.Paralysis))
+        {
+            RequestDamageText("金縛り！", enemyUnit.transform.position + Vector3.up * 1.5f, new Color(0.8f, 0.4f, 1f));
+            fbEnemyStatus.ConsumeEffectTurn(StatusEffectType.Paralysis);
+            fbEnemyStatus.ConsumeEffectTurn(StatusEffectType.Slow);
+            yield return new WaitForSeconds(0.25f);
+            TickFallbackPlayerPassiveEffectsOnEnemyTurnEnd(playerUnit);
+            RequestBoardInteractable(true);
+            yield break;
+        }
+
+        bool skipCooldownBySlow = ShouldSkipFallbackEnemyCooldownProgressThisTurn(enemyUnit);
+        if (!skipCooldownBySlow)
+        {
+            enemyUnit.TickCooldown();
+        }
 
         if (enemyUnit.IsReadyToAttack())
         {
@@ -276,9 +297,27 @@ public class EncounterFlowController : MonoBehaviour
             {
                 int damage = isCritical ? 3 : 1;
 
+                // === 状態異常: プレイヤー腐食チェック（フォールバック） ===
+                if (playerUnit != null && playerUnit.StatusEffects != null
+                    && playerUnit.StatusEffects.HasEffect(StatusEffectType.Corrosion))
+                {
+                    int bonus = playerUnit.StatusEffects.GetEffectPotency(StatusEffectType.Corrosion);
+                    if (bonus > 0)
+                    {
+                        damage += bonus;
+                        RequestDamageText("腐食！", playerUnit.transform.position + Vector3.up * 2.0f, new Color(0.6f, 1f, 0.2f));
+                    }
+                }
+
                 if (playerUnit != null)
                 {
                     playerUnit.TakeDamage(damage);
+
+                    // === 状態異常: プレイヤー被弾解除（フォールバック） ===
+                    if (playerUnit.StatusEffects != null)
+                    {
+                        playerUnit.StatusEffects.OnDamageReceived();
+                    }
                 }
 
                 if (hitEffectPrefab != null)
@@ -305,7 +344,55 @@ public class EncounterFlowController : MonoBehaviour
             yield return new WaitForSeconds(0.25f);
         }
 
+        TickFallbackPlayerPassiveEffectsOnEnemyTurnEnd(playerUnit);
         RequestBoardInteractable(true);
+    }
+
+    /// <summary>
+    /// フォールバック用：敵パッシブ状態異常のターン消費。
+    /// プレイヤーターン終了時に呼ぶ。
+    /// </summary>
+    private void TickFallbackEnemyPassiveEffectsOnPlayerTurnEnd(BattleUnit enemyUnit)
+    {
+        if (enemyUnit == null) return;
+        StatusEffectHolder holder = enemyUnit.StatusEffects;
+        if (holder == null) return;
+
+        holder.ConsumeEffectTurn(StatusEffectType.Corrosion);
+    }
+
+    /// <summary>
+    /// フォールバック用：プレイヤーパッシブ状態異常のターン消費。
+    /// 敵ターン終了時に呼ぶ。
+    /// </summary>
+    private void TickFallbackPlayerPassiveEffectsOnEnemyTurnEnd(BattleUnit playerUnit)
+    {
+        if (playerUnit == null) return;
+        StatusEffectHolder holder = playerUnit.StatusEffects;
+        if (holder == null) return;
+
+        holder.ConsumeEffectTurn(StatusEffectType.Corrosion);
+    }
+
+
+    /// <summary>
+    /// フォールバック用：敵の駆動遅延。
+    /// その敵ターンの cooldown 進行を止める。
+    /// </summary>
+    private bool ShouldSkipFallbackEnemyCooldownProgressThisTurn(BattleUnit enemyUnit)
+    {
+        if (enemyUnit == null) return false;
+
+        StatusEffectHolder holder = enemyUnit.StatusEffects;
+        if (holder == null || !holder.HasEffect(StatusEffectType.Slow)) return false;
+
+        if (enemyUnit.currentCooldown > 0)
+        {
+            RequestDamageText("駆動遅延！", enemyUnit.transform.position + Vector3.up * 1.5f, new Color(0.45f, 0.9f, 1f));
+        }
+
+        holder.ConsumeEffectTurn(StatusEffectType.Slow);
+        return true;
     }
 
     public void AdvanceEmptyTurn()

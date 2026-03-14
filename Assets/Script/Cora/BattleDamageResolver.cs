@@ -40,6 +40,14 @@ public class BattleDamageResolver : MonoBehaviour
     private bool nextDamageIsGun;
     private bool nextDamageUseHeavyReaction;
 
+    // --- 次の成功した敵被弾時に1回だけ付与する状態異常 ---
+    private bool hasQueuedSuccessfulEnemyHitStatusEffect;
+    private StatusEffectType queuedSuccessfulEnemyHitStatusEffectType = StatusEffectType.None;
+    private int queuedSuccessfulEnemyHitStatusEffectTurns;
+    private bool queuedSuccessfulEnemyHitStatusEffectRemoveOnDamage;
+    private int queuedSuccessfulEnemyHitStatusEffectPotency;
+    private int queuedSuccessfulEnemyHitStatusEffectChancePercent = 100;
+
     /// <summary>
     /// 次のダメージが銃由来かどうかをセットする。
     /// PanelBattleManager.ExecuteGunHit から呼ばれる。
@@ -53,6 +61,37 @@ public class BattleDamageResolver : MonoBehaviour
     public void SetNextDamageUseHeavyReaction(bool value)
     {
         nextDamageUseHeavyReaction = value;
+    }
+
+    public void QueueNextSuccessfulEnemyHitStatusEffect(
+        StatusEffectType type,
+        int turns,
+        bool removeOnDamage,
+        int potency = 0,
+        int chancePercent = 100)
+    {
+        if (type == StatusEffectType.None || turns <= 0)
+        {
+            ClearQueuedSuccessfulEnemyHitStatusEffect();
+            return;
+        }
+
+        hasQueuedSuccessfulEnemyHitStatusEffect = true;
+        queuedSuccessfulEnemyHitStatusEffectType = type;
+        queuedSuccessfulEnemyHitStatusEffectTurns = turns;
+        queuedSuccessfulEnemyHitStatusEffectRemoveOnDamage = removeOnDamage;
+        queuedSuccessfulEnemyHitStatusEffectPotency = potency;
+        queuedSuccessfulEnemyHitStatusEffectChancePercent = Mathf.Clamp(chancePercent, 0, 100);
+    }
+
+    public void ClearQueuedSuccessfulEnemyHitStatusEffect()
+    {
+        hasQueuedSuccessfulEnemyHitStatusEffect = false;
+        queuedSuccessfulEnemyHitStatusEffectType = StatusEffectType.None;
+        queuedSuccessfulEnemyHitStatusEffectTurns = 0;
+        queuedSuccessfulEnemyHitStatusEffectRemoveOnDamage = false;
+        queuedSuccessfulEnemyHitStatusEffectPotency = 0;
+        queuedSuccessfulEnemyHitStatusEffectChancePercent = 100;
     }
 
     public void Initialize(
@@ -150,7 +189,31 @@ public class BattleDamageResolver : MonoBehaviour
         // ==============================================
         finalDamage = ApplyEnemyTypeModifier(finalDamage, enemyUnit, isGun);
 
+        // ==============================================
+        // 状態異常: 敵腐食チェック
+        // 装甲補正の後に追加ダメージを加算する。
+        // これにより装甲で軽減された後でも腐食分は確実に乗る。
+        // ==============================================
+        int corrosionBonus = 0;
+        if (enemyUnit.StatusEffects != null && enemyUnit.StatusEffects.HasEffect(StatusEffectType.Corrosion))
+        {
+            corrosionBonus = enemyUnit.StatusEffects.GetEffectPotency(StatusEffectType.Corrosion);
+            if (corrosionBonus > 0)
+            {
+                finalDamage += corrosionBonus;
+            }
+        }
+
         enemyUnit.TakeDamage(finalDamage, useHeavyReaction);
+
+        TryApplyQueuedSuccessfulEnemyHitStatusEffect(enemyUnit);
+
+        // === 状態異常: 敵被弾解除 ===
+        if (enemyUnit.StatusEffects != null)
+        {
+            enemyUnit.StatusEffects.OnDamageReceived();
+        }
+
         battleEventHub?.RaiseOneShotEffectRequested(hitEffectPrefab, enemyPos + Vector3.up * hitEffectHeight, hitEffectReturnDelay);
 
         // --- テキスト表示 ---
@@ -174,6 +237,17 @@ public class BattleDamageResolver : MonoBehaviour
         }
 
         StartCoroutine(ShowDamageTextDelayed(text, enemyPos + Vector3.up * damageTextHeight, textColor, damageTextDelay));
+
+        // --- 腐食テキスト（ダメージ数値の少し上に表示） ---
+        if (corrosionBonus > 0)
+        {
+            StartCoroutine(ShowDamageTextDelayed(
+                "腐食！",
+                enemyPos + Vector3.up * (damageTextHeight + 0.5f),
+                new Color(0.6f, 1f, 0.2f),
+                damageTextDelay));
+        }
+
         if (!enemyUnit.IsDead())
         {
             return;
@@ -187,6 +261,42 @@ public class BattleDamageResolver : MonoBehaviour
     // ==============================================
     // 敵タイプによるダメージ補正
     // ==============================================
+
+    private void TryApplyQueuedSuccessfulEnemyHitStatusEffect(BattleUnit enemyUnit)
+    {
+        if (!hasQueuedSuccessfulEnemyHitStatusEffect) return;
+        if (enemyUnit == null)
+        {
+            ClearQueuedSuccessfulEnemyHitStatusEffect();
+            return;
+        }
+
+        bool shouldApply = UnityEngine.Random.Range(0, 100) < queuedSuccessfulEnemyHitStatusEffectChancePercent;
+        if (!shouldApply)
+        {
+            ClearQueuedSuccessfulEnemyHitStatusEffect();
+            return;
+        }
+
+        if (!enemyUnit.IsDead() && enemyUnit.StatusEffects != null)
+        {
+            enemyUnit.StatusEffects.ApplyEffect(
+                queuedSuccessfulEnemyHitStatusEffectType,
+                queuedSuccessfulEnemyHitStatusEffectTurns,
+                queuedSuccessfulEnemyHitStatusEffectRemoveOnDamage,
+                queuedSuccessfulEnemyHitStatusEffectPotency);
+
+            if (queuedSuccessfulEnemyHitStatusEffectType == StatusEffectType.Corrosion)
+            {
+                battleEventHub?.RaiseDamageTextRequested(
+                    "装甲腐食",
+                    enemyUnit.transform.position + Vector3.up * (damageTextHeight + 0.85f),
+                    new Color(0.6f, 1f, 0.2f));
+            }
+        }
+
+        ClearQueuedSuccessfulEnemyHitStatusEffect();
+    }
 
     private int ApplyEnemyTypeModifier(int damage, BattleUnit enemyUnit, bool isGun)
     {

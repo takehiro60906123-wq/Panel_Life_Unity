@@ -1,4 +1,4 @@
-﻿using TMPro;
+using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -46,7 +46,12 @@ public class BattleUnit : MonoBehaviour
     private EnemyTurnState turnState;
     private BattleUnitView view;
 
+    private StatusEffectHolder statusEffects;
+    private BattleStatusIconPresenter statusIconPresenter;
+
+    public StatusEffectHolder StatusEffects => statusEffects;
     public int CurrentHP => currentHP;
+
     public bool IsReadyToAttack()
     {
         return currentCooldown <= 0;
@@ -70,9 +75,25 @@ public class BattleUnit : MonoBehaviour
         turnState = GetComponent<EnemyTurnState>();
         view = GetComponent<BattleUnitView>();
 
+        statusEffects = GetComponent<StatusEffectHolder>();
+        if (statusEffects == null)
+        {
+            statusEffects = gameObject.AddComponent<StatusEffectHolder>();
+            Debug.Log($"[BattleUnit] {gameObject.name}: StatusEffectHolder を自動追加しました");
+        }
+
+        statusIconPresenter = GetComponent<BattleStatusIconPresenter>();
+        if (statusIconPresenter == null)
+        {
+            statusIconPresenter = gameObject.AddComponent<BattleStatusIconPresenter>();
+        }
+
         progression.Initialize(level, currentExp);
         turnState.Configure(attackInterval, currentCooldown);
         view.BindLegacyReferences(hpSlider, hpText, levelText, turnText, animator);
+
+        statusIconPresenter.Initialize(this, statusEffects);
+        statusIconPresenter.SetVisible(hpSlider == null || hpSlider.gameObject.activeSelf);
 
         SyncFromComponents();
         RefreshAll();
@@ -145,6 +166,7 @@ public class BattleUnit : MonoBehaviour
     public void SetUIActive(bool isActive)
     {
         view.SetUIActive(isActive);
+        statusIconPresenter?.SetVisible(isActive);
     }
 
     public void PlayAttackAnimation()
@@ -251,10 +273,6 @@ public class BattleUnit : MonoBehaviour
         UpdateTurnUI();
     }
 
-    // =============================================================
-    // モンスターパネルによる敵レベルアップ
-    // =============================================================
-
     public struct EnemyLevelUpResult
     {
         public int levelsGained;
@@ -264,10 +282,6 @@ public class BattleUnit : MonoBehaviour
         public int newEnemyLevel;
     }
 
-    /// <summary>
-    /// モンスターパネルによる敵レベルアップ。
-    /// chainCount = 消したモンスターパネルの連結数。
-    /// </summary>
     public EnemyLevelUpResult EnemyLevelUp(int chainCount, int hpPerLevel = 2, int healPerLevel = 1, int expPerLevel = 1)
     {
         EnemyLevelUpResult result = new EnemyLevelUpResult();
@@ -295,12 +309,11 @@ public class BattleUnit : MonoBehaviour
         return result;
     }
 
-    // =============================================================
-
     private void RefreshAll()
     {
         UpdateUI();
         UpdateTurnUI();
+        statusIconPresenter?.RefreshNow();
     }
 
     private void SyncFromComponents()

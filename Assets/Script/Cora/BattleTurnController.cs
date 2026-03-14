@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections;
 using UnityEngine;
 
@@ -33,6 +33,69 @@ public class BattleTurnController : MonoBehaviour
         return encounter == EncounterType.Empty
             || encounter == EncounterType.Treasure
             || encounter == EncounterType.Shop;
+    }
+
+    // ============================================
+    // 状態異常: プレイヤーパッシブ効果のターン消費
+    // 敵ターン終了時に呼ぶ。
+    // 将来パッシブ効果が増えたらここに足す。
+    // ============================================
+    private void TickPlayerPassiveEffectsOnEnemyTurnEnd(BattleUnit playerUnit)
+    {
+        if (playerUnit == null) return;
+        StatusEffectHolder holder = playerUnit.StatusEffects;
+        if (holder == null) return;
+
+        holder.ConsumeEffectTurn(StatusEffectType.Corrosion);
+    }
+
+
+    // ============================================
+    // 状態異常: 敵の駆動遅延
+    // 敵ターン開始時に、現在の enemy turn の cooldown 進行を1回止める。
+    // 既に攻撃可能状態なら効果は薄いが、そのターン分は消費する。
+    // ============================================
+    private bool ShouldSkipEnemyCooldownProgressThisTurn(BattleUnit enemyUnit, Action<string, Vector3, Color> spawnDamageText)
+    {
+        if (enemyUnit == null) return false;
+
+        StatusEffectHolder holder = enemyUnit.StatusEffects;
+        if (holder == null || !holder.HasEffect(StatusEffectType.Slow)) return false;
+
+        bool cooldownWouldProgress = enemyUnit.currentCooldown > 0;
+        if (cooldownWouldProgress && spawnDamageText != null)
+        {
+            Vector3 textPos = enemyUnit.transform.position + Vector3.up * 1.5f;
+            spawnDamageText.Invoke("駆動遅延！", textPos, new Color(0.45f, 0.9f, 1f));
+        }
+
+        holder.ConsumeEffectTurn(StatusEffectType.Slow);
+        return true;
+    }
+
+    // ============================================
+    // 状態異常: プレイヤー腐食によるダメージ増加
+    // 敵攻撃のダメージ計算後、TakeDamage前に呼ぶ。
+    // ============================================
+    private int ApplyPlayerCorrosionBonus(int damage, BattleUnit playerUnit, Action<string, Vector3, Color> spawnDamageText)
+    {
+        if (playerUnit == null) return damage;
+        StatusEffectHolder holder = playerUnit.StatusEffects;
+        if (holder == null) return damage;
+        if (!holder.HasEffect(StatusEffectType.Corrosion)) return damage;
+
+        int bonus = holder.GetEffectPotency(StatusEffectType.Corrosion);
+        if (bonus <= 0) return damage;
+
+        damage += bonus;
+
+        if (spawnDamageText != null)
+        {
+            Vector3 textPos = playerUnit.transform.position + Vector3.up * 2.0f;
+            spawnDamageText.Invoke("腐食！", textPos, new Color(0.6f, 1f, 0.2f));
+        }
+
+        return damage;
     }
 
     public IEnumerator EndPlayerTurnRoutine(
@@ -110,7 +173,31 @@ public class BattleTurnController : MonoBehaviour
             yield break;
         }
 
-        enemyUnit.TickCooldown();
+        // ==============================================
+        // 状態異常: 敵金縛りチェック
+        // 金縛り中はクールダウンも進まない（完全凍結）
+        // ==============================================
+        StatusEffectHolder enemyStatusHolder = enemyUnit.StatusEffects;
+        if (enemyStatusHolder != null && enemyStatusHolder.HasEffect(StatusEffectType.Paralysis))
+        {
+            Vector3 paralysisTextPos = enemyUnit.transform.position + Vector3.up * 1.5f;
+            spawnDamageText?.Invoke("金縛り！", paralysisTextPos, new Color(0.8f, 0.4f, 1f));
+
+            // 行動スキップした後に残りターンを消費
+            enemyStatusHolder.ConsumeEffectTurn(StatusEffectType.Paralysis);
+            enemyStatusHolder.ConsumeEffectTurn(StatusEffectType.Slow);
+
+            yield return new WaitForSeconds(enemyIdleDelay);
+            TickPlayerPassiveEffectsOnEnemyTurnEnd(playerUnit);
+            setBoardInteractable?.Invoke(true);
+            yield break;
+        }
+
+        bool enemySlowSkippedCooldown = ShouldSkipEnemyCooldownProgressThisTurn(enemyUnit, spawnDamageText);
+        if (!enemySlowSkippedCooldown)
+        {
+            enemyUnit.TickCooldown();
+        }
 
         if (enemyUnit.IsReadyToAttack())
         {
@@ -128,6 +215,7 @@ public class BattleTurnController : MonoBehaviour
 
                 enemyUnit.ResetCooldown();
                 yield return new WaitForSeconds(0.7f);
+                TickPlayerPassiveEffectsOnEnemyTurnEnd(playerUnit);
                 setBoardInteractable?.Invoke(true);
                 yield break;
             }
@@ -150,6 +238,7 @@ public class BattleTurnController : MonoBehaviour
 
                     enemyUnit.ResetCooldown();
                     yield return new WaitForSeconds(enemyPostAttackDelay);
+                    TickPlayerPassiveEffectsOnEnemyTurnEnd(playerUnit);
                     setBoardInteractable?.Invoke(true);
                     yield break;
                 }
@@ -187,7 +276,16 @@ public class BattleTurnController : MonoBehaviour
             {
                 int finalDamage = isCritical ? baseDamage * 2 : baseDamage;
 
+                // === 状態異常: プレイヤー腐食チェック ===
+                finalDamage = ApplyPlayerCorrosionBonus(finalDamage, playerUnit, spawnDamageText);
+
                 if (playerUnit != null) playerUnit.TakeDamage(finalDamage);
+
+                // === 状態異常: プレイヤー被弾解除 ===
+                if (playerUnit != null && playerUnit.StatusEffects != null)
+                {
+                    playerUnit.StatusEffects.OnDamageReceived();
+                }
 
                 if (hitEffectPrefab != null)
                     spawnOneShotEffect?.Invoke(hitEffectPrefab, pos + Vector3.up * 0.5f, 0.7f);
@@ -225,7 +323,17 @@ public class BattleTurnController : MonoBehaviour
                     else
                     {
                         int finalDmg2 = hit2Crit ? hit2Damage * 2 : hit2Damage;
+
+                        // === 状態異常: プレイヤー腐食チェック（MultiHit 2発目） ===
+                        finalDmg2 = ApplyPlayerCorrosionBonus(finalDmg2, playerUnit, spawnDamageText);
+
                         playerUnit.TakeDamage(finalDmg2);
+
+                        // === 状態異常: プレイヤー被弾解除（MultiHit 2発目） ===
+                        if (playerUnit.StatusEffects != null)
+                        {
+                            playerUnit.StatusEffects.OnDamageReceived();
+                        }
 
                         if (hitEffectPrefab != null)
                             spawnOneShotEffect?.Invoke(hitEffectPrefab, pos2 + Vector3.up * 0.5f, 0.7f);
@@ -268,6 +376,7 @@ public class BattleTurnController : MonoBehaviour
             yield return new WaitForSeconds(enemyIdleDelay);
         }
 
+        TickPlayerPassiveEffectsOnEnemyTurnEnd(playerUnit);
         setBoardInteractable?.Invoke(true);
     }
 

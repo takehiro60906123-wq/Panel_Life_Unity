@@ -1,4 +1,4 @@
-﻿using System.Collections;
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
@@ -88,6 +88,10 @@ public class PanelBattleManager : MonoBehaviour
     [SerializeField] private PlayerCombatController playerCombatController;
     public PlayerCombatController PlayerCombatController => playerCombatController;
     public GunCombatController GunCombatController => gunCombatController;
+
+    [Header("状態異常")]
+    [SerializeField] private float paralysisSkipDelay = 0.6f;
+    private bool paralysisSkipRunning;
 
     [Header("アイテム設定")]
     [SerializeField] private BattleInventoryController battleInventoryController;
@@ -322,6 +326,50 @@ public class PanelBattleManager : MonoBehaviour
             playerDamageBoostTurnsRemaining = 0;
             playerDamageBoostRate = 0f;
         }
+    }
+
+    /// <summary>
+    /// 敵のパッシブ状態異常（腐食など）のターン消費。
+    /// プレイヤーターン終了時に呼ぶ。
+    /// 将来パッシブ効果が増えたらここに足す。
+    /// </summary>
+    private void TickEnemyPassiveEffectsOnPlayerTurnEnd()
+    {
+        BattleUnit currentEnemy = enemyUnit;
+        if (currentEnemy == null) return;
+        StatusEffectHolder holder = currentEnemy.StatusEffects;
+        if (holder == null) return;
+
+        holder.ConsumeEffectTurn(StatusEffectType.Corrosion);
+    }
+
+
+    /// <summary>
+    /// プレイヤーの駆動遅延。
+    /// プレイヤーターン終了時、敵の cooldown を追加で1進める。
+    /// 1ターン効果でも次の敵攻撃テンポに確実に影響するよう、
+    /// EncounterFlowController の敵ターン開始前に適用する。
+    /// </summary>
+    private void ApplyPlayerSlowPenaltyOnTurnEnd()
+    {
+        if (currentEncounter != EncounterType.Enemy) return;
+        if (playerUnit == null || playerUnit.StatusEffects == null) return;
+        if (!playerUnit.StatusEffects.HasEffect(StatusEffectType.Slow)) return;
+
+        BattleUnit currentEnemy = enemyUnit;
+        if (currentEnemy != null && !currentEnemy.IsDead())
+        {
+            int beforeCooldown = currentEnemy.currentCooldown;
+            currentEnemy.TickCooldown();
+
+            if (currentEnemy.currentCooldown < beforeCooldown)
+            {
+                Vector3 textPos = playerUnit.transform.position + Vector3.up * 1.5f;
+                SpawnDamageText("駆動遅延！", textPos, new Color(0.45f, 0.9f, 1f));
+            }
+        }
+
+        playerUnit.StatusEffects.ConsumeEffectTurn(StatusEffectType.Slow);
     }
 
     public void TryUseInventoryItem(int slotIndex)
@@ -1290,6 +1338,8 @@ public class PanelBattleManager : MonoBehaviour
         }
 
         TickPlayerTimedBuffsOnTurnEnd();
+        ApplyPlayerSlowPenaltyOnTurnEnd();
+        TickEnemyPassiveEffectsOnPlayerTurnEnd();
         if (battleUIController != null)
         {
             battleUIController.RefreshInventoryUI();
@@ -1451,6 +1501,20 @@ public class PanelBattleManager : MonoBehaviour
 
     public void SetBoardInteractable(bool isInteractable)
     {
+        // === 状態異常: プレイヤー金縛りチェック ===
+        // 戦闘中にプレイヤーターンが始まろうとしたとき、
+        // 金縛り中なら盤面を開放せずターンをスキップする。
+        if (isInteractable
+            && !paralysisSkipRunning
+            && currentEncounter == EncounterType.Enemy
+            && playerUnit != null
+            && playerUnit.StatusEffects != null
+            && playerUnit.StatusEffects.HasEffect(StatusEffectType.Paralysis))
+        {
+            StartCoroutine(HandlePlayerParalysisSkip());
+            return;
+        }
+
         isPlayerTurn = isInteractable;
 
         if (boardCanvasGroup != null)
@@ -1459,6 +1523,51 @@ public class PanelBattleManager : MonoBehaviour
             boardCanvasGroup.blocksRaycasts = isInteractable;
             boardCanvasGroup.DOFade(isInteractable ? 1.0f : 0.6f, 0.3f);
         }
+    }
+
+    /// <summary>
+    /// プレイヤー金縛り時のターンスキップ処理。
+    /// 盤面を開放せず、スキップ演出後に EndPlayerTurn() を呼ぶ。
+    /// EndPlayerTurn() → 敵ターン → SetBoardInteractable(true) と巡回し、
+    /// まだ金縛りが残っていれば再びここに来る。
+    /// paralysisSkipRunning フラグで多重起動を防止する。
+    /// </summary>
+    private System.Collections.IEnumerator HandlePlayerParalysisSkip()
+    {
+        if (paralysisSkipRunning)
+        {
+            yield break;
+        }
+
+        paralysisSkipRunning = true;
+
+        // 盤面ロック状態を維持
+        isPlayerTurn = false;
+
+        if (boardCanvasGroup != null)
+        {
+            boardCanvasGroup.interactable = false;
+            boardCanvasGroup.blocksRaycasts = false;
+        }
+
+        // 演出テキスト
+        Vector3 textPos = playerUnit != null
+            ? playerUnit.transform.position + Vector3.up * 1.5f
+            : Vector3.up * 1.5f;
+        SpawnDamageText("金縛り！", textPos, new Color(0.8f, 0.4f, 1f));
+
+        yield return new WaitForSeconds(paralysisSkipDelay);
+
+        // 行動スキップ後に残りターンを消費
+        if (playerUnit != null && playerUnit.StatusEffects != null)
+        {
+            playerUnit.StatusEffects.ConsumeEffectTurn(StatusEffectType.Paralysis);
+        }
+
+        paralysisSkipRunning = false;
+
+        // 通常のターン終了処理へ（敵ターンに遷移する）
+        yield return StartCoroutine(EndPlayerTurn());
     }
 
 

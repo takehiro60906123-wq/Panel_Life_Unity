@@ -21,6 +21,12 @@ public class GunCombatController : MonoBehaviour
     [SerializeField] private int shotgunDangerBonusDamage = 2;
     [SerializeField] private int shotgunDelayChance = 30;
 
+    [Header("Shotgun Corrosion")]
+    [SerializeField] private bool shotgunAppliesCorrosion = true;
+    [SerializeField, Range(0, 100)] private int shotgunCorrosionChance = 100;
+    [SerializeField] private int shotgunCorrosionTurns = 1;
+    [SerializeField] private int shotgunCorrosionPotency = 1;
+
     [Header("Shot Timings")]
     [SerializeField] private float defaultShotInterval = 0.08f;
     [SerializeField] private float defaultFinishDelay = 0.24f;
@@ -193,6 +199,7 @@ public class GunCombatController : MonoBehaviour
         }
 
         int damagePerShot = ResolveGunHitDamage(gun, target);
+        bool queuedShotgunCorrosion = QueueShotgunCorrosionOnNextSuccessfulHit(gun);
 
         if (shotCount <= 1)
         {
@@ -202,6 +209,11 @@ public class GunCombatController : MonoBehaviour
         {
             yield return StartCoroutine(
                 ExecuteRepeatedGunHitsRoutine(gun, target, shotCount, damagePerShot, interval));
+        }
+
+        if (queuedShotgunCorrosion && battleDamageResolver != null)
+        {
+            battleDamageResolver.ClearQueuedSuccessfulEnemyHitStatusEffect();
         }
 
         ApplyGunAfterEffects(gun, target);
@@ -309,6 +321,23 @@ public class GunCombatController : MonoBehaviour
         }
 
         return damage;
+    }
+
+    private bool QueueShotgunCorrosionOnNextSuccessfulHit(GunData gun)
+    {
+        if (gun == null) return false;
+        if (gun.gunType != GunType.Shotgun) return false;
+        if (!shotgunAppliesCorrosion) return false;
+        if (shotgunCorrosionTurns <= 0) return false;
+        if (battleDamageResolver == null) return false;
+
+        battleDamageResolver.QueueNextSuccessfulEnemyHitStatusEffect(
+            StatusEffectType.Corrosion,
+            shotgunCorrosionTurns,
+            removeOnDamage: false,
+            potency: shotgunCorrosionPotency,
+            chancePercent: shotgunCorrosionChance);
+        return true;
     }
 
     private void ApplyGunAfterEffects(GunData gun, BattleUnit target)
