@@ -29,7 +29,9 @@ public class GunDefinition : ScriptableObject
             shotCount = shotCount,
             damagePerShot = damagePerShot,
             useAllGauge = useAllGauge,
-            minGaugeToFire = minGaugeToFire
+            minGaugeToFire = minGaugeToFire,
+            shotInterval = shotInterval,
+            finishDelay = finishDelay
         };
     }
 }

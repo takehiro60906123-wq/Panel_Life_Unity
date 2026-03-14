@@ -67,6 +67,9 @@ public class PanelBattleManager : MonoBehaviour
     [Header("ダメージ解決コントローラー")]
     public BattleDamageResolver battleDamageResolver;
 
+    [Header("銃戦闘コントローラー")]
+    public GunCombatController gunCombatController;
+
     [Header("初期化コントローラー")]
     public BattleBootstrapper battleBootstrapper;
 
@@ -84,6 +87,7 @@ public class PanelBattleManager : MonoBehaviour
     [SerializeField] private PlayerCombatLoadout playerLoadout;
     [SerializeField] private PlayerCombatController playerCombatController;
     public PlayerCombatController PlayerCombatController => playerCombatController;
+    public GunCombatController GunCombatController => gunCombatController;
 
     [Header("アイテム設定")]
     [SerializeField] private BattleInventoryController battleInventoryController;
@@ -117,14 +121,6 @@ public class PanelBattleManager : MonoBehaviour
 
     [SerializeField] private PlayerProgression playerProgression;
 
-    [SerializeField] private int shotgunPelletVisualCount = 7;
-    [SerializeField] private float shotgunSpreadX = 0.60f;
-    [SerializeField] private float shotgunSpreadY = 0.22f;
-    [SerializeField] private float shotgunPelletHitScale = 0.48f;
-    [SerializeField] private float shotgunCenterHitScale = 1.15f;
-    [SerializeField] private float shotgunPelletTracerWidth = 0.035f;
-    [SerializeField] private float shotgunPelletTracerDuration = 0.05f;
-    [SerializeField] private Color shotgunTracerColor = new Color(1f, 0.95f, 0.82f, 0.85f);
 
     private struct PendingDropFeedback
     {
@@ -794,39 +790,6 @@ public class PanelBattleManager : MonoBehaviour
         return BattleItemType.None;
     }
 
-    public void FirePistol()
-    {
-        if (!TryPrepareGunAction(out GunData gun, out BattleUnit target)) return;
-
-        bool consumed = playerCombatController.ConsumeGunGauge();
-        if (!consumed) return;
-
-        StartCoroutine(FirePistolRoutine(gun, target));
-    }
-
-    private IEnumerator FirePistolRoutine(GunData gun, BattleUnit target)
-    {
-        yield return StartCoroutine(
-            ExecuteGunRoutine(gun, target, gun.shotCount, 0.07f, $"{gun.gunName}発射", 0.22f));
-    }
-
-    private void SpawnPistolMuzzleFlash()
-    {
-        if (playerUnit == null) return;
-        if (pistolMuzzleFlashPrefab == null) return;
-
-        Vector3 spawnPos = playerUnit.transform.position + new Vector3(0.6f, 0.35f, 0f);
-        SpawnOneShotEffect(pistolMuzzleFlashPrefab, spawnPos, 0.2f);
-    }
-
-    private void SpawnPistolHitEffect(BattleUnit target)
-    {
-        if (target == null) return;
-        if (hitEffectPrefab == null) return;
-
-        Vector3 hitPos = target.transform.position + new Vector3(0f, 0.5f, 0f);
-        SpawnOneShotEffect(hitEffectPrefab, hitPos, 0.25f);
-    }
 
     // PanelBattleManager に追加
     public void UpdateFloorUI()
@@ -856,436 +819,11 @@ public class PanelBattleManager : MonoBehaviour
         return true;
     }
 
-    private IEnumerator FinishGunActionRoutine(string logMessage, float waitSeconds)
-    {
-        if (!string.IsNullOrEmpty(logMessage))
-        {
-            Debug.Log(logMessage);
-        }
-
-        if (battleUIController != null)
-        {
-            battleUIController.RefreshGunUI();
-        }
-
-        yield return new WaitForSeconds(waitSeconds);
-
-        PlayerAnimationPresenter playerAnim = GetPlayerAnimationPresenter();
-        if (playerAnim != null)
-        {
-            playerAnim.PlayIdle();
-        }
-
-        StartCoroutine(EndPlayerTurn());
-    }
-
-    private int ResolveGunHitDamage(GunData gun, BattleUnit target)
-    {
-        if (gun == null) return 0;
-
-        int damage = gun.damagePerShot;
-
-        if (gun.gunType == GunType.Shotgun && target != null && target.IsDangerEnemy())
-        {
-            damage += shotgunDangerBonusDamage;
-        }
-
-        return ApplyPlayerDamageModifiers(damage);
-    }
-
-    private void ApplyGunAfterEffects(GunData gun, BattleUnit target)
-    {
-        if (gun == null) return;
-        if (target == null) return;
-        if (target.IsDead()) return;
-
-        if (gun.gunType == GunType.Shotgun)
-        {
-            TryDelayEnemyTurnByShotgun(target);
-        }
-    }
 
     private PlayerAnimationPresenter GetPlayerAnimationPresenter()
     {
         if (playerUnit == null) return null;
         return playerUnit.GetComponent<PlayerAnimationPresenter>();
-    }
-
-    private IEnumerator ExecuteGunRoutine(
-    GunData gun,
-    BattleUnit target,
-    int shotCount,
-    float interval,
-    string logMessage,
-    float finishDelay)
-    {
-        if (gun == null) yield break;
-        if (target == null) yield break;
-        if (target.IsDead()) yield break;
-
-        PlayerAnimationPresenter playerAnim = GetPlayerAnimationPresenter();
-        if (playerAnim != null)
-        {
-            playerAnim.PlayRunShoot();
-        }
-
-        int damagePerShot = ResolveGunHitDamage(gun, target);
-
-        if (shotCount <= 1)
-        {
-            ExecuteGunHit(gun, target, damagePerShot);
-        }
-        else
-        {
-            yield return StartCoroutine(
-                ExecuteRepeatedGunHitsRoutine(gun, target, shotCount, damagePerShot, interval));
-        }
-
-        ApplyGunAfterEffects(gun, target);
-
-        yield return StartCoroutine(FinishGunActionRoutine(logMessage, finishDelay));
-    }
-
-    private void ExecuteGunHit(GunData gun, BattleUnit target, int damage)
-    {
-        if (gun == null) return;
-        if (target == null) return;
-        if (target.IsDead()) return;
-
-        SpawnPistolMuzzleFlash();
-        SpawnPistolHitEffect(target);
-
-        if (battleDamageResolver != null)
-        {
-            battleDamageResolver.SetNextDamageIsGun(true);
-
-            if (gun.gunType == GunType.Shotgun)
-            {
-                battleDamageResolver.SetNextDamageUseHeavyReaction(true);
-            }
-        }
-
-        battleEventHub?.RaiseEnemyDamageRequested(damage);
-    }
-
-    private void PlayGunShotVisual(GunData gun, BattleUnit target)
-    {
-        if (gun == null || target == null) return;
-
-        switch (gun.gunType)
-        {
-            case GunType.MachineGun:
-                PlayMachineGunShotVisual(target);
-                break;
-
-            case GunType.Shotgun:
-                PlayShotgunShotVisual(target);
-                break;
-
-            case GunType.Rifle:
-                PlayRifleShotVisual(target);
-                break;
-
-            case GunType.Pistol:
-            default:
-                PlayPistolShotVisual(target);
-                break;
-        }
-    }
-
-    private void PlayShotgunShotVisual(BattleUnit target)
-    {
-        Vector3 muzzlePos = GetGunMuzzleWorldPos(new Vector3(0.64f, 0.36f, 0f));
-        Vector3 centerHitPos = target.transform.position + new Vector3(0f, 0.52f, 0f);
-
-        // 発射は大きめ
-        SpawnScaledMuzzleFlash(muzzlePos, shotgunMuzzleScale, 0.16f);
-
-        // 中央の強い着弾
-        SpawnScaledHitEffect(centerHitPos, shotgunCenterHitScale, 0.22f);
-
-        // 複数ペレットを扇状に散らす
-        for (int i = 0; i < shotgunPelletVisualCount; i++)
-        {
-            float t = shotgunPelletVisualCount <= 1 ? 0.5f : (float)i / (shotgunPelletVisualCount - 1);
-
-            // 左右に広がるベース
-            float offsetX = Mathf.Lerp(-shotgunSpreadX, shotgunSpreadX, t);
-
-            // 外側ほど少し上下も散る
-            float offsetY = Random.Range(-shotgunSpreadY, shotgunSpreadY);
-
-            // 中央寄りを少し密に
-            offsetX += Random.Range(-0.06f, 0.06f);
-
-            Vector3 pelletHitPos = centerHitPos + new Vector3(offsetX, offsetY, 0f);
-
-            SpawnShotgunPelletTracer(muzzlePos, pelletHitPos);
-
-            // 全部に大きいヒットを出すとうるさいので、小さめに散らす
-            SpawnScaledHitEffect(
-                pelletHitPos,
-                shotgunPelletHitScale * Random.Range(0.9f, 1.1f),
-                0.14f
-            );
-        }
-    }
-
-    private void SpawnShotgunPelletTracer(Vector3 start, Vector3 end)
-    {
-        GameObject tracerObj = new GameObject("ShotgunPelletTracer");
-        LineRenderer lr = tracerObj.AddComponent<LineRenderer>();
-
-        lr.positionCount = 2;
-        lr.useWorldSpace = true;
-        lr.SetPosition(0, start);
-        lr.SetPosition(1, end);
-        lr.startWidth = shotgunPelletTracerWidth;
-        lr.endWidth = shotgunPelletTracerWidth * 0.45f;
-        lr.numCapVertices = 2;
-        lr.textureMode = LineTextureMode.Stretch;
-        lr.sortingOrder = 28;
-
-        if (gunTracerMaterial == null)
-        {
-            Shader shader = Shader.Find("Sprites/Default");
-            if (shader != null)
-            {
-                gunTracerMaterial = new Material(shader);
-            }
-        }
-
-        if (gunTracerMaterial != null)
-        {
-            lr.material = gunTracerMaterial;
-        }
-
-        Color startColor = shotgunTracerColor;
-        Color endColor = shotgunTracerColor;
-        endColor.a = 0f;
-
-        lr.startColor = startColor;
-        lr.endColor = endColor;
-
-        DOVirtual.Float(1f, 0f, shotgunPelletTracerDuration, a =>
-        {
-            if (lr == null) return;
-
-            Color s = shotgunTracerColor;
-            s.a = a * shotgunTracerColor.a;
-
-            Color e = shotgunTracerColor;
-            e.a = 0f;
-
-            lr.startColor = s;
-            lr.endColor = e;
-        })
-        .OnComplete(() =>
-        {
-            if (tracerObj != null)
-            {
-                Destroy(tracerObj);
-            }
-        });
-    }
-
-    private void PlayRifleShotVisual(BattleUnit target)
-    {
-        Vector3 muzzlePos = GetGunMuzzleWorldPos(new Vector3(0.72f, 0.38f, 0f));
-        Vector3 hitPos = target.transform.position + new Vector3(0f, 0.56f, 0f);
-
-        SpawnScaledMuzzleFlash(muzzlePos, rifleMuzzleScale, 0.14f);
-        SpawnRifleTracer(muzzlePos, hitPos);
-        SpawnScaledHitEffect(hitPos, rifleHitScale, 0.20f);
-    }
-
-    private void PlayMachineGunShotVisual(BattleUnit target)
-    {
-        Vector3 muzzlePos = GetGunMuzzleWorldPos(new Vector3(0.58f, 0.34f, 0f));
-        Vector3 hitPos = target.transform.position
-            + new Vector3(
-                UnityEngine.Random.Range(-machineGunHitScatter, machineGunHitScatter),
-                0.46f + UnityEngine.Random.Range(-0.08f, 0.08f),
-                0f);
-
-        SpawnScaledMuzzleFlash(muzzlePos, machineGunMuzzleScale, 0.12f);
-        SpawnScaledHitEffect(hitPos, machineGunHitScale, 0.16f);
-    }
-
-
-    private void PlayPistolShotVisual(BattleUnit target)
-    {
-        Vector3 muzzlePos = GetGunMuzzleWorldPos(new Vector3(0.60f, 0.35f, 0f));
-        Vector3 hitPos = target.transform.position + new Vector3(0f, 0.50f, 0f);
-
-        SpawnScaledMuzzleFlash(muzzlePos, pistolMuzzleScale, 0.18f);
-        SpawnScaledHitEffect(hitPos, pistolHitScale, 0.22f);
-    }
-
-    private Vector3 GetGunMuzzleWorldPos(Vector3 offset)
-    {
-        if (playerUnit == null) return offset;
-        return playerUnit.transform.position + offset;
-    }
-
-    private void SpawnScaledMuzzleFlash(Vector3 worldPos, float uniformScale, float returnDelay)
-    {
-        if (pistolMuzzleFlashPrefab == null) return;
-        SpawnOneShotEffect(
-            pistolMuzzleFlashPrefab,
-            worldPos,
-            Quaternion.identity,
-            returnDelay,
-            Vector3.one * uniformScale);
-    }
-
-    private void SpawnScaledHitEffect(Vector3 worldPos, float uniformScale, float returnDelay)
-    {
-        if (hitEffectPrefab == null) return;
-        SpawnOneShotEffect(
-            hitEffectPrefab,
-            worldPos,
-            Quaternion.identity,
-            returnDelay,
-            Vector3.one * uniformScale);
-    }
-
-    private void SpawnRifleTracer(Vector3 start, Vector3 end)
-    {
-        GameObject tracerObj = new GameObject("RifleTracer");
-        LineRenderer lr = tracerObj.AddComponent<LineRenderer>();
-
-        lr.positionCount = 2;
-        lr.useWorldSpace = true;
-        lr.SetPosition(0, start);
-        lr.SetPosition(1, end);
-        lr.startWidth = rifleTracerWidth;
-        lr.endWidth = rifleTracerWidth * 0.35f;
-        lr.numCapVertices = 4;
-        lr.textureMode = LineTextureMode.Stretch;
-        lr.sortingOrder = 30;
-
-        if (gunTracerMaterial == null)
-        {
-            Shader shader = Shader.Find("Sprites/Default");
-            if (shader != null)
-            {
-                gunTracerMaterial = new Material(shader);
-            }
-        }
-
-        if (gunTracerMaterial != null)
-        {
-            lr.material = gunTracerMaterial;
-        }
-
-        Color startColor = rifleTracerColor;
-        Color endColor = rifleTracerColor;
-        endColor.a = 0f;
-
-        lr.startColor = startColor;
-        lr.endColor = endColor;
-
-        DOVirtual.Float(1f, 0f, rifleTracerDuration, a =>
-        {
-            if (lr == null) return;
-
-            Color s = rifleTracerColor;
-            s.a = a * rifleTracerColor.a;
-
-            Color e = rifleTracerColor;
-            e.a = 0f;
-
-            lr.startColor = s;
-            lr.endColor = e;
-        })
-        .OnComplete(() =>
-        {
-            if (tracerObj != null)
-            {
-                Destroy(tracerObj);
-            }
-        });
-    }
-
-    private IEnumerator ExecuteRepeatedGunHitsRoutine(
-        GunData gun,
-        BattleUnit target,
-        int shotCount,
-        int damagePerShot,
-        float interval)
-    {
-        int safeShotCount = Mathf.Max(1, shotCount);
-        float safeInterval = Mathf.Max(0.01f, interval);
-
-        for (int i = 0; i < safeShotCount; i++)
-        {
-            if (target == null || target.IsDead())
-            {
-                yield break;
-            }
-
-            ExecuteGunHit(gun, target, damagePerShot);
-
-            if (i < safeShotCount - 1)
-            {
-                yield return new WaitForSeconds(safeInterval);
-            }
-        }
-    }
-
-    private bool TryPrepareGunAction(out GunData gun, out BattleUnit target, GunType? requiredGunType = null)
-    {
-        gun = null;
-        target = null;
-
-        if (!isPlayerTurn) return false;
-        if (playerCombatController == null) return false;
-
-        gun = playerCombatController.GetGunData();
-        if (gun == null) return false;
-
-        if (requiredGunType.HasValue && gun.gunType != requiredGunType.Value)
-        {
-            return false;
-        }
-
-        if (!TryGetValidEnemyTarget(out target))
-        {
-            return false;
-        }
-
-        return true;
-    }
-
-    private void HandleEnemyDefeatedByGun(BattleUnit defeatedEnemy)
-    {
-        isEnemyDefeatedThisTurn = true;
-
-        if (battleUIController != null)
-        {
-            battleUIController.RefreshGunUI();
-        }
-
-        // まずは既存の通常撃破導線に乗せるための最低限
-        StartCoroutine(EndPlayerTurn());
-    }
-
-    public void FireMachineGun()
-    {
-        if (!TryPrepareGunAction(out GunData gun, out BattleUnit target, GunType.MachineGun)) return;
-        if (!playerCombatController.CanUseMachineGun()) return;
-
-        int shotCount = playerCombatController.ConsumeAllGunGauge();
-        if (shotCount <= 0) return;
-
-        StartCoroutine(FireMachineGunRoutine(gun, target, shotCount));
-    }
-
-    private IEnumerator FireMachineGunRoutine(GunData gun, BattleUnit target, int shotCount)
-    {
-        yield return StartCoroutine(
-            ExecuteGunRoutine(gun, target, shotCount, 0.04f, $"{gun.gunName}発射: {shotCount}連射", 0.10f));
     }
 
 
@@ -1401,6 +939,13 @@ public class PanelBattleManager : MonoBehaviour
     public GameObject absorbEffectPrefab;
     public GameObject levelUpEffectPrefab;
 
+    [Header("パネルエネルギー色")]
+    [SerializeField] private Color swordEnergyColor = new Color(0.52f, 0.92f, 1f, 1f);
+    [SerializeField] private Color ammoEnergyColor = new Color(0.92f, 0.95f, 1f, 1f);
+    [SerializeField] private Color coinEnergyColor = new Color(1f, 0.86f, 0.22f, 1f);
+    [SerializeField] private Color healEnergyColor = new Color(0.52f, 1f, 0.52f, 1f);
+    [SerializeField] private Color levelUpEnergyColor = new Color(0.76f, 0.42f, 1f, 1f);
+
     [Header("ステージ進行設定")]
     public Transform battlePosition;
     public Vector3 waitOffset = new Vector3(2.5f, 0, 0);
@@ -1421,29 +966,6 @@ public class PanelBattleManager : MonoBehaviour
     public bool IsEnemyDefeatedThisTurn => isEnemyDefeatedThisTurn;
 
     private bool isEventHubSubscribed;
-    [Header("銃の追加設定")]
-    [SerializeField] private float shotgunInterval = 0.02f;
-    [SerializeField] private float rifleAfterDelay = 0.30f;
-    [SerializeField] private int shotgunDangerBonusDamage = 2;
-    [SerializeField] private int shotgunDelayChance = 30;
-    [SerializeField] private float pistolMuzzleScale = 1.00f;
-    [SerializeField] private float machineGunMuzzleScale = 0.82f;
-    [SerializeField] private float shotgunMuzzleScale = 1.35f;
-    [SerializeField] private float rifleMuzzleScale = 1.12f;
-
-    [SerializeField] private float pistolHitScale = 1.00f;
-    [SerializeField] private float machineGunHitScale = 0.78f;
-    [SerializeField] private float shotgunHitScale = 1.18f;
-    [SerializeField] private float rifleHitScale = 1.36f;
-
-    [SerializeField] private float machineGunHitScatter = 0.16f;
-    [SerializeField] private float shotgunHitScatter = 0.28f;
-
-    [SerializeField] private Color rifleTracerColor = new Color(1f, 0.96f, 0.84f, 0.95f);
-    [SerializeField] private float rifleTracerWidth = 0.08f;
-    [SerializeField] private float rifleTracerDuration = 0.06f;
-
-    private Material gunTracerMaterial;
 
     // ============================================
     // 弾薬パネルのゲージ供給量
@@ -1515,9 +1037,9 @@ public class PanelBattleManager : MonoBehaviour
         AddCoins(amount);
     }
 
-    private void HandleEnergyOrbRequested(Vector3 startPos, Vector3 target, float duration, float delay)
+    private void HandleEnergyOrbRequested(PanelType panelType, Vector3 startPos, Vector3 target, float duration, float delay)
     {
-        SpawnEnergyOrb(startPos, target, duration, delay);
+        SpawnEnergyOrb(panelType, startPos, target, duration, delay);
     }
 
     // ============================================
@@ -1831,7 +1353,7 @@ public class PanelBattleManager : MonoBehaviour
         }
     }
 
-    public void SpawnEnergyOrb(Vector3 startPos, Vector3 target, float duration, float delay)
+    public void SpawnEnergyOrb(PanelType panelType, Vector3 startPos, Vector3 target, float duration, float delay)
     {
         if (battleEffectController == null) return;
 
@@ -1841,7 +1363,27 @@ public class PanelBattleManager : MonoBehaviour
             startPos,
             target,
             duration,
-            delay);
+            delay,
+            ResolvePanelEnergyColor(panelType));
+    }
+
+    private Color ResolvePanelEnergyColor(PanelType panelType)
+    {
+        switch (panelType)
+        {
+            case PanelType.Sword:
+                return swordEnergyColor;
+            case PanelType.Ammo:
+                return ammoEnergyColor;
+            case PanelType.Coin:
+                return coinEnergyColor;
+            case PanelType.Heal:
+                return healEnergyColor;
+            case PanelType.LvUp:
+                return levelUpEnergyColor;
+            default:
+                return Color.white;
+        }
     }
 
     public IEnumerator SpawnExpTextWithDelay(int exp, Vector3 spawnPos, float delay)
@@ -1885,7 +1427,6 @@ public class PanelBattleManager : MonoBehaviour
     }
 
 
-
     public void SpawnOneShotEffect(GameObject prefab, Vector3 position, Quaternion rotation, float returnDelay, Vector3 scale)
     {
         if (battleEffectController == null || prefab == null) return;
@@ -1920,57 +1461,6 @@ public class PanelBattleManager : MonoBehaviour
         }
     }
 
-    public void FireShotgun()
-    {
-        if (!TryPrepareGunAction(out GunData gun, out BattleUnit target, GunType.Shotgun)) return;
-
-        bool consumed = playerCombatController.ConsumeGunGauge();
-        if (!consumed) return;
-
-        StartCoroutine(FireShotgunRoutine(gun, target));
-    }
-
-    private IEnumerator FireShotgunRoutine(GunData gun, BattleUnit target)
-    {
-        if (panelBoardController != null)
-        {
-            panelBoardController.PlayImpactShake(1.15f, 0.10f);
-        }
-
-        yield return StartCoroutine(
-            ExecuteGunRoutine(gun, target, gun.shotCount, shotgunInterval, $"{gun.gunName}発射", 0.24f));
-    }
-
-
-    public void FireRifle()
-    {
-        if (!TryPrepareGunAction(out GunData gun, out BattleUnit target, GunType.Rifle)) return;
-
-        bool consumed = playerCombatController.ConsumeGunGauge();
-        if (!consumed) return;
-
-        StartCoroutine(FireRifleRoutine(gun, target));
-    }
-
-    private IEnumerator FireRifleRoutine(GunData gun, BattleUnit target)
-    {
-        yield return StartCoroutine(
-            ExecuteGunRoutine(gun, target, gun.shotCount, 0.09f, $"{gun.gunName}発射", rifleAfterDelay));
-    }
-
-    private void TryDelayEnemyTurnByShotgun(BattleUnit target)
-    {
-        if (target == null) return;
-        if (target.IsDead()) return;
-
-        bool success = UnityEngine.Random.Range(0, 100) < shotgunDelayChance;
-        if (!success) return;
-
-        target.DelayCooldown(1);
-
-        Vector3 pos = target.transform.position + Vector3.up * 1.5f;
-        SpawnDamageText("STAGGER", pos, Color.yellow);
-    }
 
     public void OnStageClear()
     {

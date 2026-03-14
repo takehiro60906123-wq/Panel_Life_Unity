@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 
 public enum GunType
 {
@@ -19,4 +19,6 @@ public class GunData
     public int damagePerShot;
     public bool useAllGauge;
     public int minGaugeToFire;
+    public float shotInterval;
+    public float finishDelay;
 }

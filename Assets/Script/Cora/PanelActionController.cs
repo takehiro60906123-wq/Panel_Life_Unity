@@ -15,6 +15,7 @@ public class PanelActionController : MonoBehaviour
     private Action<List<CollectedPanelItemInfo>> onAttachedItemsCollected;
 
     private PlayerCombatController playerCombatController;
+    private BattleUIController battleUIController;
 
     private bool isProcessing;
     [Header("�ߐ�DoTween���o")]
@@ -37,6 +38,7 @@ public class PanelActionController : MonoBehaviour
        PanelBoardController panelBoardController,
        BattleUnit playerUnit,
        PlayerCombatController playerCombatController,
+       BattleUIController battleUIController,
        Func<BattleUnit> getEnemyUnit,
        Func<IEnumerator> endPlayerTurnRoutine,
        Func<int, int> modifyPlayerDamage,
@@ -46,6 +48,7 @@ public class PanelActionController : MonoBehaviour
         this.panelBoardController = panelBoardController;
         this.playerUnit = playerUnit;
         this.playerCombatController = playerCombatController;
+        this.battleUIController = battleUIController;
         this.getEnemyUnit = getEnemyUnit;
         this.endPlayerTurnRoutine = endPlayerTurnRoutine;
         this.modifyPlayerDamage = modifyPlayerDamage;
@@ -96,7 +99,7 @@ public class PanelActionController : MonoBehaviour
         }
 
         // 起点パネル反応
-        panelBoardController.PlayTapFeedback(row, col);
+        panelBoardController.PlayTapFeedback(row, col, clickedType);
 
         // 連結全体の一瞬プレビュー
         panelBoardController.PlayChainPreviewFeedback(chain, clickedType);
@@ -118,27 +121,24 @@ public class PanelActionController : MonoBehaviour
             yield return new WaitForSeconds(panelPreviewHoldDelay);
         }
 
-        // エネルギーオーブ生成（パネル位置は消去開始前に取得）
         float orbStartTime = Time.time;
         float orbArrivalTime = 0f;
 
-        Vector3 targetPos = playerUnit.transform.position + Vector3.up * 0.5f;
-        float flyDuration = 0.5f;
+        Vector3 targetPos = ResolvePanelEnergyTarget(type);
+        float flyDuration = ResolvePanelEnergyDuration(type);
         float delay = 0f;
 
         foreach (Vector2Int pos in chain)
         {
             Vector3 panelWorldPos = panelBoardController.GetPanelWorldPosition(pos.x, pos.y);
-            battleEventHub?.RaiseEnergyOrbRequested(panelWorldPos, targetPos, flyDuration, delay);
+            battleEventHub?.RaiseEnergyOrbRequested(type, panelWorldPos, targetPos, flyDuration, delay);
             delay += 0.04f;
         }
 
         orbArrivalTime = flyDuration + delay + 0.2f;
 
-        // ★ 波紋消去（DropAndFillPanels 内包）
-        yield return panelBoardController.ClearChainPanelsAnimated(chain);
+        yield return panelBoardController.ClearChainPanelsAnimated(chain, type);
 
-        // オーブ到着の残り時間を待つ
         float elapsed = Time.time - orbStartTime;
         float remaining = orbArrivalTime - elapsed;
         if (remaining > 0f)
@@ -146,8 +146,173 @@ public class PanelActionController : MonoBehaviour
             yield return new WaitForSeconds(remaining);
         }
 
-        // アクション実行（攻撃・回復・ゲージ等）
+        PlayPanelEnergyArrivalFeedback(type);
+
         yield return ExecutePanelAction(type, primaryCount);
+    }
+
+    private Vector3 ResolvePanelEnergyTarget(PanelType type)
+    {
+        switch (type)
+        {
+            case PanelType.Sword:
+                return playerUnit.transform.position + Vector3.up * 0.72f;
+
+            case PanelType.Ammo:
+                if (battleUIController != null)
+                {
+                    Vector3 pos = battleUIController.GetGunGaugeWorldPosition();
+                    if (pos != Vector3.zero) return pos;
+                }
+                return playerUnit.transform.position + Vector3.right * 1.2f + Vector3.up * 0.8f;
+
+            case PanelType.Coin:
+                if (battleUIController != null)
+                {
+                    Vector3 pos = battleUIController.GetCoinWorldPosition();
+                    if (pos != Vector3.zero) return pos;
+                }
+                return playerUnit.transform.position + Vector3.left * 1.2f + Vector3.up * 1.2f;
+
+            case PanelType.Heal:
+                return playerUnit.transform.position + Vector3.up * 0.7f;
+
+            case PanelType.LvUp:
+            {
+                BattleUnit enemyUnit = getEnemyUnit != null ? getEnemyUnit() : null;
+                if (enemyUnit != null && !enemyUnit.IsDead())
+                {
+                    return enemyUnit.transform.position + Vector3.up * 0.8f;
+                }
+
+                return playerUnit.transform.position + Vector3.up * 1.0f;
+            }
+
+            default:
+                return playerUnit.transform.position + Vector3.up * 0.5f;
+        }
+    }
+
+    private float ResolvePanelEnergyDuration(PanelType type)
+    {
+        switch (type)
+        {
+            case PanelType.Sword:
+                return 0.42f;
+            case PanelType.Ammo:
+            case PanelType.Coin:
+                return 0.52f;
+            default:
+                return 0.48f;
+        }
+    }
+
+    private void PlayPanelEnergyArrivalFeedback(PanelType type)
+    {
+        switch (type)
+        {
+            case PanelType.Sword:
+                PlayPlayerEmpowerArrivalFeedback();
+                break;
+
+            case PanelType.Ammo:
+                if (battleUIController != null)
+                {
+                    battleUIController.PlayGunGaugeReceivePulse();
+                }
+                break;
+
+            case PanelType.Coin:
+                if (battleUIController != null)
+                {
+                    battleUIController.PlayCoinReceivePulse();
+                }
+                break;
+
+            case PanelType.Heal:
+                PlayPlayerEmpowerArrivalFeedback();
+                break;
+
+            case PanelType.LvUp:
+                PlayEnemyLevelUpArrivalFeedback();
+                break;
+        }
+    }
+
+    private Transform ResolveUnitVisualRoot(BattleUnit unit)
+    {
+        if (unit == null) return null;
+
+        Transform t = unit.transform.Find("VisualRoot");
+        if (t != null) return t;
+
+        t = unit.transform.Find("UnitRoot");
+        if (t != null) return t;
+
+        t = unit.transform.Find("SpriteRoot");
+        if (t != null) return t;
+
+        for (int i = 0; i < unit.transform.childCount; i++)
+        {
+            Transform child = unit.transform.GetChild(i);
+            if (child.name.Contains("Canvas")) continue;
+
+            if (child.GetComponentInChildren<SpriteRenderer>(true) != null ||
+                child.GetComponentInChildren<Animator>(true) != null)
+            {
+                return child;
+            }
+        }
+
+        return unit.transform;
+    }
+
+    private void PlayPlayerEmpowerArrivalFeedback()
+    {
+        Transform visualRoot = ResolvePlayerMeleeVisualRoot();
+        if (visualRoot == null) return;
+
+        visualRoot.DOKill();
+
+        Vector3 baseScale = visualRoot.localScale;
+        Vector3 basePos = visualRoot.localPosition;
+
+        Sequence seq = DOTween.Sequence();
+        seq.Append(visualRoot.DOScale(baseScale * 1.08f, 0.08f).SetEase(Ease.OutQuad));
+        seq.Join(visualRoot.DOLocalMoveY(basePos.y + 0.05f, 0.08f).SetEase(Ease.OutQuad));
+        seq.Append(visualRoot.DOScale(baseScale, 0.10f).SetEase(Ease.InOutQuad));
+        seq.Join(visualRoot.DOLocalMoveY(basePos.y, 0.10f).SetEase(Ease.InOutQuad));
+        seq.OnComplete(() =>
+        {
+            if (visualRoot != null)
+            {
+                visualRoot.localScale = baseScale;
+                visualRoot.localPosition = basePos;
+            }
+        });
+    }
+
+    private void PlayEnemyLevelUpArrivalFeedback()
+    {
+        BattleUnit enemyUnit = getEnemyUnit != null ? getEnemyUnit() : null;
+        if (enemyUnit == null || enemyUnit.IsDead()) return;
+
+        Transform visualRoot = ResolveUnitVisualRoot(enemyUnit);
+        if (visualRoot == null) return;
+
+        visualRoot.DOKill();
+
+        Vector3 baseScale = visualRoot.localScale;
+        Sequence seq = DOTween.Sequence();
+        seq.Append(visualRoot.DOScale(baseScale * 1.14f, 0.09f).SetEase(Ease.OutQuad));
+        seq.Append(visualRoot.DOScale(baseScale, 0.11f).SetEase(Ease.InOutQuad));
+        seq.OnComplete(() =>
+        {
+            if (visualRoot != null)
+            {
+                visualRoot.localScale = baseScale;
+            }
+        });
     }
 
     private IEnumerator ExecutePanelAction(PanelType type, int chainCount)

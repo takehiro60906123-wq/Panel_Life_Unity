@@ -49,7 +49,9 @@ public class PlayerCombatController : MonoBehaviour
                 shotCount = 3,
                 damagePerShot = 1,
                 useAllGauge = false,
-                minGaugeToFire = 5
+                minGaugeToFire = 5,
+                shotInterval = 0.02f,
+                finishDelay = 0.24f
             };
         }
 
@@ -123,6 +125,37 @@ public class PlayerCombatController : MonoBehaviour
     {
         if (loadout == null) return false;
         return loadout.ConsumeGunGauge();
+    }
+
+    public bool CanUseCurrentGun()
+    {
+        GunData gun = GetGunData();
+        if (gun == null) return false;
+
+        return gun.useAllGauge
+            ? CanUseMachineGun()
+            : CanUseGun();
+    }
+
+    public bool TryConsumeEquippedGunForShotCount(out int shotCount)
+    {
+        shotCount = 0;
+
+        GunData gun = GetGunData();
+        if (gun == null) return false;
+
+        if (gun.useAllGauge)
+        {
+            if (!CanUseMachineGun()) return false;
+
+            shotCount = ConsumeAllGunGauge();
+            return shotCount > 0;
+        }
+
+        if (!ConsumeGunGauge()) return false;
+
+        shotCount = Mathf.Max(1, gun.shotCount);
+        return true;
     }
 
     public bool CanUseMachineGun()

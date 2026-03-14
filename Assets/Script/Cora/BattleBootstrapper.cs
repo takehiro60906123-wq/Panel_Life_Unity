@@ -38,6 +38,7 @@ public class BattleBootstrapper : MonoBehaviour
         manager.panelActionController = ResolveOrAdd(manager.panelActionController);
         manager.encounterFlowController = ResolveOrAdd(manager.encounterFlowController);
         manager.battleDamageResolver = ResolveOrAdd(manager.battleDamageResolver);
+        manager.gunCombatController = ResolveOrAdd(manager.gunCombatController);
     }
 
     public bool Initialize(PanelBattleManager manager)
@@ -160,11 +161,26 @@ public class BattleBootstrapper : MonoBehaviour
             manager.levelUpEffectPrefab,
             () => manager.encounterFlowController != null ? manager.encounterFlowController.EnemyRespawnRoutine() : null);
 
+        manager.gunCombatController.Initialize(
+            manager.PlayerCombatController,
+            manager.battleDamageResolver,
+            manager.battleEventHub,
+            manager.battleUIController,
+            manager.panelBoardController,
+            manager.playerUnit,
+            manager.pistolMuzzleFlashPrefab,
+            manager.hitEffectPrefab,
+            () => manager.enemyUnit,
+            () => manager.Context != null && manager.Context.IsPlayerTurn,
+            manager.ApplyPlayerDamageModifiers,
+            manager.EndPlayerTurn);
+
         manager.panelActionController.Initialize(
     manager.battleEventHub,
     manager.panelBoardController,
     manager.playerUnit,
     manager.PlayerCombatController,
+    manager.battleUIController,
     () => manager.enemyUnit,
     manager.EndPlayerTurn,
     manager.ApplyPlayerDamageModifiers,

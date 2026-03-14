@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
 using UnityEngine.EventSystems;
@@ -30,6 +30,24 @@ public class BattleUIController : MonoBehaviour
     [SerializeField] private float firePressScale = 0.9f;
     [SerializeField] private float fireReturnDuration = 0.14f;
     [SerializeField] private Color readyButtonColor = new Color(1f, 0.95f, 0.7f, 1f);
+
+
+    [Header("薬きょう演出")]
+    [SerializeField] private Sprite gunShellSprite;
+    [SerializeField] private RectTransform gunShellEffectRoot;
+    [SerializeField] private Vector2 gunShellAnchorOffset = new Vector2(-22f, 26f);
+    [SerializeField] private Vector2 pistolShellTravel = new Vector2(-78f, 68f);
+    [SerializeField] private Vector2 machineGunShellTravel = new Vector2(-66f, 56f);
+    [SerializeField] private Vector2 shotgunShellTravel = new Vector2(-86f, 74f);
+    [SerializeField] private Vector2 rifleShellTravel = new Vector2(-92f, 82f);
+    [SerializeField] private float pistolShellDuration = 0.40f;
+    [SerializeField] private float machineGunShellDuration = 0.32f;
+    [SerializeField] private float shotgunShellDuration = 0.46f;
+    [SerializeField] private float rifleShellDuration = 0.44f;
+    [SerializeField] private float gunShellBaseDelay = 0.03f;
+    [SerializeField] private float gunShellScale = 0.42f;
+    [SerializeField] private float gunShellFadeStartRatio = 0.48f;
+    [SerializeField] private Color gunShellTint = new Color(1f, 0.96f, 0.82f, 0.96f);
 
     private Tween ammoCountPulseTween;
     private Tween pistolButtonPulseTween;
@@ -123,28 +141,10 @@ public class BattleUIController : MonoBehaviour
 
         RefreshAmmoIcons(current, max);
 
-        bool canUse = false;
+        bool canUse = playerCombatController.CanUseCurrentGun();
 
         if (pistolButton != null)
         {
-            GunData gun = playerCombatController.GetGunData();
-
-            if (gun != null)
-            {
-                switch (gun.gunType)
-                {
-                    case GunType.MachineGun:
-                        canUse = playerCombatController.CanUseMachineGun();
-                        break;
-
-                    case GunType.Pistol:
-                    case GunType.Shotgun:
-                    case GunType.Rifle:
-                        canUse = playerCombatController.CanUseGun();
-                        break;
-                }
-            }
-
             pistolButton.interactable = canUse;
         }
 
@@ -352,31 +352,14 @@ public class BattleUIController : MonoBehaviour
     private void OnClickPistol()
     {
         if (panelBattleManager == null) return;
+        if (panelBattleManager.GunCombatController == null) return;
         if (playerCombatController == null) return;
 
         GunData gun = playerCombatController.GetGunData();
         if (gun == null) return;
 
         PlayGunFireFeedback();
-
-        switch (gun.gunType)
-        {
-            case GunType.Pistol:
-                panelBattleManager.FirePistol();
-                break;
-
-            case GunType.MachineGun:
-                panelBattleManager.FireMachineGun();
-                break;
-
-            case GunType.Shotgun:
-                panelBattleManager.FireShotgun();
-                break;
-
-            case GunType.Rifle:
-                panelBattleManager.FireRifle();
-                break;
-        }
+        panelBattleManager.GunCombatController.FireEquippedGun();
     }
     private void PlayGunFireFeedback()
     {
@@ -408,6 +391,171 @@ public class BattleUIController : MonoBehaviour
         }
     }
 
+
+
+
+    public void PlayGunShellEject(GunType gunType, float extraDelay = 0f)
+    {
+        if (!isActiveAndEnabled) return;
+
+        RectTransform buttonRect = pistolButton != null ? pistolButton.transform as RectTransform : null;
+        if (buttonRect == null) return;
+
+        RectTransform effectRoot = ResolveGunShellEffectRoot(buttonRect);
+        if (effectRoot == null) return;
+
+        Sprite shellSprite = ResolveGunShellSprite();
+        if (shellSprite == null) return;
+
+        float delay = Mathf.Max(0f, gunShellBaseDelay + extraDelay);
+        DOVirtual.DelayedCall(delay, () =>
+        {
+            if (this == null || !isActiveAndEnabled) return;
+            SpawnGunShell(shellSprite, buttonRect, effectRoot, gunType);
+        });
+    }
+
+    private RectTransform ResolveGunShellEffectRoot(RectTransform buttonRect)
+    {
+        if (gunShellEffectRoot != null)
+        {
+            return gunShellEffectRoot;
+        }
+
+        Canvas buttonCanvas = buttonRect != null ? buttonRect.GetComponentInParent<Canvas>() : null;
+        if (buttonCanvas != null)
+        {
+            return buttonCanvas.transform as RectTransform;
+        }
+
+        return transform as RectTransform;
+    }
+
+    private Sprite ResolveGunShellSprite()
+    {
+        if (gunShellSprite != null)
+        {
+            return gunShellSprite;
+        }
+
+        if (ammoImages != null)
+        {
+            for (int i = 0; i < ammoImages.Length; i++)
+            {
+                if (ammoImages[i] != null && ammoImages[i].sprite != null)
+                {
+                    return ammoImages[i].sprite;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    private void SpawnGunShell(Sprite shellSprite, RectTransform buttonRect, RectTransform effectRoot, GunType gunType)
+    {
+        if (shellSprite == null || buttonRect == null || effectRoot == null) return;
+
+        Canvas rootCanvas = effectRoot.GetComponentInParent<Canvas>();
+        Camera uiCamera = rootCanvas != null && rootCanvas.renderMode != RenderMode.ScreenSpaceOverlay
+            ? rootCanvas.worldCamera
+            : null;
+
+        Vector3 worldAnchor = buttonRect.TransformPoint((Vector3)gunShellAnchorOffset);
+        Vector2 screenPoint = RectTransformUtility.WorldToScreenPoint(uiCamera, worldAnchor);
+        if (!RectTransformUtility.ScreenPointToLocalPointInRectangle(effectRoot, screenPoint, uiCamera, out Vector2 localPoint))
+        {
+            return;
+        }
+
+        GameObject shellObj = new GameObject("GunShellFx", typeof(RectTransform), typeof(CanvasGroup), typeof(Image));
+        shellObj.transform.SetParent(effectRoot, false);
+        shellObj.transform.SetAsLastSibling();
+
+        RectTransform shellRect = shellObj.GetComponent<RectTransform>();
+        CanvasGroup canvasGroup = shellObj.GetComponent<CanvasGroup>();
+        Image shellImage = shellObj.GetComponent<Image>();
+
+        shellImage.sprite = shellSprite;
+        shellImage.preserveAspect = true;
+        shellImage.raycastTarget = false;
+        shellImage.color = gunShellTint;
+        canvasGroup.alpha = 1f;
+
+        Vector2 size = shellSprite.rect.size * gunShellScale;
+        shellRect.sizeDelta = size;
+        shellRect.anchoredPosition = localPoint;
+        shellRect.localScale = Vector3.one;
+        shellRect.localRotation = Quaternion.Euler(0f, 0f, UnityEngine.Random.Range(-18f, 18f));
+
+        Vector2 travel = ResolveShellTravel(gunType);
+        float duration = ResolveShellDuration(gunType);
+
+        float sideVariance = UnityEngine.Random.Range(-10f, 10f);
+        Vector2 end = localPoint + travel + new Vector2(sideVariance, UnityEngine.Random.Range(-10f, 6f));
+        Vector2 control = localPoint + new Vector2(travel.x * 0.42f, Mathf.Max(28f, travel.y * 0.92f));
+
+        DOTween.To(() => 0f, t =>
+        {
+            if (shellRect == null) return;
+            shellRect.anchoredPosition = EvaluateQuadratic(localPoint, control, end, t);
+        }, 1f, duration).SetEase(Ease.OutQuad);
+
+        float rotateAmount = UnityEngine.Random.Range(180f, 300f);
+        shellRect.DOLocalRotate(new Vector3(0f, 0f, rotateAmount), duration, RotateMode.FastBeyond360).SetEase(Ease.OutCubic);
+
+        Sequence scaleSeq = DOTween.Sequence();
+        scaleSeq.Append(shellRect.DOScale(1.06f, duration * 0.18f).SetEase(Ease.OutQuad));
+        scaleSeq.Append(shellRect.DOScale(0.88f, duration * 0.82f).SetEase(Ease.InQuad));
+
+        float fadeStart = Mathf.Clamp01(gunShellFadeStartRatio) * duration;
+        canvasGroup.DOFade(0f, Mathf.Max(0.08f, duration - fadeStart)).SetDelay(fadeStart).SetEase(Ease.InQuad)
+            .OnComplete(() =>
+            {
+                if (shellObj != null)
+                {
+                    Destroy(shellObj);
+                }
+            });
+    }
+
+    private Vector2 ResolveShellTravel(GunType gunType)
+    {
+        switch (gunType)
+        {
+            case GunType.MachineGun:
+                return machineGunShellTravel;
+            case GunType.Shotgun:
+                return shotgunShellTravel;
+            case GunType.Rifle:
+                return rifleShellTravel;
+            case GunType.Pistol:
+            default:
+                return pistolShellTravel;
+        }
+    }
+
+    private float ResolveShellDuration(GunType gunType)
+    {
+        switch (gunType)
+        {
+            case GunType.MachineGun:
+                return machineGunShellDuration;
+            case GunType.Shotgun:
+                return shotgunShellDuration;
+            case GunType.Rifle:
+                return rifleShellDuration;
+            case GunType.Pistol:
+            default:
+                return pistolShellDuration;
+        }
+    }
+
+    private Vector2 EvaluateQuadratic(Vector2 start, Vector2 control, Vector2 end, float t)
+    {
+        float u = 1f - t;
+        return (u * u * start) + (2f * u * t * control) + (t * t * end);
+    }
 
     private void OnClickItemSlot(int slotIndex)
     {
@@ -692,6 +840,94 @@ public class BattleUIController : MonoBehaviour
 
         return dragVisualSize;
     }
+
+    private Vector3 ConvertUIRectToWorldPosition(RectTransform rect)
+    {
+        if (rect == null) return Vector3.zero;
+
+        Canvas canvas = GetComponentInParent<Canvas>();
+        Camera mainCam = Camera.main;
+        if (canvas == null || mainCam == null) return rect.position;
+
+        Camera uiCamera = canvas.renderMode == RenderMode.ScreenSpaceOverlay
+            ? null : canvas.worldCamera;
+        Vector2 screenPoint = RectTransformUtility.WorldToScreenPoint(uiCamera, rect.position);
+        Vector3 world = new Vector3(screenPoint.x, screenPoint.y,
+            Mathf.Abs(mainCam.transform.position.z));
+        return mainCam.ScreenToWorldPoint(world);
+    }
+
+    public Vector3 GetGunGaugeWorldPosition()
+    {
+        RectTransform targetRect = null;
+
+        if (ammoCountText != null)
+        {
+            targetRect = ammoCountText.rectTransform;
+        }
+        else if (gunGaugeText != null)
+        {
+            targetRect = gunGaugeText.rectTransform;
+        }
+        else if (pistolButton != null)
+        {
+            targetRect = pistolButton.transform as RectTransform;
+        }
+
+        return ConvertUIRectToWorldPosition(targetRect);
+    }
+
+    public Vector3 GetCoinWorldPosition()
+    {
+        if (coinText == null) return Vector3.zero;
+        return ConvertUIRectToWorldPosition(coinText.rectTransform);
+    }
+
+    public void PlayGunGaugeReceivePulse()
+    {
+        if (gunGaugeText != null)
+        {
+            gunGaugeText.transform.DOKill();
+            gunGaugeText.transform.localScale = Vector3.one;
+            gunGaugeText.transform.DOPunchScale(new Vector3(0.12f, 0.12f, 0f), 0.2f, 8, 0.85f);
+        }
+
+        if (ammoCountText != null)
+        {
+            ammoCountText.transform.DOKill();
+            ammoCountText.transform.localScale = Vector3.one;
+            ammoCountText.transform.DOPunchScale(new Vector3(0.16f, 0.16f, 0f), 0.22f, 8, 0.85f);
+        }
+
+        if (ammoImages != null)
+        {
+            foreach (Image ammoImage in ammoImages)
+            {
+                if (ammoImage == null) continue;
+                ammoImage.transform.DOKill();
+                ammoImage.transform.localScale = Vector3.one;
+            }
+
+            for (int i = 0; i < ammoImages.Length; i++)
+            {
+                Image ammoImage = ammoImages[i];
+                if (ammoImage == null) continue;
+                ammoImage.transform
+                    .DOPunchScale(new Vector3(0.08f, 0.08f, 0f), 0.18f, 6, 0.85f)
+                    .SetDelay(i * 0.01f);
+            }
+        }
+    }
+
+    public void PlayCoinReceivePulse()
+    {
+        if (coinText == null) return;
+
+        coinText.transform.DOKill();
+        coinText.transform.localScale = Vector3.one;
+        coinText.transform.DOPunchScale(new Vector3(0.14f, 0.14f, 0f), 0.22f, 8, 0.85f);
+    }
+
 
     public void SetCoinText(int coins)
     {

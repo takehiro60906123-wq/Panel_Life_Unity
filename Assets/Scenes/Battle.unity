@@ -1562,10 +1562,12 @@ MonoBehaviour:
       damagePerShot: 1
       useAllGauge: 0
       minGaugeToFire: 0
+      shotInterval: 0
+      finishDelay: 0
     currentGunGauge: 1
     maxGunGauge: 10
   levelAttackBonus: 0
-  defaultGunDefinition: {fileID: 11400000, guid: 830c82f191be07744a7487b2f0739aca, type: 2}
+  defaultGunDefinition: {fileID: 11400000, guid: a7c8ae7ed9c74a2438bf1f11cb6f8a46, type: 2}
 --- !u!4 &228695542
 Transform:
   m_ObjectHideFlags: 0
@@ -1692,12 +1694,12 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   m_Padding:
-    m_Left: 10
-    m_Right: 10
-    m_Top: 10
-    m_Bottom: 10
+    m_Left: 0
+    m_Right: 0
+    m_Top: 0
+    m_Bottom: 0
   m_ChildAlignment: 7
-  m_Spacing: 10
+  m_Spacing: 0
   m_ChildForceExpandWidth: 0
   m_ChildForceExpandHeight: 0
   m_ChildControlWidth: 1
@@ -2274,7 +2276,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 7482667652216324306, guid: 5db6b969745d0c346a0c0662ec79aa59, type: 3}
+  m_Sprite: {fileID: 21300000, guid: d5ac690f99edd13479e4a4bf4428e135, type: 3}
   m_Type: 0
   m_PreserveAspect: 0
   m_FillCenter: 1
@@ -4288,7 +4290,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 7482667652216324306, guid: 5db6b969745d0c346a0c0662ec79aa59, type: 3}
+  m_Sprite: {fileID: 21300000, guid: d5ac690f99edd13479e4a4bf4428e135, type: 3}
   m_Type: 0
   m_PreserveAspect: 0
   m_FillCenter: 1
@@ -4526,7 +4528,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 7482667652216324306, guid: 5db6b969745d0c346a0c0662ec79aa59, type: 3}
+  m_Sprite: {fileID: 21300000, guid: d5ac690f99edd13479e4a4bf4428e135, type: 3}
   m_Type: 0
   m_PreserveAspect: 0
   m_FillCenter: 1
@@ -4828,7 +4830,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 7482667652216324306, guid: 5db6b969745d0c346a0c0662ec79aa59, type: 3}
+  m_Sprite: {fileID: 21300000, guid: d5ac690f99edd13479e4a4bf4428e135, type: 3}
   m_Type: 0
   m_PreserveAspect: 0
   m_FillCenter: 1
@@ -5990,7 +5992,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 7482667652216324306, guid: 5db6b969745d0c346a0c0662ec79aa59, type: 3}
+  m_Sprite: {fileID: 21300000, guid: d5ac690f99edd13479e4a4bf4428e135, type: 3}
   m_Type: 0
   m_PreserveAspect: 0
   m_FillCenter: 1
@@ -6810,7 +6812,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 7482667652216324306, guid: 5db6b969745d0c346a0c0662ec79aa59, type: 3}
+  m_Sprite: {fileID: 21300000, guid: d5ac690f99edd13479e4a4bf4428e135, type: 3}
   m_Type: 0
   m_PreserveAspect: 0
   m_FillCenter: 1
@@ -7336,7 +7338,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 7482667652216324306, guid: 5db6b969745d0c346a0c0662ec79aa59, type: 3}
+  m_Sprite: {fileID: 21300000, guid: d5ac690f99edd13479e4a4bf4428e135, type: 3}
   m_Type: 0
   m_PreserveAspect: 0
   m_FillCenter: 1
@@ -7555,7 +7557,7 @@ MonoBehaviour:
   panelSettings:
   - label: 
     type: 0
-    panelImage: {fileID: 21300000, guid: 941a183a6a303b94ab3a71ac53794aaf, type: 3}
+    panelImage: {fileID: 21300000, guid: d1d9c57c4abf8644286789f3873d853e, type: 3}
     weight: 20
   - label: 
     type: 1
@@ -7585,6 +7587,7 @@ MonoBehaviour:
   encounterFlowController: {fileID: 0}
   shopController: {fileID: 1314218353}
   battleDamageResolver: {fileID: 0}
+  gunCombatController: {fileID: 0}
   battleBootstrapper: {fileID: 0}
   battleEventHub: {fileID: 0}
   playerUnit: {fileID: 1270524463}
@@ -7603,6 +7606,8 @@ MonoBehaviour:
       damagePerShot: 0
       useAllGauge: 0
       minGaugeToFire: 0
+      shotInterval: 0
+      finishDelay: 0
     currentGunGauge: 0
     maxGunGauge: 10
   playerCombatController: {fileID: 228695541}
@@ -7624,14 +7629,6 @@ MonoBehaviour:
   defeatSequenceBeforeRewardDelay: 0.25
   defeatSequenceAfterRewardDelay: 0.55
   playerProgression: {fileID: 1270524467}
-  shotgunPelletVisualCount: 7
-  shotgunSpreadX: 0.6
-  shotgunSpreadY: 0.22
-  shotgunPelletHitScale: 0.48
-  shotgunCenterHitScale: 1.15
-  shotgunPelletTracerWidth: 0.035
-  shotgunPelletTracerDuration: 0.05
-  shotgunTracerColor: {r: 1, g: 0.95, b: 0.82, a: 0.85}
   dungeonMistRoot: {fileID: 1510810761}
   battleMistAlpha: 0.8
   mistFadeDuration: 0.5
@@ -7644,29 +7641,17 @@ MonoBehaviour:
   energyOrbPrefab: {fileID: 3496278168985037447, guid: 8a3d2e03838b6fd4a9bdf6caaf362562, type: 3}
   absorbEffectPrefab: {fileID: 2614168704439396257, guid: a2dcf9199232e4646987304264e76b85, type: 3}
   levelUpEffectPrefab: {fileID: 118329096166526248, guid: 847a4e577f03ee94e91a933c78b2ed80, type: 3}
+  swordEnergyColor: {r: 0.52, g: 0.92, b: 1, a: 1}
+  ammoEnergyColor: {r: 0.92, g: 0.95, b: 1, a: 1}
+  coinEnergyColor: {r: 1, g: 0.86, b: 0.22, a: 1}
+  healEnergyColor: {r: 0.52, g: 1, b: 0.52, a: 1}
+  levelUpEnergyColor: {r: 0.76, g: 0.42, b: 1, a: 1}
   battlePosition: {fileID: 499836785}
   waitOffset: {x: 3.5, y: 0, z: 0}
   maxFloors: 100
   maxVisibleEnemies: 3
   enemyPrefabs: []
   stageConfig: {fileID: 11400000, guid: 7fc3b3768ccd92b4eb6725dcfe7ca051, type: 2}
-  shotgunInterval: 0.06
-  rifleAfterDelay: 0.1
-  shotgunDangerBonusDamage: 1
-  shotgunDelayChance: 30
-  pistolMuzzleScale: 1
-  machineGunMuzzleScale: 0.82
-  shotgunMuzzleScale: 1.35
-  rifleMuzzleScale: 1.12
-  pistolHitScale: 1
-  machineGunHitScale: 0.78
-  shotgunHitScale: 1.18
-  rifleHitScale: 1.36
-  machineGunHitScatter: 0.16
-  shotgunHitScatter: 0.28
-  rifleTracerColor: {r: 1, g: 0.96, b: 0.84, a: 0.95}
-  rifleTracerWidth: 0.08
-  rifleTracerDuration: 0.06
   ammoGaugePerPanel: 2
   swordGaugeBonusPerAction: 1
 --- !u!114 &1314218344
@@ -7742,10 +7727,28 @@ MonoBehaviour:
   bigChainThreshold: 4
   maxChainThreshold: 5
   panelBurstPrefab: {fileID: 0}
+  swordPanelClearEffectPrefab: {fileID: 3577911423973351452, guid: 406aaa37edb8b4f47ad7f1a8204f551b, type: 3}
+  ammoPanelClearEffectPrefab: {fileID: 3577911423973351452, guid: 2bc3a44ac45ef754784758b017d4b9dd, type: 3}
+  coinPanelClearEffectPrefab: {fileID: 3577911423973351452, guid: e34034c0973c7c04f93637fff94e65cf, type: 3}
+  healPanelClearEffectPrefab: {fileID: 3577911423973351452, guid: 395b3d7ab2043fb4e919588fb4d7f7ba, type: 3}
+  levelUpPanelClearEffectPrefab: {fileID: 3577911423973351452, guid: 6da65f682f6031b43ab8407c1ee606a7, type: 3}
   chainPreviewScale: 1.1
   chainPreviewJumpY: 10
   chainPreviewFlashAlpha: 0.28
   chainPreviewStagger: 0.015
+  swordAccentColor: {r: 1, g: 0.82, b: 0.35, a: 1}
+  swordTapScaleX: 1.16
+  swordTapScaleY: 0.92
+  swordTapRotateZ: -10
+  swordPreviewScaleX: 1.18
+  swordPreviewScaleY: 0.9
+  swordPreviewShiftX: 8
+  swordPreClearScaleX: 1.2
+  swordPreClearScaleY: 0.86
+  swordPreClearShiftX: 14
+  swordPreClearRotateZ: 14
+  swordPreClearDuration: 0.05
+  swordPreClearFlashAlpha: 0.45
   playerCombatController: {fileID: 228695541}
   battleUIController: {fileID: 0}
 --- !u!114 &1314218348
@@ -7760,6 +7763,51 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8af897f7df3a6ac4b80991973424a3d0, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  normalEntryDrop: 0.1
+  normalRiseHeight: 1.55
+  normalSideDrift: 0.42
+  normalPopDuration: 0.11
+  normalDriftDuration: 0.46
+  normalHoldBeforeFade: 0.2
+  normalFadeDuration: 0.28
+  normalStartScale: 0.62
+  normalPeakScale: 1.18
+  normalFinalScale: 1
+  criticalEntryDrop: 0.14
+  criticalRiseHeight: 1.9
+  criticalSideDrift: 0.52
+  criticalPopDuration: 0.13
+  criticalDriftDuration: 0.62
+  criticalHoldBeforeFade: 0.26
+  criticalFadeDuration: 0.34
+  criticalStartScale: 0.72
+  criticalPeakScale: 1.34
+  criticalFinalScale: 1.06
+  utilityEntryDrop: 0.05
+  utilityRiseHeight: 1.1
+  utilitySideDrift: 0.28
+  utilityPopDuration: 0.1
+  utilityDriftDuration: 0.36
+  utilityHoldBeforeFade: 0.16
+  utilityFadeDuration: 0.24
+  utilityStartScale: 0.88
+  utilityPeakScale: 1.04
+  utilityFinalScale: 1
+  rewardEntryDrop: 0.08
+  rewardRiseHeight: 1.35
+  rewardSideDrift: 0.34
+  rewardPopDuration: 0.12
+  rewardDriftDuration: 0.54
+  rewardHoldBeforeFade: 0.3
+  rewardFadeDuration: 0.3
+  rewardStartScale: 0.72
+  rewardPeakScale: 1.16
+  rewardFinalScale: 1
+  secondaryRiseRatio: 0.52
+  secondarySideRatio: 0.38
+  randomStartX: 0.08
+  criticalColorLift: 0.18
+  rewardColorLift: 0.08
 --- !u!114 &1314218349
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -8375,7 +8423,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 7482667652216324306, guid: 5db6b969745d0c346a0c0662ec79aa59, type: 3}
+  m_Sprite: {fileID: 21300000, guid: d5ac690f99edd13479e4a4bf4428e135, type: 3}
   m_Type: 0
   m_PreserveAspect: 0
   m_FillCenter: 1
@@ -10656,7 +10704,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 7482667652216324306, guid: 5db6b969745d0c346a0c0662ec79aa59, type: 3}
+  m_Sprite: {fileID: 21300000, guid: d5ac690f99edd13479e4a4bf4428e135, type: 3}
   m_Type: 0
   m_PreserveAspect: 0
   m_FillCenter: 1
@@ -11427,6 +11475,21 @@ MonoBehaviour:
   firePressScale: 0.9
   fireReturnDuration: 0.14
   readyButtonColor: {r: 1, g: 0.95, b: 0.7, a: 1}
+  gunShellSprite: {fileID: 21300000, guid: 82174319503451e408b3d0a465026650, type: 3}
+  gunShellEffectRoot: {fileID: 0}
+  gunShellAnchorOffset: {x: -22, y: 26}
+  pistolShellTravel: {x: -78, y: 68}
+  machineGunShellTravel: {x: -66, y: 56}
+  shotgunShellTravel: {x: -86, y: 74}
+  rifleShellTravel: {x: -92, y: 82}
+  pistolShellDuration: 0.4
+  machineGunShellDuration: 0.32
+  shotgunShellDuration: 0.46
+  rifleShellDuration: 0.44
+  gunShellBaseDelay: 0.03
+  gunShellScale: 0.42
+  gunShellFadeStartRatio: 0.48
+  gunShellTint: {r: 1, g: 0.96, b: 0.82, a: 0.96}
   itemSlotButtons:
   - {fileID: 1270489402}
   - {fileID: 1988369391}
@@ -11636,7 +11699,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 7482667652216324306, guid: 5db6b969745d0c346a0c0662ec79aa59, type: 3}
+  m_Sprite: {fileID: 21300000, guid: d5ac690f99edd13479e4a4bf4428e135, type: 3}
   m_Type: 0
   m_PreserveAspect: 0
   m_FillCenter: 1

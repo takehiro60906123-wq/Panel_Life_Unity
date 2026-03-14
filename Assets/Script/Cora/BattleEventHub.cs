@@ -1,4 +1,4 @@
-using System;
+ï»¿using System;
 using UnityEngine;
 
 public class BattleEventHub : MonoBehaviour
@@ -6,16 +6,16 @@ public class BattleEventHub : MonoBehaviour
     public event Action<bool> BoardInteractableRequested;
     public event Action<int> CoinsGained;
     public event Action<int> EnemyDamageRequested;
-    public event Action<Vector3, Vector3, float, float> EnergyOrbRequested;
+    public event Action<PanelType, Vector3, Vector3, float, float> EnergyOrbRequested;
 
     // ============================================
-    // ’e–òƒpƒlƒ‹ûWƒCƒxƒ“ƒgi‹Œ MagicBulletRequested ‚ğ’uŠ·j
-    // panelCount = Á‚µ‚½Ammoƒpƒlƒ‹‚Ì–‡”
+    // eplWCxgi MagicBulletRequested uj
+    // panelCount = AmmoplÌ–
     // ============================================
     public event Action<int> AmmoCollected;
 
     // ============================================
-    // UŒ‚ƒpƒlƒ‹Á‹‚Ì‚¨‚â‚ÂƒQ[ƒW‰ÁZƒCƒxƒ“ƒg
+    // UplÌ‚ÂƒQ[WZCxg
     // ============================================
     public event Action SwordBonusGaugeRequested;
 
@@ -44,14 +44,14 @@ public class BattleEventHub : MonoBehaviour
         EnemyDamageRequested?.Invoke(baseDamage);
     }
 
-    public void RaiseEnergyOrbRequested(Vector3 startPos, Vector3 targetPos, float duration, float delay)
+    public void RaiseEnergyOrbRequested(PanelType panelType, Vector3 startPos, Vector3 targetPos, float duration, float delay)
     {
-        EnergyOrbRequested?.Invoke(startPos, targetPos, duration, delay);
+        EnergyOrbRequested?.Invoke(panelType, startPos, targetPos, duration, delay);
     }
 
     /// <summary>
-    /// ’e–òƒpƒlƒ‹Á‹‚ÉŒÄ‚ÔBpanelCount = Á‚µ‚½–‡”B
-    /// PanelBattleManager ‘¤‚Å–‡” ~ ammoGaugePerPanel ‚ğ‰ÁZ‚·‚éB
+    /// eplÉŒÄ‚ÔBpanelCount = B
+    /// PanelBattleManager Å– ~ ammoGaugePerPanel ZB
     /// </summary>
     public void RaiseAmmoCollected(int panelCount)
     {
@@ -59,8 +59,8 @@ public class BattleEventHub : MonoBehaviour
     }
 
     /// <summary>
-    /// UŒ‚ƒpƒlƒ‹iSwordjÁ‹‚ÉŒÄ‚ÔB
-    /// PanelBattleManager ‘¤‚Å swordGaugeBonusPerAction (+1) ‚ğ‰ÁZ‚·‚éB
+    /// UpliSwordjÉŒÄ‚ÔB
+    /// PanelBattleManager  swordGaugeBonusPerAction (+1) ZB
     /// </summary>
     public void RaiseSwordBonusGaugeRequested()
     {

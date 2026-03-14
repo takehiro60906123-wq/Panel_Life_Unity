@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -23,10 +23,32 @@ public class PanelBoardController : MonoBehaviour
     [SerializeField] private int bigChainThreshold = 4;
     [SerializeField] private int maxChainThreshold = 5;
     [SerializeField] private GameObject panelBurstPrefab;
+    [SerializeField] private GameObject swordPanelClearEffectPrefab;
+    [SerializeField] private GameObject ammoPanelClearEffectPrefab;
+    [SerializeField] private GameObject coinPanelClearEffectPrefab;
+    [SerializeField] private GameObject healPanelClearEffectPrefab;
+    [SerializeField] private GameObject levelUpPanelClearEffectPrefab;
     [SerializeField] private float chainPreviewScale = 1.10f;
     [SerializeField] private float chainPreviewJumpY = 10f;
     [SerializeField] private float chainPreviewFlashAlpha = 0.28f;
     [SerializeField] private float chainPreviewStagger = 0.015f;
+[Header("剣パネル演出")]
+[SerializeField] private Color swordAccentColor = new Color(1f, 0.82f, 0.35f, 1f);
+
+[SerializeField] private float swordTapScaleX = 1.16f;
+[SerializeField] private float swordTapScaleY = 0.92f;
+[SerializeField] private float swordTapRotateZ = -10f;
+
+[SerializeField] private float swordPreviewScaleX = 1.18f;
+[SerializeField] private float swordPreviewScaleY = 0.90f;
+[SerializeField] private float swordPreviewShiftX = 8f;
+
+[SerializeField] private float swordPreClearScaleX = 1.20f;
+[SerializeField] private float swordPreClearScaleY = 0.86f;
+[SerializeField] private float swordPreClearShiftX = 14f;
+[SerializeField] private float swordPreClearRotateZ = 14f;
+[SerializeField] private float swordPreClearDuration = 0.05f;
+[SerializeField] private float swordPreClearFlashAlpha = 0.45f;
     private static Sprite cachedWhiteSprite;
     private GameObject panelPrefab;
     private Transform boardParent;
@@ -430,8 +452,12 @@ public class PanelBoardController : MonoBehaviour
                             {
                                 writeImg.sprite = readImg.sprite;
                                 writeIcon.localScale = Vector3.one;
+                                writeIcon.localRotation = Quaternion.identity;
 
                                 readImg.sprite = null;
+                                readIcon.localScale = Vector3.one;
+                                readIcon.localPosition = Vector3.zero;
+                                readIcon.localRotation = Quaternion.identity;
 
                                 int dropDistance = writeRow - r;
                                 writeIcon.localPosition = new Vector3(0, dropDistance * cellSize, 0);
@@ -460,6 +486,7 @@ public class PanelBoardController : MonoBehaviour
                     if (img != null) img.sprite = GetSpriteForType(newType);
 
                     iconTransform.localScale = Vector3.one;
+                    iconTransform.localRotation = Quaternion.identity;
                     iconTransform.localPosition = new Vector3(0, (r + 1) * cellSize, 0);
 
                     int dropOrder = writeRow - r;
@@ -523,6 +550,8 @@ public class PanelBoardController : MonoBehaviour
             }
 
             icon.localScale = Vector3.one;
+            icon.localPosition = Vector3.zero;
+            icon.localRotation = Quaternion.identity;
         }
 
         SetPanelBackgroundTransparent(panelObj);
@@ -735,6 +764,8 @@ public class PanelBoardController : MonoBehaviour
                     }
 
                     icon.localScale = Vector3.one * 0.1f;
+                    icon.localPosition = Vector3.zero;
+                    icon.localRotation = Quaternion.identity;
 
                     SetPanelBackgroundTransparent(panelObj);
 
@@ -802,11 +833,22 @@ public class PanelBoardController : MonoBehaviour
             .SetLoops(2, LoopType.Yoyo);
     }
 
+
+    private void ResetIconTransform(Transform icon)
+    {
+        if (icon == null) return;
+
+        icon.DOKill();
+        icon.localScale = Vector3.one;
+        icon.localPosition = Vector3.zero;
+        icon.localRotation = Quaternion.identity;
+    }
+
     // ============================================
     // タップ瞬間フィードバック
     // ============================================
 
-    public void PlayTapFeedback(int row, int col)
+    public void PlayTapFeedback(int row, int col, PanelType panelType)
     {
         if (!IsInRange(row, col)) return;
 
@@ -816,25 +858,47 @@ public class PanelBoardController : MonoBehaviour
         Transform icon = panelObj.transform.Find("IconImage");
         if (icon != null)
         {
-            icon.DOKill();
-            icon.localScale = Vector3.one;
-            icon.DOScale(tapScaleAmount, 0.06f).SetEase(Ease.OutQuad);
+            ResetIconTransform(icon);
+
+            if (panelType == PanelType.Sword)
+            {
+                Sequence seq = DOTween.Sequence();
+                seq.Append(icon.DOScale(new Vector3(swordTapScaleX, swordTapScaleY, 1f), 0.05f).SetEase(Ease.OutQuad));
+                seq.Join(icon.DOLocalMoveX(6f, 0.05f).SetEase(Ease.OutQuad));
+                seq.Append(icon.DOScale(Vector3.one, 0.08f).SetEase(Ease.OutBack));
+                seq.Join(icon.DOLocalMoveX(0f, 0.08f).SetEase(Ease.InOutQuad));
+            }
+            else
+            {
+                icon.DOScale(tapScaleAmount, 0.06f).SetEase(Ease.OutQuad);
+            }
         }
 
         Image flash = GetOrCreateTapFlashFx(panelObj.transform);
         if (flash != null)
         {
             flash.DOKill();
-            flash.color = new Color(1f, 1f, 1f, 0f);
             flash.enabled = true;
             flash.gameObject.SetActive(true);
-            flash.DOFade(0.7f, tapFlashDuration)
+
+            Color flashColor = panelType == PanelType.Sword
+                ? new Color(swordAccentColor.r, swordAccentColor.g, swordAccentColor.b, 0f)
+                : new Color(1f, 1f, 1f, 0f);
+
+            flash.color = flashColor;
+
+            float targetAlpha = panelType == PanelType.Sword ? 0.55f : 0.7f;
+
+            flash.DOFade(targetAlpha, tapFlashDuration)
                 .SetEase(Ease.OutQuad)
                 .OnComplete(() =>
                 {
                     flash.DOFade(0f, 0.06f).OnComplete(() =>
                     {
-                        flash.enabled = false;
+                        if (flash != null)
+                        {
+                            flash.enabled = false;
+                        }
                     });
                 });
         }
@@ -854,7 +918,7 @@ public class PanelBoardController : MonoBehaviour
             DOVirtual.DelayedCall(delay, () =>
             {
                 if (this == null) return;
-                PlaySingleChainPreview(pos.x, pos.y, accent);
+                PlaySingleChainPreview(pos.x, pos.y, panelType, accent);
             });
         }
     }
@@ -883,7 +947,7 @@ public class PanelBoardController : MonoBehaviour
         }
     }
 
-    private void PlaySingleChainPreview(int row, int col, Color flashColor)
+    private void PlaySingleChainPreview(int row, int col, PanelType panelType, Color flashColor)
     {
         if (!IsInRange(row, col)) return;
 
@@ -893,16 +957,27 @@ public class PanelBoardController : MonoBehaviour
         Transform icon = panelObj.transform.Find("IconImage");
         if (icon != null)
         {
-            icon.DOKill();
+            ResetIconTransform(icon);
 
             Vector3 baseScale = Vector3.one;
-            Vector3 basePos = icon.localPosition;
+            Vector3 basePos = Vector3.zero;
 
-            Sequence seq = DOTween.Sequence();
-            seq.Append(icon.DOScale(chainPreviewScale, 0.05f).SetEase(Ease.OutQuad));
-            seq.Join(icon.DOLocalMoveY(basePos.y + chainPreviewJumpY, 0.05f).SetEase(Ease.OutQuad));
-            seq.Append(icon.DOScale(baseScale, 0.08f).SetEase(Ease.OutBack));
-            seq.Join(icon.DOLocalMoveY(basePos.y, 0.08f).SetEase(Ease.InOutQuad));
+            if (panelType == PanelType.Sword)
+            {
+                Sequence seq = DOTween.Sequence();
+                seq.Append(icon.DOScale(new Vector3(swordPreviewScaleX, swordPreviewScaleY, 1f), 0.05f).SetEase(Ease.OutQuad));
+                seq.Join(icon.DOLocalMove(basePos + new Vector3(swordPreviewShiftX, chainPreviewJumpY, 0f), 0.05f).SetEase(Ease.OutQuad));
+                seq.Append(icon.DOScale(baseScale, 0.08f).SetEase(Ease.OutBack));
+                seq.Join(icon.DOLocalMove(basePos, 0.08f).SetEase(Ease.InOutQuad));
+            }
+            else
+            {
+                Sequence seq = DOTween.Sequence();
+                seq.Append(icon.DOScale(chainPreviewScale, 0.05f).SetEase(Ease.OutQuad));
+                seq.Join(icon.DOLocalMoveY(basePos.y + chainPreviewJumpY, 0.05f).SetEase(Ease.OutQuad));
+                seq.Append(icon.DOScale(baseScale, 0.08f).SetEase(Ease.OutBack));
+                seq.Join(icon.DOLocalMoveY(basePos.y, 0.08f).SetEase(Ease.InOutQuad));
+            }
         }
 
         Image flash = GetOrCreateTapFlashFx(panelObj.transform);
@@ -913,11 +988,53 @@ public class PanelBoardController : MonoBehaviour
             flash.gameObject.SetActive(true);
             flash.color = new Color(flashColor.r, flashColor.g, flashColor.b, 0f);
 
-            flash.DOFade(chainPreviewFlashAlpha, 0.05f)
+            float alpha = panelType == PanelType.Sword
+                ? Mathf.Max(chainPreviewFlashAlpha, 0.35f)
+                : chainPreviewFlashAlpha;
+
+            flash.DOFade(alpha, 0.05f)
                 .SetEase(Ease.OutQuad)
                 .OnComplete(() =>
                 {
                     flash.DOFade(0f, 0.08f).OnComplete(() =>
+                    {
+                        if (flash != null)
+                        {
+                            flash.enabled = false;
+                        }
+                    });
+                });
+        }
+    }
+
+    private void PlaySwordPreClearFeedback(Transform iconTransform, Transform panelTransform)
+    {
+        if (iconTransform == null) return;
+
+        ResetIconTransform(iconTransform);
+
+        Vector3 baseScale = Vector3.one;
+        Vector3 basePos = Vector3.zero;
+
+        Sequence seq = DOTween.Sequence();
+        seq.Append(iconTransform.DOScale(new Vector3(swordPreClearScaleX, swordPreClearScaleY, 1f), swordPreClearDuration).SetEase(Ease.OutQuad));
+        seq.Join(iconTransform.DOLocalMove(basePos + new Vector3(swordPreClearShiftX, 0f, 0f), swordPreClearDuration).SetEase(Ease.OutQuad));
+        seq.Append(iconTransform.DOScale(baseScale, 0.04f).SetEase(Ease.InQuad));
+        seq.Join(iconTransform.DOLocalMove(basePos, 0.04f).SetEase(Ease.InQuad));
+
+        Image flash = GetOrCreateTapFlashFx(panelTransform);
+        if (flash != null)
+        {
+            flash.DOKill();
+            flash.enabled = true;
+            flash.gameObject.SetActive(true);
+            flash.color = new Color(swordAccentColor.r, swordAccentColor.g, swordAccentColor.b, 0f);
+
+            flash.DOFade(swordPreClearFlashAlpha, swordPreClearDuration)
+                .SetEase(Ease.OutQuad)
+                .OnComplete(() =>
+                {
+                    flash.DOFade(0f, 0.05f).OnComplete(() =>
                     {
                         if (flash != null)
                         {
@@ -978,13 +1095,32 @@ public class PanelBoardController : MonoBehaviour
         return fx.GetComponent<Image>();
     }
 
+    private GameObject ResolvePanelClearEffectPrefab(PanelType panelType)
+    {
+        switch (panelType)
+        {
+            case PanelType.Sword:
+                return swordPanelClearEffectPrefab != null ? swordPanelClearEffectPrefab : panelBurstPrefab;
+            case PanelType.Ammo:
+                return ammoPanelClearEffectPrefab != null ? ammoPanelClearEffectPrefab : panelBurstPrefab;
+            case PanelType.Coin:
+                return coinPanelClearEffectPrefab != null ? coinPanelClearEffectPrefab : panelBurstPrefab;
+            case PanelType.Heal:
+                return healPanelClearEffectPrefab != null ? healPanelClearEffectPrefab : panelBurstPrefab;
+            case PanelType.LvUp:
+                return levelUpPanelClearEffectPrefab != null ? levelUpPanelClearEffectPrefab : panelBurstPrefab;
+            default:
+                return panelBurstPrefab;
+        }
+    }
+
     // ============================================
     // 波紋ディレイ付き消去（コルーチン版）
     // ClearChainPanels の演出強化版。落下補充を内包する。
     // 既存の ClearChainPanels はそのまま残す（一括消去用）。
     // ============================================
 
-    public IEnumerator ClearChainPanelsAnimated(List<Vector2Int> chain, Action onComplete = null)
+    public IEnumerator ClearChainPanelsAnimated(List<Vector2Int> chain, PanelType sourceType, Action onComplete = null)
     {
         if (chain == null || chain.Count == 0)
         {
@@ -999,10 +1135,6 @@ public class PanelBoardController : MonoBehaviour
             Vector2Int pos = chain[i];
             if (!IsInRange(pos.x, pos.y)) continue;
 
-            gridData[pos.x, pos.y] = PanelType.None;
-            attachedItems[pos.x, pos.y] = null;
-            RefreshPanelHighlightVisual(pos.x, pos.y);
-
             GameObject panelObj = panelObjects[pos.x, pos.y];
             if (panelObj == null) continue;
 
@@ -1011,13 +1143,21 @@ public class PanelBoardController : MonoBehaviour
 
             Image img = iconTransform.GetComponent<Image>();
 
-            // ① 白化フラッシュ
+            if (sourceType == PanelType.Sword)
+            {
+                PlaySwordPreClearFeedback(iconTransform, panelObj.transform);
+                yield return new WaitForSeconds(0.02f);
+            }
+
+            gridData[pos.x, pos.y] = PanelType.None;
+            attachedItems[pos.x, pos.y] = null;
+            RefreshPanelHighlightVisual(pos.x, pos.y);
+
             if (img != null)
             {
                 img.DOColor(Color.white, 0.04f).SetEase(Ease.OutQuad);
             }
 
-            // ② 縮小 + フェードアウト
             iconTransform.DOScale(Vector3.zero, panelShrinkDuration)
                 .SetEase(Ease.InBack)
                 .OnComplete(() =>
@@ -1028,6 +1168,8 @@ public class PanelBoardController : MonoBehaviour
                         img.color = Color.white;
                     }
                     iconTransform.localScale = Vector3.one;
+                    iconTransform.localPosition = Vector3.zero;
+                    iconTransform.localRotation = Quaternion.identity;
                 });
 
             if (img != null)
@@ -1035,25 +1177,22 @@ public class PanelBoardController : MonoBehaviour
                 img.DOFade(0f, panelShrinkDuration * 0.8f);
             }
 
-            // ③ 小パーティクル（Prefab設定時のみ）
-            if (panelBurstPrefab != null)
+            GameObject clearEffectPrefab = ResolvePanelClearEffectPrefab(sourceType);
+            if (clearEffectPrefab != null)
             {
                 Vector3 burstPos = GetPanelWorldPosition(pos.x, pos.y);
-                GameObject burst = Instantiate(panelBurstPrefab, burstPos, Quaternion.identity);
+                GameObject burst = Instantiate(clearEffectPrefab, burstPos, Quaternion.identity);
                 Destroy(burst, 1.0f);
             }
 
-            // 次パネルまでの波紋ディレイ（最後は待たない）
             if (i < chainSize - 1)
             {
                 yield return new WaitForSeconds(chainStaggerDelay);
             }
         }
 
-        // 最後のパネルの縮小完了を待つ
         yield return new WaitForSeconds(panelShrinkDuration);
 
-        // リンク数ボーナス演出
         if (chainSize >= bigChainThreshold && boardParent != null)
         {
             float intensity = chainSize >= maxChainThreshold
@@ -1062,7 +1201,6 @@ public class PanelBoardController : MonoBehaviour
             boardParent.DOShakePosition(0.15f, intensity, 20, 90f, false, true);
         }
 
-        // 落下補充
         DropAndFillPanels();
 
         onComplete?.Invoke();
