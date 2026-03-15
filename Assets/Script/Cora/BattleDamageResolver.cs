@@ -286,16 +286,47 @@ public class BattleDamageResolver : MonoBehaviour
                 queuedSuccessfulEnemyHitStatusEffectRemoveOnDamage,
                 queuedSuccessfulEnemyHitStatusEffectPotency);
 
-            if (queuedSuccessfulEnemyHitStatusEffectType == StatusEffectType.Corrosion)
+            string applyText = GetQueuedStatusEffectApplyText(queuedSuccessfulEnemyHitStatusEffectType);
+            if (!string.IsNullOrEmpty(applyText))
             {
                 battleEventHub?.RaiseDamageTextRequested(
-                    "装甲腐食",
+                    applyText,
                     enemyUnit.transform.position + Vector3.up * (damageTextHeight + 0.85f),
-                    new Color(0.6f, 1f, 0.2f));
+                    GetQueuedStatusEffectApplyTextColor(queuedSuccessfulEnemyHitStatusEffectType));
             }
         }
 
         ClearQueuedSuccessfulEnemyHitStatusEffect();
+    }
+
+    private string GetQueuedStatusEffectApplyText(StatusEffectType type)
+    {
+        switch (type)
+        {
+            case StatusEffectType.Corrosion:
+                return "装甲腐食";
+
+            case StatusEffectType.Slow:
+                return "駆動遅延";
+
+            default:
+                return null;
+        }
+    }
+
+    private Color GetQueuedStatusEffectApplyTextColor(StatusEffectType type)
+    {
+        switch (type)
+        {
+            case StatusEffectType.Corrosion:
+                return new Color(0.6f, 1f, 0.2f);
+
+            case StatusEffectType.Slow:
+                return new Color(0.45f, 0.9f, 1f);
+
+            default:
+                return Color.white;
+        }
     }
 
     private int ApplyEnemyTypeModifier(int damage, BattleUnit enemyUnit, bool isGun)

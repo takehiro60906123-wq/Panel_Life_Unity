@@ -708,6 +708,7 @@ GameObject:
   - component: {fileID: 4826477532343885244}
   - component: {fileID: 5926067560688994400}
   - component: {fileID: 7668795142362712543}
+  - component: {fileID: 7462531007837926470}
   m_Layer: 0
   m_Name: 007
   m_TagString: Player
@@ -861,6 +862,33 @@ MonoBehaviour:
   heavyLungeDuration: 0.14
   heavyRecoverDuration: 0.18
   heavyFlashColor: {r: 1, g: 0.4, b: 0.1, a: 1}
+--- !u!114 &7462531007837926470
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5876447061885674027}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: eb6e300799d71894e8ef3eafc2c017e5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  statusIconRoot: {fileID: 0}
+  iconSlots:
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  autoCreateSlotsIfMissing: 1
+  autoCreateSlotCount: 3
+  autoCreateSlotSize: {x: 16, y: 16}
+  autoCreateSlotSpacing: 2
+  paralysisSprite: {fileID: 21300000, guid: e464564050bb8a64491a020133a7bbd3, type: 3}
+  slowSprite: {fileID: 21300000, guid: aae03c87f16f2c9468a039ba89cea6b5, type: 3}
+  corrosionSprite: {fileID: 21300000, guid: c11ed18cbf2a2ef4cbe83ff170743fba, type: 3}
+  paralysisColor: {r: 0.85, g: 0.45, b: 1, a: 1}
+  slowColor: {r: 0.45, g: 0.9, b: 1, a: 1}
+  corrosionColor: {r: 0.65, g: 1, b: 0.25, a: 1}
 --- !u!1 &6339814748571956640
 GameObject:
   m_ObjectHideFlags: 0

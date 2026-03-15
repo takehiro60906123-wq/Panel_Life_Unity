@@ -1277,7 +1277,10 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 3749450099706928695, guid: fc2ce294a5a6d3945b92030d76725eaa, type: 3}
       insertIndex: -1
       addedObject: {fileID: 284257938}
-    m_AddedComponents: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 2518575838125366824, guid: fc2ce294a5a6d3945b92030d76725eaa, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1784347111}
   m_SourcePrefab: {fileID: 100100000, guid: fc2ce294a5a6d3945b92030d76725eaa, type: 3}
 --- !u!1 &185448619
 GameObject:
@@ -1570,7 +1573,7 @@ MonoBehaviour:
     currentGunGauge: 1
     maxGunGauge: 10
   levelAttackBonus: 0
-  defaultGunDefinition: {fileID: 11400000, guid: 830c82f191be07744a7487b2f0739aca, type: 2}
+  defaultGunDefinition: {fileID: 11400000, guid: e1b0c7a430c8c87438f13df0f5c2f11f, type: 2}
 --- !u!4 &228695542
 Transform:
   m_ObjectHideFlags: 0
@@ -7558,7 +7561,7 @@ MonoBehaviour:
   m_CorrespondingSourceObject: {fileID: 1288683328995465342, guid: fc2ce294a5a6d3945b92030d76725eaa, type: 3}
   m_PrefabInstance: {fileID: 179814224}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
+  m_GameObject: {fileID: 1784347107}
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: b108a631691757c429759e1c1f49d15a, type: 3}
@@ -7569,7 +7572,7 @@ MonoBehaviour:
   m_CorrespondingSourceObject: {fileID: 8925922149919709686, guid: fc2ce294a5a6d3945b92030d76725eaa, type: 3}
   m_PrefabInstance: {fileID: 179814224}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
+  m_GameObject: {fileID: 1784347107}
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: bd8f5cbd52610174f92af4038e2733ee, type: 3}
@@ -10495,6 +10498,38 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1772348853}
   m_CullTransparentMesh: 1
+--- !u!1 &1784347107 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 2518575838125366824, guid: fc2ce294a5a6d3945b92030d76725eaa, type: 3}
+  m_PrefabInstance: {fileID: 179814224}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &1784347111
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1784347107}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: eb6e300799d71894e8ef3eafc2c017e5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  statusIconRoot: {fileID: 284257938}
+  iconSlots:
+  - {fileID: 322625799}
+  - {fileID: 1040186166}
+  - {fileID: 1772348856}
+  autoCreateSlotsIfMissing: 1
+  autoCreateSlotCount: 3
+  autoCreateSlotSize: {x: 16, y: 16}
+  autoCreateSlotSpacing: 2
+  paralysisSprite: {fileID: 21300000, guid: e464564050bb8a64491a020133a7bbd3, type: 3}
+  slowSprite: {fileID: 21300000, guid: aae03c87f16f2c9468a039ba89cea6b5, type: 3}
+  corrosionSprite: {fileID: 21300000, guid: c11ed18cbf2a2ef4cbe83ff170743fba, type: 3}
+  paralysisColor: {r: 0.85, g: 0.45, b: 1, a: 1}
+  slowColor: {r: 0.45, g: 0.9, b: 1, a: 1}
+  corrosionColor: {r: 0.65, g: 1, b: 0.25, a: 1}
 --- !u!1 &1818385221
 GameObject:
   m_ObjectHideFlags: 0

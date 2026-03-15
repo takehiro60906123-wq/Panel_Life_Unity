@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections;
 using UnityEngine;
 using DG.Tweening;
@@ -26,6 +26,16 @@ public class GunCombatController : MonoBehaviour
     [SerializeField, Range(0, 100)] private int shotgunCorrosionChance = 100;
     [SerializeField] private int shotgunCorrosionTurns = 1;
     [SerializeField] private int shotgunCorrosionPotency = 1;
+
+    [Header("Pistol Slow")]
+    [SerializeField] private bool pistolAppliesSlow = true;
+    [SerializeField, Range(0, 100)] private int pistolSlowChance = 40;
+    [SerializeField] private int pistolSlowTurns = 1;
+
+    [Header("Machine Gun Burst Bonus")]
+    [SerializeField] private bool machineGunUsesBurstBonus = true;
+    [SerializeField, Min(2)] private int machineGunBonusEveryNthShot = 3;
+    [SerializeField] private int machineGunBurstBonusDamage = 1;
 
     [Header("Shot Timings")]
     [SerializeField] private float defaultShotInterval = 0.08f;
@@ -62,7 +72,6 @@ public class GunCombatController : MonoBehaviour
     [SerializeField] private Color rifleTracerColor = new Color(1f, 0.96f, 0.84f, 0.95f);
     [SerializeField] private float rifleTracerWidth = 0.08f;
     [SerializeField] private float rifleTracerDuration = 0.06f;
-
 
     [Header("Shell Eject Timing")]
     [SerializeField] private float pistolShellDelay = 0.02f;
@@ -199,11 +208,12 @@ public class GunCombatController : MonoBehaviour
         }
 
         int damagePerShot = ResolveGunHitDamage(gun, target);
-        bool queuedShotgunCorrosion = QueueShotgunCorrosionOnNextSuccessfulHit(gun);
+        bool queuedSuccessfulHitStatusEffect = QueueGunStatusEffectOnNextSuccessfulHit(gun);
 
         if (shotCount <= 1)
         {
-            ExecuteGunHit(gun, target, damagePerShot, 0);
+            int resolvedDamage = ResolveShotDamageForIndex(gun, damagePerShot, 0);
+            ExecuteGunHit(gun, target, resolvedDamage, 0);
         }
         else
         {
@@ -211,7 +221,7 @@ public class GunCombatController : MonoBehaviour
                 ExecuteRepeatedGunHitsRoutine(gun, target, shotCount, damagePerShot, interval));
         }
 
-        if (queuedShotgunCorrosion && battleDamageResolver != null)
+        if (queuedSuccessfulHitStatusEffect && battleDamageResolver != null)
         {
             battleDamageResolver.ClearQueuedSuccessfulEnemyHitStatusEffect();
         }
@@ -238,7 +248,8 @@ public class GunCombatController : MonoBehaviour
                 yield break;
             }
 
-            ExecuteGunHit(gun, target, damagePerShot, i);
+            int resolvedDamage = ResolveShotDamageForIndex(gun, damagePerShot, i);
+            ExecuteGunHit(gun, target, resolvedDamage, i);
 
             if (i < safeShotCount - 1)
             {
@@ -323,10 +334,53 @@ public class GunCombatController : MonoBehaviour
         return damage;
     }
 
-    private bool QueueShotgunCorrosionOnNextSuccessfulHit(GunData gun)
+    private int ResolveShotDamageForIndex(GunData gun, int baseDamage, int shotIndex)
+    {
+        if (gun == null)
+        {
+            return Mathf.Max(0, baseDamage);
+        }
+
+        int damage = Mathf.Max(0, baseDamage);
+
+        if (gun.gunType == GunType.MachineGun && IsMachineGunBurstBonusShot(shotIndex))
+        {
+            damage += Mathf.Max(0, machineGunBurstBonusDamage);
+        }
+
+        return damage;
+    }
+
+    private bool IsMachineGunBurstBonusShot(int shotIndex)
+    {
+        if (!machineGunUsesBurstBonus) return false;
+        if (machineGunBurstBonusDamage <= 0) return false;
+
+        int everyNth = Mathf.Max(2, machineGunBonusEveryNthShot);
+        int oneBasedIndex = shotIndex + 1;
+        return oneBasedIndex % everyNth == 0;
+    }
+
+    private bool QueueGunStatusEffectOnNextSuccessfulHit(GunData gun)
     {
         if (gun == null) return false;
-        if (gun.gunType != GunType.Shotgun) return false;
+        if (battleDamageResolver == null) return false;
+
+        switch (gun.gunType)
+        {
+            case GunType.Shotgun:
+                return QueueShotgunCorrosionOnNextSuccessfulHit();
+
+            case GunType.Pistol:
+                return QueuePistolSlowOnNextSuccessfulHit();
+
+            default:
+                return false;
+        }
+    }
+
+    private bool QueueShotgunCorrosionOnNextSuccessfulHit()
+    {
         if (!shotgunAppliesCorrosion) return false;
         if (shotgunCorrosionTurns <= 0) return false;
         if (battleDamageResolver == null) return false;
@@ -337,6 +391,21 @@ public class GunCombatController : MonoBehaviour
             removeOnDamage: false,
             potency: shotgunCorrosionPotency,
             chancePercent: shotgunCorrosionChance);
+        return true;
+    }
+
+    private bool QueuePistolSlowOnNextSuccessfulHit()
+    {
+        if (!pistolAppliesSlow) return false;
+        if (pistolSlowTurns <= 0) return false;
+        if (battleDamageResolver == null) return false;
+
+        battleDamageResolver.QueueNextSuccessfulEnemyHitStatusEffect(
+            StatusEffectType.Slow,
+            pistolSlowTurns,
+            removeOnDamage: false,
+            potency: 0,
+            chancePercent: pistolSlowChance);
         return true;
     }
 
@@ -550,26 +619,7 @@ public class GunCombatController : MonoBehaviour
         lr.startColor = startColor;
         lr.endColor = endColor;
 
-        DOVirtual.Float(1f, 0f, shotgunPelletTracerDuration, a =>
-        {
-            if (lr == null) return;
-
-            Color s = shotgunTracerColor;
-            s.a = a * shotgunTracerColor.a;
-
-            Color e = shotgunTracerColor;
-            e.a = 0f;
-
-            lr.startColor = s;
-            lr.endColor = e;
-        })
-        .OnComplete(() =>
-        {
-            if (tracerObj != null)
-            {
-                Destroy(tracerObj);
-            }
-        });
+        Destroy(tracerObj, shotgunPelletTracerDuration);
     }
 
     private void SpawnRifleTracer(Vector3 start, Vector3 end)
@@ -582,10 +632,10 @@ public class GunCombatController : MonoBehaviour
         lr.SetPosition(0, start);
         lr.SetPosition(1, end);
         lr.startWidth = rifleTracerWidth;
-        lr.endWidth = rifleTracerWidth * 0.35f;
-        lr.numCapVertices = 4;
+        lr.endWidth = rifleTracerWidth * 0.55f;
+        lr.numCapVertices = 2;
         lr.textureMode = LineTextureMode.Stretch;
-        lr.sortingOrder = 30;
+        lr.sortingOrder = 27;
 
         Material tracerMaterial = GetOrCreateTracerMaterial();
         if (tracerMaterial != null)
@@ -600,25 +650,6 @@ public class GunCombatController : MonoBehaviour
         lr.startColor = startColor;
         lr.endColor = endColor;
 
-        DOVirtual.Float(1f, 0f, rifleTracerDuration, a =>
-        {
-            if (lr == null) return;
-
-            Color s = rifleTracerColor;
-            s.a = a * rifleTracerColor.a;
-
-            Color e = rifleTracerColor;
-            e.a = 0f;
-
-            lr.startColor = s;
-            lr.endColor = e;
-        })
-        .OnComplete(() =>
-        {
-            if (tracerObj != null)
-            {
-                Destroy(tracerObj);
-            }
-        });
+        Destroy(tracerObj, rifleTracerDuration);
     }
 }

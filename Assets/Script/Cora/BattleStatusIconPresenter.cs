@@ -5,7 +5,7 @@ using UnityEngine.UI;
 /// <summary>
 /// BattleUnit の状態異常を HPバー左下のアイコン群へ反映する。
 /// BattleUnit 側から自動追加される前提の軽量 Presenter。
-/// 
+///
 /// 想定構造:
 ///   BattleUnit
 ///     └ Canvas
@@ -13,10 +13,11 @@ using UnityEngine.UI;
 ///             ├ Image
 ///             ├ Image
 ///             └ Image
-/// 
+///
 /// - StatusIconRoot は BattleUnit 配下のどこでもよいが、名前は "StatusIconRoot" を推奨。
-/// - 子の Image は 1段横並び 3個を想定。
+/// - StatusIconRoot 直下の Image を自動取得する。
 /// - 子 Image が無い場合は簡易スロットを自動生成する。
+/// - 表示順: Paralysis -> Slow -> Corrosion
 /// </summary>
 [DisallowMultipleComponent]
 public class BattleStatusIconPresenter : MonoBehaviour
@@ -35,8 +36,10 @@ public class BattleStatusIconPresenter : MonoBehaviour
     [SerializeField] private Sprite paralysisSprite;
     [SerializeField] private Sprite slowSprite;
     [SerializeField] private Sprite corrosionSprite;
+
+    [Header("仮表示色")]
     [SerializeField] private Color paralysisColor = new Color(0.85f, 0.45f, 1.0f, 1f);
-    [SerializeField] private Color slowColor = new Color(0.45f, 0.90f, 1.0f, 1f);
+    [SerializeField] private Color slowColor = new Color(1.0f, 0.68f, 0.18f, 1f);
     [SerializeField] private Color corrosionColor = new Color(0.65f, 1.0f, 0.25f, 1f);
 
     private BattleUnit battleUnit;
@@ -171,6 +174,9 @@ public class BattleStatusIconPresenter : MonoBehaviour
     private void CollectIconSlots()
     {
         if (statusIconRoot == null) return;
+
+        iconSlots.RemoveAll(slot => slot == null);
+
         if (iconSlots.Count > 0) return;
 
         for (int i = 0; i < statusIconRoot.childCount; i++)
