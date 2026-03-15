@@ -1573,7 +1573,7 @@ MonoBehaviour:
     currentGunGauge: 1
     maxGunGauge: 10
   levelAttackBonus: 0
-  defaultGunDefinition: {fileID: 11400000, guid: e1b0c7a430c8c87438f13df0f5c2f11f, type: 2}
+  defaultGunDefinition: {fileID: 11400000, guid: beb9ab371267a494ab540101cf985d55, type: 2}
 --- !u!4 &228695542
 Transform:
   m_ObjectHideFlags: 0
