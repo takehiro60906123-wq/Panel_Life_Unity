@@ -450,11 +450,18 @@ public class PanelBoardController : MonoBehaviour
 
                             if (writeImg != null && readImg != null)
                             {
+                                writeIcon.DOKill();
+                                readIcon.DOKill();
+                                writeImg.DOKill();
+                                readImg.DOKill();
+
                                 writeImg.sprite = readImg.sprite;
+                                writeImg.color = Color.white;
                                 writeIcon.localScale = Vector3.one;
                                 writeIcon.localRotation = Quaternion.identity;
 
                                 readImg.sprite = null;
+                                readImg.color = Color.white;
                                 readIcon.localScale = Vector3.one;
                                 readIcon.localPosition = Vector3.zero;
                                 readIcon.localRotation = Quaternion.identity;
@@ -482,8 +489,15 @@ public class PanelBoardController : MonoBehaviour
                 Transform iconTransform = panelObjects[r, c].transform.Find("IconImage");
                 if (iconTransform != null)
                 {
+                    iconTransform.DOKill();
+
                     Image img = iconTransform.GetComponent<Image>();
-                    if (img != null) img.sprite = GetSpriteForType(newType);
+                    if (img != null)
+                    {
+                        img.DOKill();
+                        img.sprite = GetSpriteForType(newType);
+                        img.color = Color.white;
+                    }
 
                     iconTransform.localScale = Vector3.one;
                     iconTransform.localRotation = Quaternion.identity;
@@ -543,10 +557,14 @@ public class PanelBoardController : MonoBehaviour
         Transform icon = panelObj.transform.Find("IconImage");
         if (icon != null)
         {
+            icon.DOKill();
+
             Image img = icon.GetComponent<Image>();
             if (img != null)
             {
+                img.DOKill();
                 img.sprite = GetSpriteForType(gridData[row, col]);
+                img.color = Color.white;
             }
 
             icon.localScale = Vector3.one;

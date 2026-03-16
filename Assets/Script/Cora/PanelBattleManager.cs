@@ -177,6 +177,18 @@ public class PanelBattleManager : MonoBehaviour
     };
     }
 
+    private void AlignBattlePositionYToPlayer()
+    {
+        if (battlePosition == null || playerUnit == null)
+        {
+            return;
+        }
+
+        Vector3 pos = battlePosition.position;
+        pos.y = playerUnit.transform.position.y;
+        battlePosition.position = pos;
+    }
+
     public void PrepareItemPanelForCurrentBattle()
     {
         if (panelBoardController == null)
@@ -1203,6 +1215,7 @@ public class PanelBattleManager : MonoBehaviour
     void Start()
     {
         DOTween.Init();
+        AlignBattlePositionYToPlayer();
 
         if (battleBootstrapper == null)
         {
