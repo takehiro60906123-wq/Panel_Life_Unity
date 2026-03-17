@@ -1,4 +1,4 @@
-using System.Collections;
+﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
@@ -164,29 +164,26 @@ public class PanelBattleManager : MonoBehaviour
     {
         if (itemDropEntries != null && itemDropEntries.Count > 0)
         {
+            SanitizeCoinlessItemDrops();
             return;
         }
 
         itemDropEntries = new List<BattleItemDropEntry>
     {
-        new BattleItemDropEntry { itemType = BattleItemType.FieldBandage, weight = 30 },
-        new BattleItemDropEntry { itemType = BattleItemType.ShockCanister, weight = 22 },
-        new BattleItemDropEntry { itemType = BattleItemType.ActivationCell, weight = 22 },
-        new BattleItemDropEntry { itemType = BattleItemType.MagneticCollectorCanister, weight = 14 },
-        new BattleItemDropEntry { itemType = BattleItemType.AttackOil, weight = 12 }
+        new BattleItemDropEntry { itemType = BattleItemType.FieldBandage, weight = 34 },
+        new BattleItemDropEntry { itemType = BattleItemType.ShockCanister, weight = 26 },
+        new BattleItemDropEntry { itemType = BattleItemType.ActivationCell, weight = 24 },
+        new BattleItemDropEntry { itemType = BattleItemType.AttackOil, weight = 16 }
     };
+
+        SanitizeCoinlessItemDrops();
     }
 
-    private void AlignBattlePositionYToPlayer()
+    private void SanitizeCoinlessItemDrops()
     {
-        if (battlePosition == null || playerUnit == null)
-        {
-            return;
-        }
+        if (!disableCoinPanels || itemDropEntries == null) return;
 
-        Vector3 pos = battlePosition.position;
-        pos.y = playerUnit.transform.position.y;
-        battlePosition.position = pos;
+        itemDropEntries.RemoveAll(entry => entry != null && entry.itemType == BattleItemType.MagneticCollectorCanister);
     }
 
     public void PrepareItemPanelForCurrentBattle()
@@ -443,8 +440,7 @@ public class PanelBattleManager : MonoBehaviour
                 return target != null && !target.IsDead();
 
             case BattleItemType.MagneticCollectorCanister:
-                return panelBoardController != null
-                    && panelBoardController.GetPanelCount(PanelType.Coin) > 0;
+                return true;
 
             case BattleItemType.AttackOil:
                 return playerUnit != null && !playerUnit.IsDead();
@@ -660,20 +656,15 @@ public class PanelBattleManager : MonoBehaviour
                 break;
 
             case BattleItemType.MagneticCollectorCanister:
-                if (panelBoardController != null)
                 {
-                    int collectedCoinPanels = panelBoardController.CollectAllPanelsOfType(PanelType.Coin);
-                    if (collectedCoinPanels > 0)
-                    {
-                        int gainedCoins = collectedCoinPanels * 10;
-                        AddCoins(gainedCoins);
+                    int gainedCoins = Mathf.Max(1, item.power);
+                    AddCoins(gainedCoins);
 
-                        Vector3 coinPos = playerUnit != null
-                            ? playerUnit.transform.position + Vector3.up * 1.5f
-                            : transform.position + Vector3.up * 1.5f;
+                    Vector3 coinPos = playerUnit != null
+                        ? playerUnit.transform.position + Vector3.up * 1.5f
+                        : transform.position + Vector3.up * 1.5f;
 
-                        SpawnDamageText($"+{gainedCoins}G", coinPos, new Color(1f, 0.9f, 0.2f));
-                    }
+                    SpawnDamageText($"+{gainedCoins}G", coinPos, new Color(1f, 0.9f, 0.2f));
                 }
                 break;
 
@@ -1006,6 +997,15 @@ public class PanelBattleManager : MonoBehaviour
     [SerializeField] private Color healEnergyColor = new Color(0.52f, 1f, 0.52f, 1f);
     [SerializeField] private Color levelUpEnergyColor = new Color(0.76f, 0.42f, 1f, 1f);
 
+    [Header("コイン報酬設定")]
+    [SerializeField, Min(0)] private int battleCoinBonusMid = 1;
+    [SerializeField, Min(1)] private int battleCoinBonusMidStart = 8;
+    [SerializeField, Min(0)] private int battleCoinBonusLate = 2;
+    [SerializeField, Min(1)] private int battleCoinBonusLateStart = 16;
+    [SerializeField, Min(0)] private int battleCoinBonusEnd = 3;
+    [SerializeField, Min(1)] private int battleCoinBonusEndStart = 24;
+    [SerializeField] private bool disableCoinPanels = true;
+
     [Header("ステージ進行設定")]
     public Transform battlePosition;
     public Vector3 waitOffset = new Vector3(2.5f, 0, 0);
@@ -1215,7 +1215,6 @@ public class PanelBattleManager : MonoBehaviour
     void Start()
     {
         DOTween.Init();
-        AlignBattlePositionYToPlayer();
 
         if (battleBootstrapper == null)
         {
@@ -1329,6 +1328,54 @@ public class PanelBattleManager : MonoBehaviour
         }
     }
 
+    public int GetCurrentRewardBattleNumber()
+    {
+        if (stageFlowController == null)
+        {
+            return 1;
+        }
+
+        int total = stageFlowController.TotalBattles > 0 ? stageFlowController.TotalBattles : maxFloors;
+        return Mathf.Clamp(stageFlowController.DefeatedEnemyCount + 1, 1, Mathf.Max(1, total));
+    }
+
+    public int GetBattleCoinBonusForCurrentEncounter()
+    {
+        return GetBattleCoinBonusForBattle(GetCurrentRewardBattleNumber());
+    }
+
+    public int GetBattleCoinBonusForBattle(int battleNumber)
+    {
+        if (battleNumber >= battleCoinBonusEndStart)
+        {
+            return battleCoinBonusEnd;
+        }
+
+        if (battleNumber >= battleCoinBonusLateStart)
+        {
+            return battleCoinBonusLate;
+        }
+
+        if (battleNumber >= battleCoinBonusMidStart)
+        {
+            return battleCoinBonusMid;
+        }
+
+        return 0;
+    }
+
+    public int CalculateEnemyCoinReward(BattleUnit defeatedEnemy)
+    {
+        if (defeatedEnemy == null)
+        {
+            return 0;
+        }
+
+        int baseCoins = Mathf.Max(0, defeatedEnemy.coinYield);
+        int stageBonus = GetBattleCoinBonusForCurrentEncounter();
+        return Mathf.Max(0, baseCoins + stageBonus);
+    }
+
     public void UpdateCoinUI()
     {
         if (battleUIController != null)
@@ -1340,7 +1387,13 @@ public class PanelBattleManager : MonoBehaviour
     public void AddCoins(int amount)
     {
         currentCoins += amount;
+        currentCoins = Mathf.Max(0, currentCoins);
         UpdateCoinUI();
+
+        if (amount > 0 && battleUIController != null)
+        {
+            battleUIController.PlayCoinReceivePulse();
+        }
     }
 
     public IEnumerator EndPlayerTurn()

@@ -16,6 +16,8 @@ public class PanelActionController : MonoBehaviour
 
     private PlayerCombatController playerCombatController;
     private BattleUIController battleUIController;
+    private BattleDamageResolver battleDamageResolver;
+    private PanelBattleManager panelBattleManager;
 
     private bool isProcessing;
     [Header("�ߐ�DoTween���o")]
@@ -32,6 +34,14 @@ public class PanelActionController : MonoBehaviour
     [SerializeField] private float meleeComboInterval = 0.03f;
 
     [SerializeField] private float panelPreviewHoldDelay = 0.03f;
+
+    [Header("Overlink 打撃感強化")]
+    [SerializeField] private float overlinkImpactShakeMultiplier = 1.45f;
+    [SerializeField] private float overlinkImpactShakeDuration = 0.12f;
+    [SerializeField] private float overlinkExtraLungeDistance = 0.08f;
+    [SerializeField] private float overlinkExtraHitScale = 0.12f;
+    [SerializeField] private float overlinkExtraPunchRotation = 7f;
+    [SerializeField] private float overlinkHitPause = 0.035f;
 
     public void Initialize(
        BattleEventHub battleEventHub,
@@ -53,6 +63,8 @@ public class PanelActionController : MonoBehaviour
         this.endPlayerTurnRoutine = endPlayerTurnRoutine;
         this.modifyPlayerDamage = modifyPlayerDamage;
         this.onAttachedItemsCollected = onAttachedItemsCollected;
+        battleDamageResolver = FindObjectOfType<BattleDamageResolver>();
+        panelBattleManager = FindObjectOfType<PanelBattleManager>();
         isProcessing = false;
     }
 
@@ -81,15 +93,28 @@ public class PanelActionController : MonoBehaviour
         isProcessing = true;
         battleEventHub?.RaiseBoardInteractableRequested(false);
 
-        List<Vector2Int> chain = panelBoardController.FindChain(row, col, clickedType);
+        PanelBoardController.ChainResult chainResult = panelBoardController.FindChain(row, col, clickedType);
+        List<Vector2Int> chain = chainResult.selected;
 
         // 本来のパネル数（攻撃回数・ゲージ加算に使う）
         int primaryCount = chain.Count;
 
-        // 攻撃パネルの隣接にLvUpがあったら巻き添え
+        int resonanceBonus = 0;
+        int overflow = 0;
+        int overlinkBonus = 0;
+
         if (clickedType == PanelType.Sword)
         {
-            chain.AddRange(panelBoardController.GetAdjacentLevelPanels(chain));
+            resonanceBonus = panelBoardController.GetResonanceBonusForSelection(clickedType, chain);
+            int effectiveSwordHits = primaryCount + resonanceBonus;
+            overflow = Mathf.Max(0, chainResult.totalConnected - effectiveSwordHits);
+            overlinkBonus = overflow / 2;
+
+            if (resonanceBonus > 0 || overflow > 0)
+            {
+                Debug.Log($"[SwordChainBonus] total={chainResult.totalConnected} consumed={primaryCount} resonance=+{resonanceBonus} overflow={overflow} overlink=+{overlinkBonus}");
+                ShowSwordChainBonusFeedback(resonanceBonus, overflow, overlinkBonus);
+            }
         }
 
         List<CollectedPanelItemInfo> collectedItems = panelBoardController.ConsumeAttachedItems(chain);
@@ -105,10 +130,39 @@ public class PanelActionController : MonoBehaviour
         panelBoardController.PlayChainPreviewFeedback(chain, clickedType);
 
         // 波紋消去 → エネルギーオーブ → アクション実行
-        StartCoroutine(AnimatedClearThenAction(clickedType, chain, primaryCount));
+        StartCoroutine(AnimatedClearThenAction(clickedType, chain, primaryCount, overlinkBonus, resonanceBonus));
+    }
+    private void ShowSwordChainBonusFeedback(int resonanceBonus, int overflow, int overlinkBonus)
+    {
+        if (battleEventHub == null)
+        {
+            return;
+        }
+
+        string text = null;
+        bool hasResonance = resonanceBonus > 0;
+        bool hasOverlink = overflow > 0;
+
+        if (hasResonance && hasOverlink)
+        {
+            text = $"RESONANCE +{resonanceBonus} / OVERLINK +{Mathf.Max(0, overlinkBonus)}";
+        }
+        else if (hasResonance)
+        {
+            text = $"RESONANCE +{resonanceBonus}";
+        }
+        else if (hasOverlink)
+        {
+            text = $"OVERLINK +{Mathf.Max(0, overlinkBonus)}";
+        }
+
+        if (!string.IsNullOrEmpty(text))
+        {
+            battleEventHub.RaiseDamageTextRequested(text, Vector3.zero, Color.white);
+        }
     }
 
-    private IEnumerator AnimatedClearThenAction(PanelType type, List<Vector2Int> chain, int primaryCount)
+    private IEnumerator AnimatedClearThenAction(PanelType type, List<Vector2Int> chain, int primaryCount, int overlinkBonus = 0, int resonanceBonus = 0)
     {
         if (playerUnit == null || panelBoardController == null)
         {
@@ -148,7 +202,7 @@ public class PanelActionController : MonoBehaviour
 
         PlayPanelEnergyArrivalFeedback(type);
 
-        yield return ExecutePanelAction(type, primaryCount);
+        yield return ExecutePanelAction(type, primaryCount, overlinkBonus, resonanceBonus);
     }
 
     private Vector3 ResolvePanelEnergyTarget(PanelType type)
@@ -178,15 +232,7 @@ public class PanelActionController : MonoBehaviour
                 return playerUnit.transform.position + Vector3.up * 0.7f;
 
             case PanelType.LvUp:
-            {
-                BattleUnit enemyUnit = getEnemyUnit != null ? getEnemyUnit() : null;
-                if (enemyUnit != null && !enemyUnit.IsDead())
-                {
-                    return enemyUnit.transform.position + Vector3.up * 0.8f;
-                }
-
-                return playerUnit.transform.position + Vector3.up * 1.0f;
-            }
+                return playerUnit.transform.position + Vector3.up * 1.05f;
 
             default:
                 return playerUnit.transform.position + Vector3.up * 0.5f;
@@ -212,14 +258,12 @@ public class PanelActionController : MonoBehaviour
         switch (type)
         {
             case PanelType.Sword:
-                PlayPlayerEmpowerArrivalFeedback();
+                // プレイヤー配下の Canvas を一切巻き込まないため、
+                // 到着時のプレイヤー拡大演出は使わない。
                 break;
 
             case PanelType.Ammo:
-                if (battleUIController != null)
-                {
-                    battleUIController.PlayGunGaugeReceivePulse();
-                }
+                // 実際の装填感はゲージ加算後に個別スロットで返す
                 break;
 
             case PanelType.Coin:
@@ -230,11 +274,12 @@ public class PanelActionController : MonoBehaviour
                 break;
 
             case PanelType.Heal:
-                PlayPlayerEmpowerArrivalFeedback();
+                // プレイヤー配下の Canvas に触れず、盤面波紋だけ返す。
+                panelBoardController?.PlayHealWaveFeedback();
                 break;
 
             case PanelType.LvUp:
-                PlayEnemyLevelUpArrivalFeedback();
+                // EXP パネル到着時もプレイヤー配下の Transform / Canvas には一切触れない。
                 break;
         }
     }
@@ -267,29 +312,109 @@ public class PanelActionController : MonoBehaviour
         return unit.transform;
     }
 
-    private void PlayPlayerEmpowerArrivalFeedback()
+
+    private bool ContainsCanvasInDescendants(Transform root)
     {
-        Transform visualRoot = ResolvePlayerMeleeVisualRoot();
-        if (visualRoot == null) return;
+        if (root == null) return false;
 
-        visualRoot.DOKill();
+        Stack<Transform> stack = new Stack<Transform>();
+        stack.Push(root);
+        while (stack.Count > 0)
+        {
+            Transform current = stack.Pop();
+            if (current == null) continue;
+            if (current != root && current.GetComponent<Canvas>() != null) return true;
+            for (int i = current.childCount - 1; i >= 0; i--)
+            {
+                stack.Push(current.GetChild(i));
+            }
+        }
 
-        Vector3 baseScale = visualRoot.localScale;
-        Vector3 basePos = visualRoot.localPosition;
+        return false;
+    }
+
+    private Transform ResolveSafePlayerArrivalFeedbackRoot()
+    {
+        Transform candidate = ResolvePlayerMeleeVisualRoot();
+        if (candidate == null) return null;
+
+        if (!ContainsCanvasInDescendants(candidate))
+        {
+            return candidate;
+        }
+
+        Stack<Transform> stack = new Stack<Transform>();
+        for (int i = candidate.childCount - 1; i >= 0; i--)
+        {
+            Transform child = candidate.GetChild(i);
+            if (child == null) continue;
+            if (child.GetComponent<Canvas>() != null || child.name.Contains("Canvas")) continue;
+            stack.Push(child);
+        }
+
+        while (stack.Count > 0)
+        {
+            Transform current = stack.Pop();
+            if (current == null) continue;
+            if (current.GetComponent<Canvas>() != null || current.name.Contains("Canvas")) continue;
+
+            bool hasVisual = current.GetComponent<SpriteRenderer>() != null ||
+                             current.GetComponent<Animator>() != null ||
+                             current.GetComponentInChildren<SpriteRenderer>(true) != null ||
+                             current.GetComponentInChildren<Animator>(true) != null;
+
+            if (hasVisual && !ContainsCanvasInDescendants(current))
+            {
+                return current;
+            }
+
+            for (int i = current.childCount - 1; i >= 0; i--)
+            {
+                Transform child = current.GetChild(i);
+                if (child == null) continue;
+                if (child.GetComponent<Canvas>() != null || child.name.Contains("Canvas")) continue;
+                stack.Push(child);
+            }
+        }
+
+        return candidate;
+    }
+
+    private void PlaySimpleArrivalPulse(Transform target, float scaleMultiplier, float moveUp, float scaleOutDuration, float scaleBackDuration)
+    {
+        if (target == null) return;
+
+        target.DOKill();
+
+        Vector3 baseScale = target.localScale;
+        Vector3 basePos = target.localPosition;
 
         Sequence seq = DOTween.Sequence();
-        seq.Append(visualRoot.DOScale(baseScale * 1.08f, 0.08f).SetEase(Ease.OutQuad));
-        seq.Join(visualRoot.DOLocalMoveY(basePos.y + 0.05f, 0.08f).SetEase(Ease.OutQuad));
-        seq.Append(visualRoot.DOScale(baseScale, 0.10f).SetEase(Ease.InOutQuad));
-        seq.Join(visualRoot.DOLocalMoveY(basePos.y, 0.10f).SetEase(Ease.InOutQuad));
+        seq.Append(target.DOScale(baseScale * scaleMultiplier, scaleOutDuration).SetEase(Ease.OutQuad));
+        seq.Join(target.DOLocalMoveY(basePos.y + moveUp, scaleOutDuration).SetEase(Ease.OutQuad));
+        seq.Append(target.DOScale(baseScale, scaleBackDuration).SetEase(Ease.InOutQuad));
+        seq.Join(target.DOLocalMoveY(basePos.y, scaleBackDuration).SetEase(Ease.InOutQuad));
         seq.OnComplete(() =>
         {
-            if (visualRoot != null)
+            if (target != null)
             {
-                visualRoot.localScale = baseScale;
-                visualRoot.localPosition = basePos;
+                target.localScale = baseScale;
+                target.localPosition = basePos;
             }
         });
+        seq.OnKill(() =>
+        {
+            if (target != null)
+            {
+                target.localScale = baseScale;
+                target.localPosition = basePos;
+            }
+        });
+    }
+
+    private void PlayPlayerEmpowerArrivalFeedback()
+    {
+        // no-op
     }
 
     private void PlayEnemyLevelUpArrivalFeedback()
@@ -315,17 +440,22 @@ public class PanelActionController : MonoBehaviour
         });
     }
 
-    private IEnumerator ExecutePanelAction(PanelType type, int chainCount)
+    private void PlayPlayerExpArrivalFeedback()
+    {
+        // no-op
+    }
+
+    private IEnumerator ExecutePanelAction(PanelType type, int chainCount, int overlinkBonus = 0, int resonanceBonus = 0)
     {
         switch (type)
         {
             case PanelType.Sword:
-                yield return StartCoroutine(PlayMeleeAttack(chainCount));
+                yield return StartCoroutine(PlayMeleeAttack(chainCount + Mathf.Max(0, resonanceBonus), overlinkBonus));
                 break;
 
             // ============================================
-            // �� Magic �� �e��p�l���iAmmo�j
-            // �U�����o�Ȃ��B������ʒm���ăQ�[�W���Z�B
+            // 旧 Magic → 弾薬パネル（Ammo）
+            // 攻撃は行わず。収集を通知してゲージ加算。
             // ============================================
             case PanelType.Ammo:
                 yield return StartCoroutine(PlayAmmoCollect(chainCount));
@@ -342,7 +472,7 @@ public class PanelActionController : MonoBehaviour
                 break;
 
             case PanelType.LvUp:
-                yield return StartCoroutine(PlayEnemyLevelUp(chainCount));
+                yield return StartCoroutine(PlayExpCollect(chainCount));
                 break;
 
             default:
@@ -379,13 +509,13 @@ public class PanelActionController : MonoBehaviour
         return playerUnit.transform;
     }
 
-    private IEnumerator PlaySingleMeleeHitTween()
+    private IEnumerator PlaySingleMeleeHitTween(int damageToApply, bool isOverlinkImpact = false)
     {
         Transform visualRoot = ResolvePlayerMeleeVisualRoot();
 
         if (visualRoot == null)
         {
-            yield return new WaitForSeconds(0.18f);
+            yield return new WaitForSeconds(0.18f + (isOverlinkImpact ? overlinkHitPause : 0f));
             yield break;
         }
 
@@ -395,8 +525,12 @@ public class PanelActionController : MonoBehaviour
         Vector3 baseLocalScale = visualRoot.localScale;
         Quaternion baseLocalRotation = visualRoot.localRotation;
 
+        float lungeDistance = meleeLungeDistance + (isOverlinkImpact ? overlinkExtraLungeDistance : 0f);
+        float hitScale = meleeHitScale + (isOverlinkImpact ? overlinkExtraHitScale : 0f);
+        float punchRotation = meleePunchRotation + (isOverlinkImpact ? overlinkExtraPunchRotation : 0f);
+
         Vector3 windupPos = baseLocalPos + new Vector3(-meleeAttackDirectionX * meleeWindupDistance, -meleeHopY * 0.35f, 0f);
-        Vector3 strikePos = baseLocalPos + new Vector3(meleeAttackDirectionX * meleeLungeDistance, meleeHopY, 0f);
+        Vector3 strikePos = baseLocalPos + new Vector3(meleeAttackDirectionX * lungeDistance, meleeHopY, 0f);
 
         float totalDuration = meleeWindupDuration + meleeLungeDuration + meleeRecoverDuration;
         float hitMoment = meleeWindupDuration + (meleeLungeDuration * 0.75f);
@@ -406,10 +540,10 @@ public class PanelActionController : MonoBehaviour
         seq.Join(visualRoot.DOScale(baseLocalScale * 0.94f, meleeWindupDuration).SetEase(Ease.OutQuad));
 
         seq.Append(visualRoot.DOLocalMove(strikePos, meleeLungeDuration).SetEase(Ease.OutExpo));
-        seq.Join(visualRoot.DOScale(baseLocalScale * meleeHitScale, meleeLungeDuration).SetEase(Ease.OutBack));
+        seq.Join(visualRoot.DOScale(baseLocalScale * hitScale, meleeLungeDuration).SetEase(Ease.OutBack));
         seq.Join(
             visualRoot.DOPunchRotation(
-                new Vector3(0f, 0f, -meleePunchRotation * Mathf.Sign(meleeAttackDirectionX)),
+                new Vector3(0f, 0f, -punchRotation * Mathf.Sign(meleeAttackDirectionX)),
                 meleeLungeDuration + 0.03f,
                 4,
                 0.8f));
@@ -419,7 +553,22 @@ public class PanelActionController : MonoBehaviour
 
         yield return new WaitForSeconds(hitMoment);
 
-        battleEventHub?.RaiseEnemyDamageRequested(GetCurrentMeleeDamage());
+        if (isOverlinkImpact)
+        {
+            panelBoardController?.PlayImpactShake(overlinkImpactShakeMultiplier, overlinkImpactShakeDuration);
+            if (battleDamageResolver != null)
+            {
+                battleDamageResolver.SetNextDamageUseHeavyReaction(true);
+                battleDamageResolver.SetNextDamageUseOverlinkTextBoost(true);
+            }
+        }
+
+        battleEventHub?.RaiseEnemyDamageRequested(damageToApply);
+
+        if (isOverlinkImpact && overlinkHitPause > 0f)
+        {
+            yield return new WaitForSeconds(overlinkHitPause);
+        }
 
         yield return new WaitForSeconds(Mathf.Max(0f, totalDuration - hitMoment));
 
@@ -428,17 +577,19 @@ public class PanelActionController : MonoBehaviour
         visualRoot.localRotation = baseLocalRotation;
     }
 
-    private IEnumerator PlayMeleeAttack(int count)
+    private IEnumerator PlayMeleeAttack(int count, int overlinkBonus = 0)
     {
         count = Mathf.Max(1, count);
+        int baseDamage = GetCurrentMeleeDamage();
 
         BattleUnit enemyUnit = getEnemyUnit != null ? getEnemyUnit() : null;
 
         if (enemyUnit == null || enemyUnit.IsDead())
         {
-            yield return StartCoroutine(PlaySingleMeleeHitTween());
+            // 敵不在でも空振りモーション1回
+            yield return StartCoroutine(PlaySingleMeleeHitTween(baseDamage + overlinkBonus, overlinkBonus > 0));
 
-            // ����Q�[�W: �U���p�l���������Ƃ�+1
+            // 銃ゲージ: 攻撃パネルを消したことで+1
             battleEventHub?.RaiseSwordBonusGaugeRequested();
 
             yield return StartCoroutine(FinishTurn());
@@ -450,7 +601,14 @@ public class PanelActionController : MonoBehaviour
             enemyUnit = getEnemyUnit != null ? getEnemyUnit() : null;
             if (enemyUnit == null || enemyUnit.IsDead()) break;
 
-            yield return StartCoroutine(PlaySingleMeleeHitTween());
+            // --- オーバーリンクボーナスは1ヒット目だけ ---
+            int hitDamage = baseDamage;
+            if (i == 0 && overlinkBonus > 0)
+            {
+                hitDamage += overlinkBonus;
+            }
+
+            yield return StartCoroutine(PlaySingleMeleeHitTween(hitDamage, i == 0 && overlinkBonus > 0));
 
             if (i < count - 1)
             {
@@ -458,7 +616,7 @@ public class PanelActionController : MonoBehaviour
             }
         }
 
-        // ����Q�[�W: �U���p�l���������Ƃ�+1�i�q�b�g���ł͂Ȃ�1��̏����s���ɂ�1�j
+        // 銃ゲージ: 攻撃パネルを消したことで+1（ヒット数ではなく1回の処理行為に対し1）
         battleEventHub?.RaiseSwordBonusGaugeRequested();
 
         BattleUnitView playerView = playerUnit != null ? playerUnit.GetComponent<BattleUnitView>() : null;
@@ -482,54 +640,63 @@ public class PanelActionController : MonoBehaviour
             yield break;
         }
 
-        // �e����W�C�x���g �� PanelBattleManager ������ �~ ammoGaugePerPanel �����Z
+        int gaugeBefore = playerCombatController != null ? playerCombatController.GetGunGauge() : 0;
+
+        // 弾薬収集イベント → PanelBattleManager 側でゲージ加算
         battleEventHub?.RaiseAmmoCollected(panelCount);
 
-        // ���W�̎艞���p�ɒZ���ҋ@�i�G�l���M�[�I�[�u���o����s���Ă���̂ł����͍ŏ����j
-        yield return new WaitForSeconds(0.15f);
+        int gaugeAfter = playerCombatController != null ? playerCombatController.GetGunGauge() : gaugeBefore;
+        int gaugeMax = playerCombatController != null ? playerCombatController.GetGunGaugeMax() : gaugeAfter;
+
+        if (battleUIController != null)
+        {
+            battleUIController.PlayGunGaugeLoadSequence(gaugeBefore, gaugeAfter, gaugeMax);
+        }
+
+        yield return new WaitForSeconds(0.18f);
 
         yield return StartCoroutine(FinishTurn());
     }
 
     // =============================================================
-    // LvUp �p�l�� �� �G���x���A�b�v
+    // LvUp パネル → プレイヤーEXP獲得
     // =============================================================
 
-    private IEnumerator PlayEnemyLevelUp(int chainCount)
+    private IEnumerator PlayExpCollect(int chainCount)
     {
-        BattleUnit enemyUnit = getEnemyUnit != null ? getEnemyUnit() : null;
-
-        // �G�����Ȃ� or ���S�� �� ���ʂȂ��Ń^�[���I��
-        if (enemyUnit == null || enemyUnit.IsDead())
+        int expAmount = Mathf.Max(0, chainCount);
+        if (expAmount <= 0)
         {
             yield return StartCoroutine(FinishTurn());
             yield break;
         }
 
-        // �G���x���A�b�v�K�p
-        BattleUnit.EnemyLevelUpResult result = enemyUnit.EnemyLevelUp(chainCount);
+        bool isLevelUp = false;
+        if (playerUnit != null)
+        {
+            isLevelUp = playerUnit.AddExp(expAmount);
+        }
 
-        // --- ���o ---
-        Vector3 enemyPos = enemyUnit.transform.position;
+        if (panelBattleManager == null)
+        {
+            panelBattleManager = FindObjectOfType<PanelBattleManager>();
+        }
 
-        // �x���e�L�X�g�i�Ԍn�j
-        battleEventHub?.RaiseDamageTextRequested(
-            "LEVEL UP!",
-            enemyPos + Vector3.up * 2.0f,
-            new Color(1f, 0.3f, 0.3f));
+        panelBattleManager?.RefreshPlayerExpUI();
+        battleUIController?.PlayExpBarReceivePulse(isLevelUp);
 
-        yield return new WaitForSeconds(0.35f);
+        Vector3 expTextPos = playerUnit != null
+            ? playerUnit.transform.position + Vector3.up * 1.8f
+            : Vector3.zero;
 
-        // �X�e�[�^�X�ω��e�L�X�g�i�I�����W�n�j
-        string statText = $"HP+{result.hpGained}  EXP+{result.expBonusGained}";
-        battleEventHub?.RaiseDamageTextRequested(
-            statText,
-            enemyPos + Vector3.up * 1.4f,
-            new Color(1f, 0.7f, 0.3f));
+        battleEventHub?.RaiseExpTextRequested(expAmount, expTextPos, 0f);
 
-        yield return new WaitForSeconds(0.45f);
+        if (isLevelUp)
+        {
+            battleEventHub?.RaiseLevelUpTextRequested(0.05f);
+        }
 
-        // �^�[�������ŏI��
+        yield return new WaitForSeconds(0.14f);
         yield return StartCoroutine(FinishTurn());
     }
 

@@ -20,6 +20,7 @@ MonoBehaviour:
   attackPower: 6
   attackInterval: 1
   expYield: 13
+  coinYield: 8
   hpPerLevel: 5
   healPerLevel: 2
   expPerLevel: 4

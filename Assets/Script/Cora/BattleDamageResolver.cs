@@ -39,6 +39,9 @@ public class BattleDamageResolver : MonoBehaviour
     // --- 銃ダメージフラグ：銃攻撃前にtrueにセットされる ---
     private bool nextDamageIsGun;
     private bool nextDamageUseHeavyReaction;
+    private bool nextDamageUseOverlinkTextBoost;
+
+    private const string OverlinkImpactTextMarker = "<ovl>";
 
     // --- 次の成功した敵被弾時に1回だけ付与する状態異常 ---
     private bool hasQueuedSuccessfulEnemyHitStatusEffect;
@@ -61,6 +64,11 @@ public class BattleDamageResolver : MonoBehaviour
     public void SetNextDamageUseHeavyReaction(bool value)
     {
         nextDamageUseHeavyReaction = value;
+    }
+
+    public void SetNextDamageUseOverlinkTextBoost(bool value)
+    {
+        nextDamageUseOverlinkTextBoost = value;
     }
 
     public void QueueNextSuccessfulEnemyHitStatusEffect(
@@ -168,9 +176,11 @@ public class BattleDamageResolver : MonoBehaviour
 
         bool isGun = nextDamageIsGun;
         bool useHeavyReaction = nextDamageUseHeavyReaction;
+        bool useOverlinkTextBoost = nextDamageUseOverlinkTextBoost;
 
         nextDamageIsGun = false;
         nextDamageUseHeavyReaction = false;
+        nextDamageUseOverlinkTextBoost = false;
 
         bool isEvasion = UnityEngine.Random.Range(0, 100) < evasionRate;
         bool isCritical = UnityEngine.Random.Range(0, 100) < criticalRate;
@@ -234,6 +244,11 @@ public class BattleDamageResolver : MonoBehaviour
         {
             text = finalDamage.ToString();
             textColor = Color.white;
+        }
+
+        if (useOverlinkTextBoost && finalDamage > 0)
+        {
+            text = OverlinkImpactTextMarker + text;
         }
 
         StartCoroutine(ShowDamageTextDelayed(text, enemyPos + Vector3.up * damageTextHeight, textColor, damageTextDelay));
@@ -402,6 +417,13 @@ public class BattleDamageResolver : MonoBehaviour
 
     private void ApplyEnemyDefeatRewards(BattleUnit defeatedEnemy)
     {
+        if (panelBattleManager == null)
+        {
+            panelBattleManager = GetComponent<PanelBattleManager>();
+        }
+
+        panelBattleManager?.panelBoardController?.PlayDefeatCelebration();
+
         Vector3 expTextPos = defeatedEnemy.transform.position + Vector3.up * expTextHeight;
         battleEventHub?.RaiseExpTextRequested(defeatedEnemy.expYield, expTextPos, expTextDelay);
 

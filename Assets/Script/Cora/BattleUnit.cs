@@ -14,6 +14,7 @@ public class BattleUnit : MonoBehaviour
 
     [Header("報酬（敵専用）")]
     public int expYield = 2;
+    public int coinYield = 3;
 
     [Header("敵戦闘パラメータ")]
     public int attackPower = 1;

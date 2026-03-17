@@ -33,6 +33,9 @@ public class EnemyStatData : ScriptableObject
     [Tooltip("撃破時の経験値")]
     public int expYield = 2;
 
+    [Tooltip("撃破時のコイン")]
+    public int coinYield = 3;
+
     [Header("モンスターパネルによるレベルアップ係数")]
     [Tooltip("パネル1連結あたりの最大HP増加量")]
     public int hpPerLevel = 2;
@@ -59,6 +62,7 @@ public class EnemyStatData : ScriptableObject
         unit.attackPower = attackPower;
         unit.attackInterval = attackInterval;
         unit.expYield = expYield;
+        unit.coinYield = coinYield;
         unit.enemyType = enemyType;
         unit.attackPattern = attackPattern;
 

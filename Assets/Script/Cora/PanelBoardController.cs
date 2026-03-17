@@ -53,6 +53,45 @@ public class PanelBoardController : MonoBehaviour
     private GameObject panelPrefab;
     private Transform boardParent;
     private List<PanelSetting> panelSettings;
+    [Header("コインパネル設定")]
+    [SerializeField] private bool excludeCoinPanelsFromRandomSpawn = true;
+
+    [Header("パネル微呼吸")]
+    [SerializeField] private bool enableIdleBreathing = true;
+    [SerializeField] [Range(1f, 1.05f)] private float idleBreathScaleMax = 1.02f;
+    [SerializeField] private float idleBreathHalfDurationMin = 1.2f;
+    [SerializeField] private float idleBreathHalfDurationMax = 1.6f;
+    [SerializeField] private float idleBreathStartDelayMax = 1.2f;
+    [SerializeField] private float idleBreathRandomScaleVariance = 0.003f;
+
+    [Header("敵撃破時の盤面祝福")]
+    [SerializeField] private float defeatCelebrateScale = 1.05f;
+    [SerializeField] private float defeatCelebrateExpandDuration = 0.08f;
+    [SerializeField] private float defeatCelebrateReturnDuration = 0.12f;
+    [SerializeField] private float defeatCelebrateStagger = 0.008f;
+    [SerializeField] private float defeatCelebrateFlashAlpha = 0.18f;
+
+    [Header("回復到着時の盤面波紋")]
+    [SerializeField] private Color healWaveColor = new Color(0.65f, 1f, 0.78f, 1f);
+    [SerializeField] private float healWaveScale = 1.025f;
+    [SerializeField] private float healWaveExpandDuration = 0.07f;
+    [SerializeField] private float healWaveReturnDuration = 0.10f;
+    [SerializeField] private float healWaveStagger = 0.004f;
+    [SerializeField] private float healWaveFlashAlpha = 0.12f;
+
+    [Header("共鳴パネル設定")]
+    [SerializeField] private bool enableResonanceSwordPanels = true;
+    [SerializeField] private int resonanceStartBattle = 10;
+    [SerializeField] private int resonanceEndBattle = 18;
+    [SerializeField, Range(0f, 1f)] private float resonanceChanceMidgame = 0.10f;
+    [SerializeField, Range(0f, 1f)] private float resonanceChanceEndgame = 0.15f;
+    [SerializeField] private Color resonanceBadgeColor = new Color(1f, 1f, 1f, 0.95f);
+    [SerializeField] private Color resonanceIconTint = new Color(1f, 1f, 1f, 1f);
+    [SerializeField] private float resonanceBadgeSize = 26f;
+    [SerializeField] private Vector2 resonanceBadgeOffset = new Vector2(-10f, -10f);
+    [SerializeField] private float resonanceBadgePulseScale = 1.12f;
+    [SerializeField] private float resonanceBadgePulseDuration = 0.55f;
+
     private Action<int, int> onPanelClicked;
 
     private int rows;
@@ -61,9 +100,11 @@ public class PanelBoardController : MonoBehaviour
     private PanelType[,] gridData;
     private GameObject[,] panelObjects;
     private BattleItemData[,] attachedItems;
+    private bool[,] resonanceFlags;
 
     [SerializeField] private PlayerCombatController playerCombatController;
     [SerializeField] private BattleUIController battleUIController;
+    [SerializeField] private StageFlowController stageFlowController;
 
     private void Awake()
     {
@@ -75,6 +116,11 @@ public class PanelBoardController : MonoBehaviour
         if (playerCombatController == null)
         {
             playerCombatController = FindObjectOfType<PlayerCombatController>();
+        }
+
+        if (stageFlowController == null)
+        {
+            stageFlowController = FindObjectOfType<StageFlowController>();
         }
     }
 
@@ -114,6 +160,7 @@ public class PanelBoardController : MonoBehaviour
         gridData = new PanelType[rows, cols];
         panelObjects = new GameObject[rows, cols];
         attachedItems = new BattleItemData[rows, cols];
+        resonanceFlags = new bool[rows, cols];
 
         return true;
     }
@@ -129,11 +176,13 @@ public class PanelBoardController : MonoBehaviour
                 GameObject newPanel = Instantiate(panelPrefab, boardParent);
                 newPanel.name = $"Panel_{r}_{c}";
                 SetPanelBackgroundTransparent(newPanel);
+                StartPanelIdleBreath(newPanel);
 
                 PanelType randomType = GetRandomPanelType();
                 gridData[r, c] = randomType;
                 panelObjects[r, c] = newPanel;
                 attachedItems[r, c] = null;
+                resonanceFlags[r, c] = ShouldSpawnResonanceForPanel(randomType);
 
                 UpdatePanelVisual(r, c);
                 RefreshPanelHighlightVisual(r, c);
@@ -280,6 +329,7 @@ public class PanelBoardController : MonoBehaviour
         {
             gridData[pos.x, pos.y] = PanelType.None;
             attachedItems[pos.x, pos.y] = null;
+            resonanceFlags[pos.x, pos.y] = false;
             RefreshPanelHighlightVisual(pos.x, pos.y);
 
             GameObject panelObj = panelObjects[pos.x, pos.y];
@@ -293,8 +343,15 @@ public class PanelBoardController : MonoBehaviour
                     .OnComplete(() =>
                     {
                         Image img = iconTransform.GetComponent<Image>();
-                        if (img != null) img.sprite = null;
+                        if (img != null)
+                        {
+                            img.DOKill();
+                            img.sprite = null;
+                            img.color = Color.white;
+                        }
                         iconTransform.localScale = Vector3.one;
+                        iconTransform.localPosition = Vector3.zero;
+                        iconTransform.localRotation = Quaternion.identity;
                     });
             }
         }
@@ -310,13 +367,51 @@ public class PanelBoardController : MonoBehaviour
         return positions.Count;
     }
 
-    public List<Vector2Int> FindChain(int startRow, int startCol, PanelType targetType)
+    // ============================================
+    // オーバーリンク対応: 連結探索結果
+    // selected  = 実際に消すパネル（上限まで）
+    // totalConnected = 同種連結の本当の総数
+    // ============================================
+    public struct ChainResult
     {
-        List<Vector2Int> chain = new List<Vector2Int>();
-        if (!IsInRange(startRow, startCol)) return chain;
+        public List<Vector2Int> selected;
+        public int totalConnected;
+    }
+
+    public int GetResonanceBonusForSelection(PanelType clickedType, List<Vector2Int> selectedPanels)
+    {
+        if (!enableResonanceSwordPanels || clickedType != PanelType.Sword || selectedPanels == null || resonanceFlags == null)
+        {
+            return 0;
+        }
+
+        for (int i = 0; i < selectedPanels.Count; i++)
+        {
+            Vector2Int pos = selectedPanels[i];
+            if (!IsInRange(pos.x, pos.y)) continue;
+            if (resonanceFlags[pos.x, pos.y])
+            {
+                return 1;
+            }
+        }
+
+        return 0;
+    }
+
+    public ChainResult FindChain(int startRow, int startCol, PanelType targetType)
+    {
+        ChainResult result = new ChainResult
+        {
+            selected = new List<Vector2Int>(),
+            totalConnected = 0
+        };
+
+        if (!IsInRange(startRow, startCol)) return result;
 
         int maxLink = GetCurrentMaxLink();
 
+        // --- Phase 1: 制限なしで全連結を BFS 探索 ---
+        List<Vector2Int> allConnected = new List<Vector2Int>();
         Queue<Vector2Int> queue = new Queue<Vector2Int>();
         HashSet<Vector2Int> visited = new HashSet<Vector2Int>();
 
@@ -334,13 +429,8 @@ public class PanelBoardController : MonoBehaviour
 
         while (queue.Count > 0)
         {
-            if (chain.Count >= maxLink)
-            {
-                break;
-            }
-
             Vector2Int current = queue.Dequeue();
-            chain.Add(current);
+            allConnected.Add(current);
 
             foreach (Vector2Int dir in directions)
             {
@@ -358,7 +448,12 @@ public class PanelBoardController : MonoBehaviour
             }
         }
 
-        return chain;
+        // --- Phase 2: BFS順で先頭 maxLink 個だけ消去対象にする ---
+        int selectCount = Mathf.Min(allConnected.Count, maxLink);
+        result.selected = allConnected.GetRange(0, selectCount);
+        result.totalConnected = allConnected.Count;
+
+        return result;
     }
 
     public List<Vector2Int> GetAdjacentLevelPanels(List<Vector2Int> attackChain)
@@ -402,6 +497,7 @@ public class PanelBoardController : MonoBehaviour
 
             gridData[pos.x, pos.y] = PanelType.None;
             attachedItems[pos.x, pos.y] = null;
+            resonanceFlags[pos.x, pos.y] = false;
             RefreshPanelHighlightVisual(pos.x, pos.y);
 
             GameObject panelObj = panelObjects[pos.x, pos.y];
@@ -439,6 +535,9 @@ public class PanelBoardController : MonoBehaviour
 
                         attachedItems[writeRow, c] = attachedItems[r, c];
                         attachedItems[r, c] = null;
+
+                        resonanceFlags[writeRow, c] = resonanceFlags[r, c];
+                        resonanceFlags[r, c] = false;
 
                         Transform writeIcon = panelObjects[writeRow, c].transform.Find("IconImage");
                         Transform readIcon = panelObjects[r, c].transform.Find("IconImage");
@@ -485,6 +584,7 @@ public class PanelBoardController : MonoBehaviour
                 PanelType newType = GetRandomPanelType();
                 gridData[r, c] = newType;
                 attachedItems[r, c] = null;
+                resonanceFlags[r, c] = ShouldSpawnResonanceForPanel(newType);
 
                 Transform iconTransform = panelObjects[r, c].transform.Find("IconImage");
                 if (iconTransform != null)
@@ -564,7 +664,7 @@ public class PanelBoardController : MonoBehaviour
             {
                 img.DOKill();
                 img.sprite = GetSpriteForType(gridData[row, col]);
-                img.color = Color.white;
+                img.color = HasResonanceAt(row, col) ? resonanceIconTint : Color.white;
             }
 
             icon.localScale = Vector3.one;
@@ -588,6 +688,8 @@ public class PanelBoardController : MonoBehaviour
         // 親パネルは常に完全透明
         SetPanelBackgroundTransparent(panelObj);
 
+        RefreshResonanceVisual(row, col, panelObj);
+
         // アイテム付き専用オーバーレイ
         Image itemFx = GetOrCreateItemPanelFx(panelObj.transform);
         if (itemFx != null)
@@ -607,6 +709,127 @@ public class PanelBoardController : MonoBehaviour
         {
             badge.gameObject.SetActive(hasItem);
         }
+    }
+
+    private void StartPanelIdleBreath(GameObject panelObj)
+    {
+        if (panelObj == null) return;
+
+        Transform panelTransform = panelObj.transform;
+        panelTransform.DOKill();
+        panelTransform.localScale = Vector3.one;
+
+        if (!enableIdleBreathing)
+        {
+            return;
+        }
+
+        float scaleVariance = UnityEngine.Random.Range(-idleBreathRandomScaleVariance, idleBreathRandomScaleVariance);
+        float targetScale = Mathf.Clamp(idleBreathScaleMax + scaleVariance, 1.005f, 1.05f);
+        float halfDuration = UnityEngine.Random.Range(idleBreathHalfDurationMin, idleBreathHalfDurationMax);
+        float startDelay = UnityEngine.Random.Range(0f, idleBreathStartDelayMax);
+
+        Sequence seq = DOTween.Sequence();
+        seq.SetLink(panelObj, LinkBehaviour.KillOnDestroy);
+        seq.SetDelay(startDelay);
+        seq.Append(panelTransform.DOScale(targetScale, halfDuration).SetEase(Ease.InOutSine));
+        seq.Append(panelTransform.DOScale(1f, halfDuration).SetEase(Ease.InOutSine));
+        seq.SetLoops(-1, LoopType.Restart);
+    }
+
+    private bool HasResonanceAt(int row, int col)
+    {
+        return enableResonanceSwordPanels
+            && resonanceFlags != null
+            && IsInRange(row, col)
+            && gridData[row, col] == PanelType.Sword
+            && resonanceFlags[row, col];
+    }
+
+    private void RefreshResonanceVisual(int row, int col, GameObject panelObj)
+    {
+        if (panelObj == null) return;
+
+        Transform icon = panelObj.transform.Find("IconImage");
+        if (icon != null)
+        {
+            Image iconImage = icon.GetComponent<Image>();
+            if (iconImage != null)
+            {
+                iconImage.DOKill();
+                iconImage.color = HasResonanceAt(row, col) ? resonanceIconTint : Color.white;
+            }
+        }
+
+        Image badge = GetOrCreateResonanceBadge(panelObj.transform);
+        if (badge == null) return;
+
+        bool active = HasResonanceAt(row, col);
+        badge.DOKill();
+        badge.transform.DOKill();
+
+        if (!active)
+        {
+            badge.color = new Color(resonanceBadgeColor.r, resonanceBadgeColor.g, resonanceBadgeColor.b, 0f);
+            badge.gameObject.SetActive(false);
+            badge.transform.localScale = Vector3.one;
+            badge.transform.localRotation = Quaternion.Euler(0f, 0f, 45f);
+            return;
+        }
+
+        badge.gameObject.SetActive(true);
+        badge.color = resonanceBadgeColor;
+        badge.transform.localScale = Vector3.one;
+        badge.transform.localRotation = Quaternion.Euler(0f, 0f, 45f);
+
+        badge.DOFade(Mathf.Clamp01(resonanceBadgeColor.a * 0.55f), resonanceBadgePulseDuration)
+            .SetLoops(-1, LoopType.Yoyo)
+            .SetEase(Ease.InOutSine);
+        badge.transform.DOScale(resonanceBadgePulseScale, resonanceBadgePulseDuration)
+            .SetLoops(-1, LoopType.Yoyo)
+            .SetEase(Ease.InOutSine);
+    }
+
+    private Image GetOrCreateResonanceBadge(Transform panelTransform)
+    {
+        if (panelTransform == null) return null;
+
+        Transform badge = panelTransform.Find("ResonanceBadgeImage");
+        if (badge == null)
+        {
+            badge = panelTransform.Find("ResonanceBadge");
+        }
+
+        if (badge == null)
+        {
+            GameObject go = new GameObject("ResonanceBadgeImage", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+            badge = go.transform;
+            badge.SetParent(panelTransform, false);
+            badge.SetSiblingIndex(panelTransform.childCount - 1);
+
+            RectTransform rt = badge as RectTransform;
+            if (rt != null)
+            {
+                rt.anchorMin = Vector2.one;
+                rt.anchorMax = Vector2.one;
+                rt.pivot = Vector2.one;
+                rt.anchoredPosition = resonanceBadgeOffset;
+                rt.sizeDelta = new Vector2(resonanceBadgeSize, resonanceBadgeSize);
+                rt.localScale = Vector3.one;
+            }
+
+            Image img = badge.GetComponent<Image>();
+            if (img != null)
+            {
+                img.sprite = GetWhiteSprite();
+                img.type = Image.Type.Simple;
+                img.raycastTarget = false;
+                img.color = new Color(1f, 1f, 1f, 0f);
+                img.enabled = true;
+            }
+        }
+
+        return badge.GetComponent<Image>();
     }
 
     private Image GetOrCreateItemPanelFx(Transform panelTransform)
@@ -692,6 +915,9 @@ public class PanelBoardController : MonoBehaviour
         {
             foreach (var setting in panelSettings)
             {
+                if (setting == null) continue;
+                if (excludeCoinPanelsFromRandomSpawn && setting.type == PanelType.Coin) continue;
+                if (setting.weight <= 0) continue;
                 totalWeight += setting.weight;
             }
         }
@@ -702,6 +928,10 @@ public class PanelBoardController : MonoBehaviour
 
         foreach (var setting in panelSettings)
         {
+            if (setting == null) continue;
+            if (excludeCoinPanelsFromRandomSpawn && setting.type == PanelType.Coin) continue;
+            if (setting.weight <= 0) continue;
+
             randomVal -= setting.weight;
             if (randomVal < 0) return setting.type;
         }
@@ -733,6 +963,38 @@ public class PanelBoardController : MonoBehaviour
             return 3;
 
         return playerCombatController.GetMaxLink();
+    }
+
+    private bool ShouldSpawnResonanceForPanel(PanelType type)
+    {
+        if (!enableResonanceSwordPanels || type != PanelType.Sword)
+        {
+            return false;
+        }
+
+        float chance = GetResonanceSpawnChanceForCurrentBattle();
+        return chance > 0f && UnityEngine.Random.value < chance;
+    }
+
+    private float GetResonanceSpawnChanceForCurrentBattle()
+    {
+        int battleNumber = 1;
+        if (stageFlowController != null)
+        {
+            battleNumber = Mathf.Max(1, stageFlowController.DefeatedEnemyCount + 1);
+        }
+
+        if (battleNumber < resonanceStartBattle)
+        {
+            return 0f;
+        }
+
+        if (battleNumber >= resonanceEndBattle)
+        {
+            return resonanceChanceEndgame;
+        }
+
+        return resonanceChanceMidgame;
     }
 
     /// <summary>
@@ -768,6 +1030,7 @@ public class PanelBoardController : MonoBehaviour
         {
             Vector2Int pos = candidates[i];
             gridData[pos.x, pos.y] = type;
+            resonanceFlags[pos.x, pos.y] = ShouldSpawnResonanceForPanel(type);
 
             GameObject panelObj = panelObjects[pos.x, pos.y];
             if (panelObj != null)
@@ -779,6 +1042,7 @@ public class PanelBoardController : MonoBehaviour
                     if (img != null)
                     {
                         img.sprite = GetSpriteForType(type);
+                        img.color = resonanceFlags[pos.x, pos.y] ? resonanceIconTint : Color.white;
                     }
 
                     icon.localScale = Vector3.one * 0.1f;
@@ -1077,6 +1341,130 @@ public class PanelBoardController : MonoBehaviour
         );
     }
 
+    public void PlayDefeatCelebration()
+    {
+        if (panelObjects == null || gridData == null) return;
+
+        int order = 0;
+        for (int r = 0; r < rows; r++)
+        {
+            for (int c = 0; c < cols; c++)
+            {
+                if (gridData[r, c] == PanelType.None) continue;
+
+                GameObject panelObj = panelObjects[r, c];
+                if (panelObj == null) continue;
+
+                float delay = order * defeatCelebrateStagger;
+                order++;
+
+                Transform panelTransform = panelObj.transform;
+                panelTransform.DOKill();
+                Vector3 startScale = panelTransform.localScale;
+
+                Sequence seq = DOTween.Sequence();
+                seq.SetLink(panelObj, LinkBehaviour.KillOnDestroy);
+                seq.SetDelay(delay);
+                seq.Append(panelTransform.DOScale(startScale * defeatCelebrateScale, defeatCelebrateExpandDuration).SetEase(Ease.OutQuad));
+                seq.Append(panelTransform.DOScale(Vector3.one, defeatCelebrateReturnDuration).SetEase(Ease.OutBack));
+                seq.OnComplete(() =>
+                {
+                    if (panelObj != null)
+                    {
+                        StartPanelIdleBreath(panelObj);
+                    }
+                });
+
+                Image flash = GetOrCreateTapFlashFx(panelTransform);
+                if (flash != null)
+                {
+                    flash.DOKill();
+                    flash.enabled = true;
+                    flash.gameObject.SetActive(true);
+                    flash.color = new Color(1f, 1f, 1f, 0f);
+                    flash.DOFade(defeatCelebrateFlashAlpha, defeatCelebrateExpandDuration)
+                        .SetDelay(delay)
+                        .SetEase(Ease.OutQuad)
+                        .OnComplete(() =>
+                        {
+                            if (flash != null)
+                            {
+                                flash.DOFade(0f, defeatCelebrateReturnDuration).OnComplete(() =>
+                                {
+                                    if (flash != null)
+                                    {
+                                        flash.enabled = false;
+                                    }
+                                });
+                            }
+                        });
+                }
+            }
+        }
+    }
+
+    public void PlayHealWaveFeedback()
+    {
+        if (panelObjects == null || gridData == null) return;
+
+        int order = 0;
+        for (int r = 0; r < rows; r++)
+        {
+            for (int c = 0; c < cols; c++)
+            {
+                if (gridData[r, c] == PanelType.None) continue;
+
+                GameObject panelObj = panelObjects[r, c];
+                if (panelObj == null) continue;
+
+                float delay = order * healWaveStagger;
+                order++;
+
+                Transform panelTransform = panelObj.transform;
+                panelTransform.DOKill();
+                Vector3 startScale = panelTransform.localScale;
+
+                Sequence seq = DOTween.Sequence();
+                seq.SetLink(panelObj, LinkBehaviour.KillOnDestroy);
+                seq.SetDelay(delay);
+                seq.Append(panelTransform.DOScale(startScale * healWaveScale, healWaveExpandDuration).SetEase(Ease.OutQuad));
+                seq.Append(panelTransform.DOScale(Vector3.one, healWaveReturnDuration).SetEase(Ease.OutSine));
+                seq.OnComplete(() =>
+                {
+                    if (panelObj != null)
+                    {
+                        StartPanelIdleBreath(panelObj);
+                    }
+                });
+
+                Image flash = GetOrCreateTapFlashFx(panelTransform);
+                if (flash != null)
+                {
+                    flash.DOKill();
+                    flash.enabled = true;
+                    flash.gameObject.SetActive(true);
+                    flash.color = new Color(healWaveColor.r, healWaveColor.g, healWaveColor.b, 0f);
+                    flash.DOFade(healWaveFlashAlpha, healWaveExpandDuration)
+                        .SetDelay(delay)
+                        .SetEase(Ease.OutQuad)
+                        .OnComplete(() =>
+                        {
+                            if (flash != null)
+                            {
+                                flash.DOFade(0f, healWaveReturnDuration).OnComplete(() =>
+                                {
+                                    if (flash != null)
+                                    {
+                                        flash.enabled = false;
+                                    }
+                                });
+                            }
+                        });
+                }
+            }
+        }
+    }
+
     private Image GetOrCreateTapFlashFx(Transform panelTransform)
     {
         if (panelTransform == null) return null;
@@ -1169,6 +1557,7 @@ public class PanelBoardController : MonoBehaviour
 
             gridData[pos.x, pos.y] = PanelType.None;
             attachedItems[pos.x, pos.y] = null;
+            resonanceFlags[pos.x, pos.y] = false;
             RefreshPanelHighlightVisual(pos.x, pos.y);
 
             if (img != null)

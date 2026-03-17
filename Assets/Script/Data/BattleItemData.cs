@@ -78,7 +78,7 @@ public class BattleItemData
                     itemType = BattleItemType.MagneticCollectorCanister,
                     itemName = "磁気回収筒",
                     useTarget = BattleItemUseTarget.Self,
-                    power = 0,
+                    power = 18,
                     durationTurns = 0
                 };
 

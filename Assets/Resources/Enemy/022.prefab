@@ -685,6 +685,7 @@ MonoBehaviour:
   maxHP: 28
   currentHP: 0
   expYield: 11
+  coinYield: 6
   attackPower: 6
   enemyType: 0
   attackPattern: 3

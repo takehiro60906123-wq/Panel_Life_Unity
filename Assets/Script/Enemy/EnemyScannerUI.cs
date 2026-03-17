@@ -259,7 +259,7 @@ public class EnemyScannerUI : MonoBehaviour
                 ? "毎ターン攻撃"
                 : $"{enemy.attackInterval}ターンごとに攻撃";
 
-            statsText.text = $"HP {enemy.CurrentHP}/{enemy.maxHP}    ATK {enemy.attackPower}    {intervalStr}    EXP {enemy.expYield}";
+            statsText.text = $"HP {enemy.CurrentHP}/{enemy.maxHP}    ATK {enemy.attackPower}    {intervalStr}    EXP {enemy.expYield}    COIN {enemy.coinYield}";
         }
 
         if (patternText != null)

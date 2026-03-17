@@ -30,6 +30,12 @@ public class BattleUIController : MonoBehaviour
     [SerializeField] private float firePressScale = 0.9f;
     [SerializeField] private float fireReturnDuration = 0.14f;
     [SerializeField] private Color readyButtonColor = new Color(1f, 0.95f, 0.7f, 1f);
+    [SerializeField] private float ammoLoadSlotPunchScale = 0.18f;
+    [SerializeField] private float ammoLoadSlotPunchDuration = 0.24f;
+    [SerializeField] private float ammoLoadSlotStepDelay = 0.035f;
+    [SerializeField] private float ammoLoadTextPunchScale = 0.18f;
+    [SerializeField] private float expBarPulseScale = 1.10f;
+    [SerializeField] private float expBarPulseDuration = 0.22f;
 
 
     [Header("薬きょう演出")]
@@ -917,6 +923,93 @@ public class BattleUIController : MonoBehaviour
                     .SetDelay(i * 0.01f);
             }
         }
+    }
+
+    public void PlayGunGaugeLoadSequence(int previousGauge, int currentGauge, int maxGauge)
+    {
+        int displayMax = ammoImages != null && ammoImages.Length > 0
+            ? Mathf.Min(ammoImages.Length, Mathf.Max(1, maxGauge))
+            : Mathf.Max(1, maxGauge);
+
+        int clampedPrev = Mathf.Clamp(previousGauge, 0, displayMax);
+        int clampedCurrent = Mathf.Clamp(currentGauge, 0, displayMax);
+
+        if (gunGaugeText != null)
+        {
+            gunGaugeText.transform.DOKill();
+            gunGaugeText.transform.localScale = Vector3.one;
+            gunGaugeText.transform.DOPunchScale(new Vector3(ammoLoadTextPunchScale * 0.75f, ammoLoadTextPunchScale * 0.75f, 0f), 0.18f, 8, 0.85f);
+        }
+
+        if (ammoCountText != null)
+        {
+            ammoCountText.transform.DOKill();
+            ammoCountText.transform.localScale = Vector3.one;
+            ammoCountText.transform.DOPunchScale(new Vector3(ammoLoadTextPunchScale, ammoLoadTextPunchScale, 0f), 0.2f, 8, 0.85f);
+        }
+
+        if (ammoImages == null || ammoImages.Length == 0)
+        {
+            return;
+        }
+
+        foreach (Image ammoImage in ammoImages)
+        {
+            if (ammoImage == null) continue;
+            ammoImage.transform.DOKill();
+            ammoImage.transform.localScale = Vector3.one;
+        }
+
+        if (clampedCurrent <= clampedPrev)
+        {
+            PlayGunGaugeReceivePulse();
+            return;
+        }
+
+        int step = 0;
+        for (int logicalGauge = clampedPrev + 1; logicalGauge <= clampedCurrent; logicalGauge++)
+        {
+            int imageIndex = ammoImages.Length - logicalGauge;
+            if (imageIndex < 0 || imageIndex >= ammoImages.Length) continue;
+
+            Image ammoImage = ammoImages[imageIndex];
+            if (ammoImage == null) continue;
+
+            RectTransform rect = ammoImage.rectTransform;
+            float delay = ammoLoadSlotStepDelay * step;
+            step++;
+
+            Color litColor = Color.white;
+            Color flashColor = new Color(1f, 0.98f, 0.82f, 1f);
+            ammoImage.color = flashColor;
+
+            Sequence seq = DOTween.Sequence();
+            seq.SetLink(ammoImage.gameObject, LinkBehaviour.KillOnDestroy);
+            seq.SetDelay(delay);
+            seq.Append(rect.DOScale(1f + ammoLoadSlotPunchScale, ammoLoadSlotPunchDuration * 0.45f).SetEase(Ease.OutBack));
+            seq.Join(DOVirtual.DelayedCall(0.01f, () =>
+            {
+                if (ammoImage != null)
+                {
+                    ammoImage.color = flashColor;
+                }
+            }));
+            seq.Append(rect.DOScale(1f, ammoLoadSlotPunchDuration * 0.55f).SetEase(Ease.InOutQuad));
+            seq.Join(ammoImage.DOColor(litColor, ammoLoadSlotPunchDuration * 0.55f).SetEase(Ease.OutQuad));
+        }
+    }
+
+    public void PlayExpBarReceivePulse(bool isLevelUp)
+    {
+        if (playerExpBar == null) return;
+
+        Transform t = playerExpBar.transform;
+        t.DOKill();
+        t.localScale = Vector3.one;
+
+        float scale = isLevelUp ? expBarPulseScale + 0.04f : expBarPulseScale;
+        float duration = isLevelUp ? expBarPulseDuration + 0.05f : expBarPulseDuration;
+        t.DOPunchScale(new Vector3(scale - 1f, scale - 1f, 0f), duration, 8, 0.85f);
     }
 
     public void PlayCoinReceivePulse()

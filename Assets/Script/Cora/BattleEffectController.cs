@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections;
+using System.Globalization;
 using UnityEngine;
 using DG.Tweening;
 using TMPro;
@@ -30,6 +31,21 @@ public class BattleEffectController : MonoBehaviour
     [SerializeField] private float criticalPeakScale = 1.34f;
     [SerializeField] private float criticalFinalScale = 1.06f;
 
+    [Header("Damage Text - Overlink Hit")]
+    [SerializeField] private float overlinkHitEntryDrop = 0.14f;
+    [SerializeField] private float overlinkHitRiseHeight = 1.95f;
+    [SerializeField] private float overlinkHitSideDrift = 0.32f;
+    [SerializeField] private float overlinkHitPopDuration = 0.14f;
+    [SerializeField] private float overlinkHitDriftDuration = 0.60f;
+    [SerializeField] private float overlinkHitHoldBeforeFade = 0.24f;
+    [SerializeField] private float overlinkHitFadeDuration = 0.30f;
+    [SerializeField] private float overlinkHitStartScale = 0.76f;
+    [SerializeField] private float overlinkHitPeakScale = 1.50f;
+    [SerializeField] private float overlinkHitFinalScale = 1.05f;
+    [SerializeField] private float overlinkHitPunchScale = 0.22f;
+    [SerializeField] private float overlinkHitPunchPositionY = 0.10f;
+    [SerializeField] private float overlinkHitRotateZ = 7f;
+
     [Header("Damage Text - Miss / Guard")]
     [SerializeField] private float utilityEntryDrop = 0.05f;
     [SerializeField] private float utilityRiseHeight = 1.10f;
@@ -54,6 +70,29 @@ public class BattleEffectController : MonoBehaviour
     [SerializeField] private float rewardPeakScale = 1.16f;
     [SerializeField] private float rewardFinalScale = 1.00f;
 
+    [Header("Damage Text - Overlink")]
+    [SerializeField] private float overlinkEntryDrop = 0.16f;
+    [SerializeField] private float overlinkRiseHeight = 2.05f;
+    [SerializeField] private float overlinkSideDrift = 0.18f;
+    [SerializeField] private float overlinkPopDuration = 0.14f;
+    [SerializeField] private float overlinkDriftDuration = 0.66f;
+    [SerializeField] private float overlinkHoldBeforeFade = 0.34f;
+    [SerializeField] private float overlinkFadeDuration = 0.34f;
+    [SerializeField] private float overlinkStartScale = 0.82f;
+    [SerializeField] private float overlinkPeakScale = 1.72f;
+    [SerializeField] private float overlinkFinalScale = 1.08f;
+    [SerializeField] private float overlinkPunchScale = 0.34f;
+    [SerializeField] private float overlinkPunchPositionY = 0.18f;
+    [SerializeField] private float overlinkRotateZ = 9f;
+    [SerializeField] private float overlinkViewportAnchorX = 0.86f;
+    [SerializeField] private float overlinkViewportAnchorY = 0.90f;
+    [SerializeField] private float overlinkViewportStartX = 1.16f;
+    [SerializeField] private float overlinkViewportExitX = 1.08f;
+    [SerializeField] private float overlinkSlideInDuration = 0.20f;
+    [SerializeField] private float overlinkSettleDuration = 0.10f;
+    [SerializeField] private float overlinkHoldDuration = 0.34f;
+    [SerializeField] private float overlinkSlideOutDuration = 0.20f;
+
     [Header("Damage Text - Global")]
     [SerializeField] private float secondaryRiseRatio = 0.52f;
     [SerializeField] private float secondarySideRatio = 0.38f;
@@ -63,13 +102,103 @@ public class BattleEffectController : MonoBehaviour
 
     private EffectPoolManager effectPoolManager;
 
+    private const string OverlinkImpactTextMarker = "<ovl>";
+
+    [Header("Overlink UI (Preplaced)")]
+    [SerializeField] private RectTransform overlinkBannerRoot;
+    [SerializeField] private CanvasGroup overlinkBannerCanvasGroup;
+    [SerializeField] private TMP_Text overlinkBannerMainText;
+    [SerializeField] private float overlinkBannerEnterOffsetX = 360f;
+    [SerializeField] private float overlinkBannerEnterOffsetY = 0f;
+    [SerializeField] private float overlinkBannerEnterDuration = 0.18f;
+    [SerializeField] private float overlinkBannerSettleDuration = 0.10f;
+    [SerializeField] private float overlinkBannerHoldDuration = 0.52f;
+    [SerializeField] private float overlinkBannerExitDuration = 0.18f;
+    [SerializeField] private float overlinkBannerStartScale = 0.90f;
+    [SerializeField] private float overlinkBannerPeakScale = 1.08f;
+    [SerializeField] private float overlinkBannerEndScale = 1.00f;
+    [SerializeField] private float overlinkBannerPunchScale = 0.16f;
+
+    [Header("Total Damage UI (Preplaced)")]
+    [SerializeField] private RectTransform totalDamageRoot;
+    [SerializeField] private CanvasGroup totalDamageCanvasGroup;
+    [SerializeField] private TMP_Text totalDamageValueText;
+    [SerializeField] private float totalDamageEnterOffsetY = 42f;
+    [SerializeField] private float totalDamageEnterDuration = 0.14f;
+    [SerializeField] private float totalDamageSettleDuration = 0.10f;
+    [SerializeField] private float totalDamageHoldDuration = 0.60f;
+    [SerializeField] private float totalDamageExitDuration = 0.18f;
+    [SerializeField] private float totalDamageStartScale = 0.82f;
+    [SerializeField] private float totalDamagePeakScale = 1.12f;
+    [SerializeField] private float totalDamageEndScale = 1.00f;
+    [SerializeField] private float totalDamagePunchScale = 0.15f;
+    [SerializeField] private float totalDamageResetGap = 0.65f;
+    [SerializeField] private float totalDamageCountDuration = 0.12f;
+
+    private Vector2 overlinkBannerBaseAnchoredPos;
+    private Vector3 overlinkBannerBaseScale = Vector3.one;
+    private bool hasOverlinkBannerPose;
+
+    private Vector2 totalDamageBaseAnchoredPos;
+    private Vector3 totalDamageBaseScale = Vector3.one;
+    private bool hasTotalDamagePose;
+    private Tween totalDamageHideTween;
+    private Tween totalDamageCountTween;
+    private int accumulatedDamageTotal;
+    private int displayedDamageTotal;
+    private float lastDamageRegisteredTime = -999f;
+
+    private void Awake()
+    {
+        CacheUiAnchors();
+        HideOverlinkBannerImmediate();
+        HideTotalDamageImmediate();
+    }
+
+    private void CacheUiAnchors()
+    {
+        if (overlinkBannerRoot != null && !hasOverlinkBannerPose)
+        {
+            overlinkBannerBaseAnchoredPos = overlinkBannerRoot.anchoredPosition;
+            overlinkBannerBaseScale = overlinkBannerRoot.localScale;
+            hasOverlinkBannerPose = true;
+        }
+
+        if (totalDamageRoot != null && !hasTotalDamagePose)
+        {
+            totalDamageBaseAnchoredPos = totalDamageRoot.anchoredPosition;
+            totalDamageBaseScale = totalDamageRoot.localScale;
+            hasTotalDamagePose = true;
+        }
+
+        if (overlinkBannerRoot != null && overlinkBannerCanvasGroup == null)
+        {
+            overlinkBannerCanvasGroup = overlinkBannerRoot.GetComponent<CanvasGroup>();
+            if (overlinkBannerCanvasGroup == null)
+            {
+                overlinkBannerCanvasGroup = overlinkBannerRoot.gameObject.AddComponent<CanvasGroup>();
+            }
+        }
+
+        if (totalDamageRoot != null && totalDamageCanvasGroup == null)
+        {
+            totalDamageCanvasGroup = totalDamageRoot.GetComponent<CanvasGroup>();
+            if (totalDamageCanvasGroup == null)
+            {
+                totalDamageCanvasGroup = totalDamageRoot.gameObject.AddComponent<CanvasGroup>();
+            }
+        }
+    }
+
     private enum DamageTextStyle
     {
         Normal,
         Critical,
+        OverlinkImpact,
         Miss,
         Guard,
-        Reward
+        Reward,
+        Overlink
     }
 
     private sealed class DamageTextPoseCache : MonoBehaviour
@@ -79,6 +208,7 @@ public class BattleEffectController : MonoBehaviour
         public Vector3 textLocalPosition;
         public Vector3 textLocalScale;
         public Quaternion textLocalRotation;
+        public FontStyles fontStyle;
 
         public void Capture(Transform root, Transform textTransform)
         {
@@ -91,6 +221,11 @@ public class BattleEffectController : MonoBehaviour
                 textLocalPosition = textTransform.localPosition;
                 textLocalScale = textTransform.localScale;
                 textLocalRotation = textTransform.localRotation;
+                TMP_Text tmp = textTransform.GetComponent<TMP_Text>();
+                if (tmp != null)
+                {
+                    fontStyle = tmp.fontStyle;
+                }
             }
 
             captured = true;
@@ -107,8 +242,22 @@ public class BattleEffectController : MonoBehaviour
                 textTransform.localPosition = textLocalPosition;
                 textTransform.localScale = textLocalScale == Vector3.zero ? Vector3.one : textLocalScale;
                 textTransform.localRotation = textLocalRotation == Quaternion.identity ? Quaternion.identity : textLocalRotation;
+
+                TMP_Text tmp = textTransform.GetComponent<TMP_Text>();
+                if (tmp != null)
+                {
+                    tmp.fontStyle = fontStyle;
+                }
             }
         }
+    }
+
+    private void OnDisable()
+    {
+        totalDamageHideTween?.Kill();
+        totalDamageCountTween?.Kill();
+        HideOverlinkBannerImmediate();
+        HideTotalDamageImmediate();
     }
 
     public void Configure(EffectPoolManager poolManager)
@@ -146,18 +295,35 @@ public class BattleEffectController : MonoBehaviour
         poseCache.Capture(root, textTransform);
         poseCache.ResetPose(root, textTransform, position);
 
+        bool isOverlinkImpact = TryConsumeMarker(ref text, OverlinkImpactTextMarker);
+
         DamageTextStyle style = ResolveDamageTextStyle(text);
+        if (isOverlinkImpact && style != DamageTextStyle.Overlink)
+        {
+            style = DamageTextStyle.OverlinkImpact;
+        }
+
         MotionProfile profile = BuildMotionProfile(style);
 
         Color baseColor = color;
         baseColor.a = 1f;
 
+        if (style == DamageTextStyle.Overlink)
+        {
+            ReturnPooledObject(damageTextPrefab, textObj);
+            ShowOverlinkBanner(text);
+            return;
+        }
+
         tmp.text = text;
+        tmp.fontStyle = (style == DamageTextStyle.Overlink || style == DamageTextStyle.OverlinkImpact) ? FontStyles.Bold : poseCache.fontStyle;
         tmp.color = GetStartColor(baseColor, style);
         tmp.alpha = 1f;
 
-        float side = UnityEngine.Random.Range(-profile.sideDrift, profile.sideDrift);
-        float startX = UnityEngine.Random.Range(-randomStartX, randomStartX);
+        RegisterTotalDamageIfNeeded(style, text);
+
+        float side = (style == DamageTextStyle.Overlink || style == DamageTextStyle.OverlinkImpact) ? UnityEngine.Random.Range(-profile.sideDrift * 0.35f, profile.sideDrift * 0.35f) : UnityEngine.Random.Range(-profile.sideDrift, profile.sideDrift);
+        float startX = style == DamageTextStyle.Overlink ? 0f : UnityEngine.Random.Range(-randomStartX, randomStartX);
 
         root.position = position + new Vector3(startX, -profile.entryDrop, 0f);
         textTransform.localScale = poseCache.textLocalScale * profile.startScale;
@@ -178,6 +344,21 @@ public class BattleEffectController : MonoBehaviour
             seq.Join(DOVirtual.Color(tmp.color, baseColor, Mathf.Min(0.08f, profile.popDuration), c => tmp.color = c).SetEase(Ease.OutQuad));
         }
 
+        if (style == DamageTextStyle.Overlink)
+        {
+            seq.Insert(0f, textTransform.DOPunchScale(Vector3.one * overlinkPunchScale, profile.popDuration + 0.18f, 7, 0.85f));
+            seq.Insert(0f, root.DOPunchPosition(new Vector3(0f, overlinkPunchPositionY, 0f), profile.popDuration + 0.14f, 6, 0.8f));
+            seq.Insert(0f, textTransform.DOLocalRotate(new Vector3(0f, 0f, overlinkRotateZ), profile.popDuration * 0.5f).SetEase(Ease.OutQuad));
+            seq.Insert(profile.popDuration * 0.5f, textTransform.DOLocalRotate(Vector3.zero, profile.popDuration * 0.6f).SetEase(Ease.InOutSine));
+        }
+        else if (style == DamageTextStyle.OverlinkImpact)
+        {
+            seq.Insert(0f, textTransform.DOPunchScale(Vector3.one * overlinkHitPunchScale, profile.popDuration + 0.14f, 7, 0.85f));
+            seq.Insert(0f, root.DOPunchPosition(new Vector3(0f, overlinkHitPunchPositionY, 0f), profile.popDuration + 0.10f, 6, 0.8f));
+            seq.Insert(0f, textTransform.DOLocalRotate(new Vector3(0f, 0f, overlinkHitRotateZ), profile.popDuration * 0.5f).SetEase(Ease.OutQuad));
+            seq.Insert(profile.popDuration * 0.5f, textTransform.DOLocalRotate(Vector3.zero, profile.popDuration * 0.6f).SetEase(Ease.InOutSine));
+        }
+
         seq.Append(root.DOMove(endPos, profile.driftDuration).SetEase(Ease.OutQuad));
         seq.Join(textTransform.DOScale(poseCache.textLocalScale * profile.finalScale, profile.driftDuration * 0.55f).SetEase(Ease.OutQuad));
 
@@ -185,6 +366,21 @@ public class BattleEffectController : MonoBehaviour
         {
             seq.Insert(profile.popDuration + 0.04f,
                 textTransform.DOScale(poseCache.textLocalScale * (profile.finalScale * 1.05f), 0.08f)
+                    .SetLoops(2, LoopType.Yoyo)
+                    .SetEase(Ease.InOutSine));
+        }
+
+        if (style == DamageTextStyle.Overlink)
+        {
+            seq.Insert(profile.popDuration + 0.02f,
+                textTransform.DOScale(poseCache.textLocalScale * (profile.finalScale * 1.10f), 0.09f)
+                    .SetLoops(2, LoopType.Yoyo)
+                    .SetEase(Ease.InOutSine));
+        }
+        else if (style == DamageTextStyle.OverlinkImpact)
+        {
+            seq.Insert(profile.popDuration + 0.02f,
+                textTransform.DOScale(poseCache.textLocalScale * (profile.finalScale * 1.08f), 0.08f)
                     .SetLoops(2, LoopType.Yoyo)
                     .SetEase(Ease.InOutSine));
         }
@@ -202,6 +398,273 @@ public class BattleEffectController : MonoBehaviour
             ReturnPooledObject(damageTextPrefab, textObj);
         });
     }
+
+    private void ShowOverlinkBanner(string text)
+    {
+        CacheUiAnchors();
+        if (overlinkBannerRoot == null)
+        {
+            return;
+        }
+
+
+        overlinkBannerRoot.gameObject.SetActive(true);
+        overlinkBannerRoot.DOKill();
+        if (overlinkBannerMainText != null)
+        {
+            overlinkBannerMainText.DOKill();
+            overlinkBannerMainText.color = Color.white;
+            overlinkBannerMainText.gameObject.SetActive(true);
+            overlinkBannerMainText.text = text;
+            overlinkBannerMainText.alpha = 1f;
+        }
+
+        if (overlinkBannerCanvasGroup != null)
+        {
+            overlinkBannerCanvasGroup.DOKill();
+            overlinkBannerCanvasGroup.alpha = 0f;
+        }
+
+        overlinkBannerRoot.anchoredPosition = overlinkBannerBaseAnchoredPos + new Vector2(overlinkBannerEnterOffsetX, overlinkBannerEnterOffsetY);
+        overlinkBannerRoot.localScale = overlinkBannerBaseScale * overlinkBannerStartScale;
+
+        Sequence seq = DOTween.Sequence();
+        seq.Append(overlinkBannerRoot.DOAnchorPos(overlinkBannerBaseAnchoredPos, overlinkBannerEnterDuration).SetEase(Ease.OutCubic));
+        if (overlinkBannerCanvasGroup != null)
+        {
+            seq.Join(overlinkBannerCanvasGroup.DOFade(1f, overlinkBannerEnterDuration * 0.85f).SetEase(Ease.OutQuad));
+        }
+        seq.Join(overlinkBannerRoot.DOScale(overlinkBannerBaseScale * overlinkBannerPeakScale, overlinkBannerEnterDuration).SetEase(Ease.OutBack));
+        seq.Append(overlinkBannerRoot.DOScale(overlinkBannerBaseScale * overlinkBannerEndScale, overlinkBannerSettleDuration).SetEase(Ease.OutQuad));
+        seq.Join(overlinkBannerRoot.DOPunchScale(Vector3.one * overlinkBannerPunchScale, overlinkBannerSettleDuration + 0.10f, 6, 0.85f));
+        seq.AppendInterval(overlinkBannerHoldDuration);
+        seq.Append(overlinkBannerRoot.DOAnchorPos(overlinkBannerBaseAnchoredPos + new Vector2(overlinkBannerEnterOffsetX * 0.45f, overlinkBannerEnterOffsetY), overlinkBannerExitDuration).SetEase(Ease.InQuad));
+        if (overlinkBannerCanvasGroup != null)
+        {
+            seq.Join(overlinkBannerCanvasGroup.DOFade(0f, overlinkBannerExitDuration).SetEase(Ease.InQuad));
+        }
+        seq.OnComplete(HideOverlinkBannerImmediate);
+    }
+
+    private void HideOverlinkBannerImmediate()
+    {
+        if (overlinkBannerRoot == null)
+        {
+            return;
+        }
+
+        overlinkBannerRoot.DOKill();
+        overlinkBannerRoot.anchoredPosition = overlinkBannerBaseAnchoredPos;
+        overlinkBannerRoot.localScale = overlinkBannerBaseScale;
+
+        if (overlinkBannerCanvasGroup != null)
+        {
+            overlinkBannerCanvasGroup.DOKill();
+            overlinkBannerCanvasGroup.alpha = 0f;
+        }
+
+        if (overlinkBannerMainText != null)
+        {
+            overlinkBannerMainText.DOKill();
+            overlinkBannerMainText.color = Color.white;
+            overlinkBannerMainText.alpha = 1f;
+        }
+
+        overlinkBannerRoot.gameObject.SetActive(false);
+    }
+
+    private bool TryConsumeMarker(ref string text, string marker)
+    {
+        if (string.IsNullOrEmpty(text) || string.IsNullOrEmpty(marker))
+        {
+            return false;
+        }
+
+        if (!text.StartsWith(marker, StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        text = text.Substring(marker.Length);
+        return true;
+    }
+
+    private void RegisterTotalDamageIfNeeded(DamageTextStyle style, string text)
+    {
+        if (style != DamageTextStyle.Normal && style != DamageTextStyle.Critical && style != DamageTextStyle.OverlinkImpact)
+        {
+            return;
+        }
+
+        if (!TryExtractDamageValue(style, text, out int damageValue) || damageValue <= 0)
+        {
+            return;
+        }
+
+        CacheUiAnchors();
+        if (totalDamageRoot == null || totalDamageValueText == null)
+        {
+            return;
+        }
+
+        float now = Time.time;
+        bool startFresh = now - lastDamageRegisteredTime > totalDamageResetGap;
+        if (startFresh)
+        {
+            accumulatedDamageTotal = 0;
+            displayedDamageTotal = 0;
+            ShowTotalDamageBannerFresh();
+        }
+        else
+        {
+            EnsureTotalDamageBannerVisible();
+        }
+
+        accumulatedDamageTotal += damageValue;
+        lastDamageRegisteredTime = now;
+
+        if (totalDamageCountTween != null && totalDamageCountTween.IsActive())
+        {
+            totalDamageCountTween.Kill();
+        }
+
+        int startValue = displayedDamageTotal;
+        int targetValue = accumulatedDamageTotal;
+        totalDamageCountTween = DOVirtual.Int(startValue, targetValue, totalDamageCountDuration, value =>
+        {
+            displayedDamageTotal = value;
+            UpdateTotalDamageText(value);
+        }).SetEase(Ease.OutQuad);
+
+        if (totalDamageValueText != null)
+        {
+            Transform valueTransform = totalDamageValueText.transform;
+            valueTransform.DOKill();
+            valueTransform.localScale = Vector3.one;
+            valueTransform.DOPunchScale(Vector3.one * totalDamagePunchScale, totalDamageSettleDuration + 0.08f, 6, 0.85f);
+        }
+
+        if (totalDamageHideTween != null && totalDamageHideTween.IsActive())
+        {
+            totalDamageHideTween.Kill();
+        }
+
+        totalDamageHideTween = DOVirtual.DelayedCall(totalDamageHoldDuration, HideTotalDamageAnimated);
+    }
+
+    private void ShowTotalDamageBannerFresh()
+    {
+        totalDamageRoot.gameObject.SetActive(true);
+        totalDamageRoot.DOKill();
+        if (totalDamageCanvasGroup != null)
+        {
+            totalDamageCanvasGroup.DOKill();
+            totalDamageCanvasGroup.alpha = 0f;
+        }
+
+        totalDamageRoot.anchoredPosition = totalDamageBaseAnchoredPos + new Vector2(0f, totalDamageEnterOffsetY);
+        totalDamageRoot.localScale = totalDamageBaseScale * totalDamageStartScale;
+        UpdateTotalDamageText(0);
+
+        Sequence seq = DOTween.Sequence();
+        seq.Append(totalDamageRoot.DOAnchorPos(totalDamageBaseAnchoredPos, totalDamageEnterDuration).SetEase(Ease.OutCubic));
+        if (totalDamageCanvasGroup != null)
+        {
+            seq.Join(totalDamageCanvasGroup.DOFade(1f, totalDamageEnterDuration * 0.85f).SetEase(Ease.OutQuad));
+        }
+        seq.Join(totalDamageRoot.DOScale(totalDamageBaseScale * totalDamagePeakScale, totalDamageEnterDuration).SetEase(Ease.OutBack));
+        seq.Append(totalDamageRoot.DOScale(totalDamageBaseScale * totalDamageEndScale, totalDamageSettleDuration).SetEase(Ease.OutQuad));
+    }
+
+    private void EnsureTotalDamageBannerVisible()
+    {
+        totalDamageRoot.gameObject.SetActive(true);
+        totalDamageRoot.anchoredPosition = totalDamageBaseAnchoredPos;
+        totalDamageRoot.localScale = totalDamageBaseScale;
+        if (totalDamageCanvasGroup != null)
+        {
+            totalDamageCanvasGroup.alpha = 1f;
+        }
+    }
+
+    private void HideTotalDamageAnimated()
+    {
+        if (totalDamageRoot == null)
+        {
+            return;
+        }
+
+        totalDamageRoot.DOKill();
+        if (totalDamageCanvasGroup != null)
+        {
+            totalDamageCanvasGroup.DOKill();
+        }
+
+        Sequence seq = DOTween.Sequence();
+        seq.Append(totalDamageRoot.DOAnchorPos(totalDamageBaseAnchoredPos + new Vector2(0f, totalDamageEnterOffsetY * 0.45f), totalDamageExitDuration).SetEase(Ease.InQuad));
+        if (totalDamageCanvasGroup != null)
+        {
+            seq.Join(totalDamageCanvasGroup.DOFade(0f, totalDamageExitDuration).SetEase(Ease.InQuad));
+        }
+        seq.Join(totalDamageRoot.DOScale(totalDamageBaseScale * totalDamageStartScale, totalDamageExitDuration).SetEase(Ease.InQuad));
+        seq.OnComplete(HideTotalDamageImmediate);
+    }
+
+    private void HideTotalDamageImmediate()
+    {
+        if (totalDamageRoot == null)
+        {
+            return;
+        }
+
+        totalDamageRoot.DOKill();
+        totalDamageRoot.anchoredPosition = totalDamageBaseAnchoredPos;
+        totalDamageRoot.localScale = totalDamageBaseScale;
+        if (totalDamageCanvasGroup != null)
+        {
+            totalDamageCanvasGroup.DOKill();
+            totalDamageCanvasGroup.alpha = 0f;
+        }
+        totalDamageRoot.gameObject.SetActive(false);
+        accumulatedDamageTotal = 0;
+        displayedDamageTotal = 0;
+        UpdateTotalDamageText(0);
+    }
+
+    private void UpdateTotalDamageText(int value)
+    {
+        if (totalDamageValueText == null)
+        {
+            return;
+        }
+
+        totalDamageValueText.color = Color.white;
+        totalDamageValueText.text = value.ToString(CultureInfo.InvariantCulture);
+    }
+
+    private bool TryExtractDamageValue(DamageTextStyle style, string text, out int value)
+    {
+        value = 0;
+        if (string.IsNullOrEmpty(text))
+        {
+            return false;
+        }
+
+        if (style == DamageTextStyle.Normal)
+        {
+            return int.TryParse(text.Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out value);
+        }
+
+        if (style == DamageTextStyle.Critical)
+        {
+            string[] lines = text.Split('\n');
+            string last = lines[lines.Length - 1].Trim();
+            return int.TryParse(last, NumberStyles.Integer, CultureInfo.InvariantCulture, out value);
+        }
+
+        return false;
+    }
+
 
     private readonly struct MotionProfile
     {
@@ -258,6 +721,19 @@ public class BattleEffectController : MonoBehaviour
                     criticalPeakScale,
                     criticalFinalScale);
 
+            case DamageTextStyle.OverlinkImpact:
+                return new MotionProfile(
+                    overlinkHitEntryDrop,
+                    overlinkHitRiseHeight,
+                    overlinkHitSideDrift,
+                    overlinkHitPopDuration,
+                    overlinkHitDriftDuration,
+                    overlinkHitHoldBeforeFade,
+                    overlinkHitFadeDuration,
+                    overlinkHitStartScale,
+                    overlinkHitPeakScale,
+                    overlinkHitFinalScale);
+
             case DamageTextStyle.Miss:
             case DamageTextStyle.Guard:
                 return new MotionProfile(
@@ -284,6 +760,19 @@ public class BattleEffectController : MonoBehaviour
                     rewardStartScale,
                     rewardPeakScale,
                     rewardFinalScale);
+
+            case DamageTextStyle.Overlink:
+                return new MotionProfile(
+                    overlinkEntryDrop,
+                    overlinkRiseHeight,
+                    overlinkSideDrift,
+                    overlinkPopDuration,
+                    overlinkDriftDuration,
+                    overlinkHoldBeforeFade,
+                    overlinkFadeDuration,
+                    overlinkStartScale,
+                    overlinkPeakScale,
+                    overlinkFinalScale);
 
             default:
                 return new MotionProfile(
@@ -324,6 +813,12 @@ public class BattleEffectController : MonoBehaviour
             return DamageTextStyle.Guard;
         }
 
+        if (normalized.IndexOf("OVERLINK", StringComparison.OrdinalIgnoreCase) >= 0 ||
+            normalized.IndexOf("BOOST", StringComparison.OrdinalIgnoreCase) >= 0)
+        {
+            return DamageTextStyle.Overlink;
+        }
+
         if (normalized.IndexOf("EXP", StringComparison.OrdinalIgnoreCase) >= 0 ||
             normalized.IndexOf("LEVEL UP", StringComparison.OrdinalIgnoreCase) >= 0 ||
             normalized.IndexOf("ITEM", StringComparison.OrdinalIgnoreCase) >= 0 ||
@@ -341,9 +836,12 @@ public class BattleEffectController : MonoBehaviour
         switch (style)
         {
             case DamageTextStyle.Critical:
+            case DamageTextStyle.OverlinkImpact:
                 return LiftColor(baseColor, criticalColorLift);
             case DamageTextStyle.Reward:
                 return LiftColor(baseColor, rewardColorLift);
+            case DamageTextStyle.Overlink:
+                return Color.white;
             default:
                 return baseColor;
         }
