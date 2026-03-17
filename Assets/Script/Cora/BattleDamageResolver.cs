@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections;
 using UnityEngine;
 
@@ -422,7 +422,14 @@ public class BattleDamageResolver : MonoBehaviour
             panelBattleManager = GetComponent<PanelBattleManager>();
         }
 
-        panelBattleManager?.panelBoardController?.PlayDefeatCelebration();
+        if (defeatedEnemy != null && defeatedEnemy.IsDangerEnemy())
+        {
+            panelBattleManager?.panelBoardController?.PlayDangerDefeatCelebration();
+        }
+        else
+        {
+            panelBattleManager?.panelBoardController?.PlayDefeatCelebration();
+        }
 
         Vector3 expTextPos = defeatedEnemy.transform.position + Vector3.up * expTextHeight;
         battleEventHub?.RaiseExpTextRequested(defeatedEnemy.expYield, expTextPos, expTextDelay);

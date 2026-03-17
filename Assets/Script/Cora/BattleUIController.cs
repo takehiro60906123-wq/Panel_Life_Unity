@@ -58,6 +58,14 @@ public class BattleUIController : MonoBehaviour
     private Tween ammoCountPulseTween;
     private Tween pistolButtonPulseTween;
 
+    private Vector3 gunGaugeTextBaseScale = Vector3.one;
+    private Vector3 ammoCountTextBaseScale = Vector3.one;
+    private Vector3 playerExpBarBaseScale = Vector3.one;
+    private bool hasGunGaugeTextBaseScale = false;
+    private bool hasAmmoCountTextBaseScale = false;
+    private bool hasPlayerExpBarBaseScale = false;
+    private Vector3[] ammoImageBaseScales;
+
     private int lastGunGauge = -1;
     private bool lastCanUseGun = false;
     private Color cachedButtonBaseColor = Color.white;
@@ -88,6 +96,9 @@ public class BattleUIController : MonoBehaviour
     private Tween gunGaugePulseTween;
     private void Start()
     {
+        CacheGunUiBaseScales();
+        CachePlayerExpBarBaseScale();
+
         if (pistolButton != null)
         {
             pistolButton.onClick.RemoveAllListeners();
@@ -125,6 +136,107 @@ public class BattleUIController : MonoBehaviour
             }
 
             dragSlot.Setup(this, slotIndex);
+        }
+    }
+
+    private void CacheGunUiBaseScales()
+    {
+        if (gunGaugeText != null)
+        {
+            gunGaugeTextBaseScale = gunGaugeText.transform.localScale;
+            hasGunGaugeTextBaseScale = true;
+        }
+
+        if (ammoCountText != null)
+        {
+            ammoCountTextBaseScale = ammoCountText.transform.localScale;
+            hasAmmoCountTextBaseScale = true;
+        }
+
+        if (ammoImages != null && ammoImages.Length > 0)
+        {
+            if (ammoImageBaseScales == null || ammoImageBaseScales.Length != ammoImages.Length)
+            {
+                ammoImageBaseScales = new Vector3[ammoImages.Length];
+            }
+
+            for (int i = 0; i < ammoImages.Length; i++)
+            {
+                if (ammoImages[i] == null)
+                {
+                    ammoImageBaseScales[i] = Vector3.one;
+                    continue;
+                }
+
+                ammoImageBaseScales[i] = ammoImages[i].transform.localScale;
+            }
+        }
+    }
+
+    private Vector3 GetGunGaugeTextBaseScale()
+    {
+        if (!hasGunGaugeTextBaseScale && gunGaugeText != null)
+        {
+            gunGaugeTextBaseScale = gunGaugeText.transform.localScale;
+            hasGunGaugeTextBaseScale = true;
+        }
+
+        return gunGaugeTextBaseScale;
+    }
+
+    private Vector3 GetAmmoCountTextBaseScale()
+    {
+        if (!hasAmmoCountTextBaseScale && ammoCountText != null)
+        {
+            ammoCountTextBaseScale = ammoCountText.transform.localScale;
+            hasAmmoCountTextBaseScale = true;
+        }
+
+        return ammoCountTextBaseScale;
+    }
+
+    private Vector3 GetAmmoImageBaseScale(int index)
+    {
+        if (ammoImages == null || index < 0 || index >= ammoImages.Length)
+        {
+            return Vector3.one;
+        }
+
+        if (ammoImageBaseScales == null || ammoImageBaseScales.Length != ammoImages.Length)
+        {
+            CacheGunUiBaseScales();
+        }
+
+        if (ammoImageBaseScales == null || index < 0 || index >= ammoImageBaseScales.Length)
+        {
+            return Vector3.one;
+        }
+
+        if (ammoImageBaseScales[index] == Vector3.zero && ammoImages[index] != null)
+        {
+            ammoImageBaseScales[index] = ammoImages[index].transform.localScale;
+        }
+
+        return ammoImageBaseScales[index] == Vector3.zero ? Vector3.one : ammoImageBaseScales[index];
+    }
+
+    private void CachePlayerExpBarBaseScale()
+    {
+        if (playerExpBar == null) return;
+
+        Transform expBarTransform = playerExpBar.transform;
+        if (expBarTransform == null) return;
+
+        if (!hasPlayerExpBarBaseScale)
+        {
+            playerExpBarBaseScale = expBarTransform.localScale;
+            hasPlayerExpBarBaseScale = true;
+            return;
+        }
+
+        if (playerExpBarBaseScale == Vector3.zero)
+        {
+            playerExpBarBaseScale = expBarTransform.localScale;
         }
     }
 
@@ -170,14 +282,14 @@ public class BattleUIController : MonoBehaviour
         if (ammoCountText != null)
         {
             ammoCountText.transform.DOKill();
-            ammoCountText.transform.localScale = Vector3.one;
+            ammoCountText.transform.localScale = GetAmmoCountTextBaseScale();
             ammoCountText.transform.DOPunchScale(new Vector3(0.16f, 0.16f, 0f), 0.2f, 8, 0.85f);
         }
 
         if (gunGaugeText != null)
         {
             gunGaugeText.transform.DOKill();
-            gunGaugeText.transform.localScale = Vector3.one;
+            gunGaugeText.transform.localScale = GetGunGaugeTextBaseScale();
             gunGaugeText.transform.DOPunchScale(new Vector3(0.12f, 0.12f, 0f), 0.18f, 8, 0.85f);
         }
     }
@@ -215,18 +327,18 @@ public class BattleUIController : MonoBehaviour
         {
             if (gunGaugeText != null && (gunGaugePulseTween == null || !gunGaugePulseTween.IsActive()))
             {
-                gunGaugeText.transform.localScale = Vector3.one;
+                gunGaugeText.transform.localScale = GetGunGaugeTextBaseScale();
                 gunGaugePulseTween = gunGaugeText.transform
-                    .DOScale(Vector3.one * fullGaugePulseScale, fullGaugePulseDuration)
+                    .DOScale(GetGunGaugeTextBaseScale() * fullGaugePulseScale, fullGaugePulseDuration)
                     .SetLoops(-1, LoopType.Yoyo)
                     .SetEase(Ease.InOutSine);
             }
 
             if (ammoCountText != null && (ammoCountPulseTween == null || !ammoCountPulseTween.IsActive()))
             {
-                ammoCountText.transform.localScale = Vector3.one;
+                ammoCountText.transform.localScale = GetAmmoCountTextBaseScale();
                 ammoCountPulseTween = ammoCountText.transform
-                    .DOScale(Vector3.one * fullGaugePulseScale, fullGaugePulseDuration)
+                    .DOScale(GetAmmoCountTextBaseScale() * fullGaugePulseScale, fullGaugePulseDuration)
                     .SetLoops(-1, LoopType.Yoyo)
                     .SetEase(Ease.InOutSine);
             }
@@ -247,12 +359,12 @@ public class BattleUIController : MonoBehaviour
 
             if (gunGaugeText != null)
             {
-                gunGaugeText.transform.localScale = Vector3.one;
+                gunGaugeText.transform.localScale = GetGunGaugeTextBaseScale();
             }
 
             if (ammoCountText != null)
             {
-                ammoCountText.transform.localScale = Vector3.one;
+                ammoCountText.transform.localScale = GetAmmoCountTextBaseScale();
             }
         }
     }
@@ -894,35 +1006,50 @@ public class BattleUIController : MonoBehaviour
         if (gunGaugeText != null)
         {
             gunGaugeText.transform.DOKill();
-            gunGaugeText.transform.localScale = Vector3.one;
+            gunGaugeText.transform.localScale = GetGunGaugeTextBaseScale();
             gunGaugeText.transform.DOPunchScale(new Vector3(0.12f, 0.12f, 0f), 0.2f, 8, 0.85f);
         }
 
         if (ammoCountText != null)
         {
             ammoCountText.transform.DOKill();
-            ammoCountText.transform.localScale = Vector3.one;
+            ammoCountText.transform.localScale = GetAmmoCountTextBaseScale();
             ammoCountText.transform.DOPunchScale(new Vector3(0.16f, 0.16f, 0f), 0.22f, 8, 0.85f);
         }
 
         if (ammoImages != null)
         {
-            foreach (Image ammoImage in ammoImages)
-            {
-                if (ammoImage == null) continue;
-                ammoImage.transform.DOKill();
-                ammoImage.transform.localScale = Vector3.one;
-            }
-
             for (int i = 0; i < ammoImages.Length; i++)
             {
                 Image ammoImage = ammoImages[i];
                 if (ammoImage == null) continue;
+
+                ammoImage.transform.DOKill();
+                ammoImage.transform.localScale = GetAmmoImageBaseScale(i);
                 ammoImage.transform
                     .DOPunchScale(new Vector3(0.08f, 0.08f, 0f), 0.18f, 6, 0.85f)
                     .SetDelay(i * 0.01f);
             }
         }
+    }
+
+    public float GetGunGaugeLoadSequenceDuration(int previousGauge, int currentGauge, int maxGauge)
+    {
+        int displayMax = ammoImages != null && ammoImages.Length > 0
+            ? Mathf.Min(ammoImages.Length, Mathf.Max(1, maxGauge))
+            : Mathf.Max(1, maxGauge);
+
+        int clampedPrev = Mathf.Clamp(previousGauge, 0, displayMax);
+        int clampedCurrent = Mathf.Clamp(currentGauge, 0, displayMax);
+
+        if (clampedCurrent <= clampedPrev)
+        {
+            return 0.22f;
+        }
+
+        int steps = clampedCurrent - clampedPrev;
+        float duration = ammoLoadSlotPunchDuration + ammoLoadSlotStepDelay * Mathf.Max(0, steps - 1);
+        return Mathf.Clamp(duration, 0.22f, 0.46f);
     }
 
     public void PlayGunGaugeLoadSequence(int previousGauge, int currentGauge, int maxGauge)
@@ -937,14 +1064,14 @@ public class BattleUIController : MonoBehaviour
         if (gunGaugeText != null)
         {
             gunGaugeText.transform.DOKill();
-            gunGaugeText.transform.localScale = Vector3.one;
+            gunGaugeText.transform.localScale = GetGunGaugeTextBaseScale();
             gunGaugeText.transform.DOPunchScale(new Vector3(ammoLoadTextPunchScale * 0.75f, ammoLoadTextPunchScale * 0.75f, 0f), 0.18f, 8, 0.85f);
         }
 
         if (ammoCountText != null)
         {
             ammoCountText.transform.DOKill();
-            ammoCountText.transform.localScale = Vector3.one;
+            ammoCountText.transform.localScale = GetAmmoCountTextBaseScale();
             ammoCountText.transform.DOPunchScale(new Vector3(ammoLoadTextPunchScale, ammoLoadTextPunchScale, 0f), 0.2f, 8, 0.85f);
         }
 
@@ -953,11 +1080,13 @@ public class BattleUIController : MonoBehaviour
             return;
         }
 
-        foreach (Image ammoImage in ammoImages)
+        for (int i = 0; i < ammoImages.Length; i++)
         {
+            Image ammoImage = ammoImages[i];
             if (ammoImage == null) continue;
+
             ammoImage.transform.DOKill();
-            ammoImage.transform.localScale = Vector3.one;
+            ammoImage.transform.localScale = GetAmmoImageBaseScale(i);
         }
 
         if (clampedCurrent <= clampedPrev)
@@ -976,6 +1105,7 @@ public class BattleUIController : MonoBehaviour
             if (ammoImage == null) continue;
 
             RectTransform rect = ammoImage.rectTransform;
+            Vector3 baseScale = GetAmmoImageBaseScale(imageIndex);
             float delay = ammoLoadSlotStepDelay * step;
             step++;
 
@@ -986,7 +1116,7 @@ public class BattleUIController : MonoBehaviour
             Sequence seq = DOTween.Sequence();
             seq.SetLink(ammoImage.gameObject, LinkBehaviour.KillOnDestroy);
             seq.SetDelay(delay);
-            seq.Append(rect.DOScale(1f + ammoLoadSlotPunchScale, ammoLoadSlotPunchDuration * 0.45f).SetEase(Ease.OutBack));
+            seq.Append(rect.DOScale(baseScale * (1f + ammoLoadSlotPunchScale), ammoLoadSlotPunchDuration * 0.45f).SetEase(Ease.OutBack));
             seq.Join(DOVirtual.DelayedCall(0.01f, () =>
             {
                 if (ammoImage != null)
@@ -994,7 +1124,7 @@ public class BattleUIController : MonoBehaviour
                     ammoImage.color = flashColor;
                 }
             }));
-            seq.Append(rect.DOScale(1f, ammoLoadSlotPunchDuration * 0.55f).SetEase(Ease.InOutQuad));
+            seq.Append(rect.DOScale(baseScale, ammoLoadSlotPunchDuration * 0.55f).SetEase(Ease.InOutQuad));
             seq.Join(ammoImage.DOColor(litColor, ammoLoadSlotPunchDuration * 0.55f).SetEase(Ease.OutQuad));
         }
     }
@@ -1003,13 +1133,34 @@ public class BattleUIController : MonoBehaviour
     {
         if (playerExpBar == null) return;
 
+        CachePlayerExpBarBaseScale();
+
         Transform t = playerExpBar.transform;
         t.DOKill();
-        t.localScale = Vector3.one;
+        t.localScale = playerExpBarBaseScale;
 
         float scale = isLevelUp ? expBarPulseScale + 0.04f : expBarPulseScale;
         float duration = isLevelUp ? expBarPulseDuration + 0.05f : expBarPulseDuration;
-        t.DOPunchScale(new Vector3(scale - 1f, scale - 1f, 0f), duration, 8, 0.85f);
+        Vector3 punch = new Vector3(
+            playerExpBarBaseScale.x * (scale - 1f),
+            playerExpBarBaseScale.y * (scale - 1f),
+            0f);
+
+        t.DOPunchScale(punch, duration, 8, 0.85f)
+            .OnComplete(() =>
+            {
+                if (t != null)
+                {
+                    t.localScale = playerExpBarBaseScale;
+                }
+            })
+            .OnKill(() =>
+            {
+                if (t != null)
+                {
+                    t.localScale = playerExpBarBaseScale;
+                }
+            });
     }
 
     public void PlayCoinReceivePulse()
@@ -1121,12 +1272,21 @@ public class BattleUIController : MonoBehaviour
     {
         if (gunGaugeText != null)
         {
-            gunGaugeText.transform.localScale = Vector3.one;
+            gunGaugeText.transform.localScale = GetGunGaugeTextBaseScale();
         }
 
         if (ammoCountText != null)
         {
-            ammoCountText.transform.localScale = Vector3.one;
+            ammoCountText.transform.localScale = GetAmmoCountTextBaseScale();
+        }
+
+        if (ammoImages != null)
+        {
+            for (int i = 0; i < ammoImages.Length; i++)
+            {
+                if (ammoImages[i] == null) continue;
+                ammoImages[i].transform.localScale = GetAmmoImageBaseScale(i);
+            }
         }
 
         if (pistolButton != null)

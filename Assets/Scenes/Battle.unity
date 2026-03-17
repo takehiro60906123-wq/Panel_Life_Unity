@@ -918,7 +918,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 1, y: 0.63500005}
-  m_AnchoredPosition: {x: 0, y: -2.642395}
+  m_AnchoredPosition: {x: 0, y: -2.642334}
   m_SizeDelta: {x: 0, y: -5.284485}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &92116805
@@ -7893,11 +7893,11 @@ MonoBehaviour:
   - label: 
     type: 0
     panelImage: {fileID: 21300000, guid: d1d9c57c4abf8644286789f3873d853e, type: 3}
-    weight: 20
+    weight: 44
   - label: 
     type: 1
     panelImage: {fileID: 21300000, guid: 0d2ce09682e21df4bbf9f9406909d439, type: 3}
-    weight: 5
+    weight: 24
   - label: 
     type: 2
     panelImage: {fileID: 21300000, guid: 37ac88492dbdc254e8643e0dcbb9566f, type: 3}
@@ -7905,11 +7905,11 @@ MonoBehaviour:
   - label: 
     type: 3
     panelImage: {fileID: 21300000, guid: 8d0a3c7c6cc696a458c6cfce3f5682bb, type: 3}
-    weight: 8
+    weight: 14
   - label: 
     type: 4
     panelImage: {fileID: 21300000, guid: 631253d38f97a1a4fb8bf027f87c14cb, type: 3}
-    weight: 20
+    weight: 18
   battleUIController: {fileID: 0}
   dungeonMistController: {fileID: 0}
   enemyPresentationController: {fileID: 0}
@@ -8104,12 +8104,26 @@ MonoBehaviour:
   defeatCelebrateReturnDuration: 0.12
   defeatCelebrateStagger: 0.008
   defeatCelebrateFlashAlpha: 0.18
+  dangerDefeatFlashColor: {r: 1, g: 0.88, b: 0.45, a: 1}
+  dangerDefeatCelebrateScale: 1.085
+  dangerDefeatExpandDuration: 0.09
+  dangerDefeatReturnDuration: 0.14
+  dangerDefeatStagger: 0.006
+  dangerDefeatFlashAlpha: 0.3
+  dangerDefeatShakeMultiplier: 1.35
+  dangerDefeatShakeDuration: 0.13
   healWaveColor: {r: 0.65, g: 1, b: 0.78, a: 1}
   healWaveScale: 1.025
   healWaveExpandDuration: 0.07
   healWaveReturnDuration: 0.1
   healWaveStagger: 0.004
   healWaveFlashAlpha: 0.12
+  expChargeColor: {r: 1, g: 0.92, b: 0.45, a: 1}
+  expChargeScale: 1.045
+  expChargeExpandDuration: 0.055
+  expChargeReturnDuration: 0.085
+  expChargeStagger: 0.02
+  expChargeFlashAlpha: 0.18
   enableResonanceSwordPanels: 1
   resonanceStartBattle: 10
   resonanceEndBattle: 18
@@ -9230,7 +9244,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.26111114, y: 0.7738959}
   m_AnchorMax: {x: 0.73774076, y: 0.84900004}
-  m_AnchoredPosition: {x: -5.282593, y: 3.9400024}
+  m_AnchoredPosition: {x: -5.282593, y: 3.9399414}
   m_SizeDelta: {x: 8.822327, y: -3.6356812}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!1 &1510810760
@@ -10284,7 +10298,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.78025925, y: 0.64125}
   m_AnchorMax: {x: 0.96474075, y: 0.6715417}
-  m_AnchoredPosition: {x: 0.7369995, y: 0}
+  m_AnchoredPosition: {x: 0.73706055, y: 0}
   m_SizeDelta: {x: 1, y: -9}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1670612985

@@ -279,7 +279,8 @@ public class PanelActionController : MonoBehaviour
                 break;
 
             case PanelType.LvUp:
-                // EXP パネル到着時もプレイヤー配下の Transform / Canvas には一切触れない。
+                // EXP到着時はプレイヤーUIを触らず、盤面側へ起動・強化感だけ返す。
+                panelBoardController?.PlayExpChargeFeedback();
                 break;
         }
     }

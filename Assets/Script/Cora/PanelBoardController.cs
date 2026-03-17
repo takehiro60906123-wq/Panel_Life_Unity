@@ -71,6 +71,16 @@ public class PanelBoardController : MonoBehaviour
     [SerializeField] private float defeatCelebrateStagger = 0.008f;
     [SerializeField] private float defeatCelebrateFlashAlpha = 0.18f;
 
+    [Header("危険敵撃破時の盤面強調")]
+    [SerializeField] private Color dangerDefeatFlashColor = new Color(1f, 0.88f, 0.45f, 1f);
+    [SerializeField] private float dangerDefeatCelebrateScale = 1.085f;
+    [SerializeField] private float dangerDefeatExpandDuration = 0.09f;
+    [SerializeField] private float dangerDefeatReturnDuration = 0.14f;
+    [SerializeField] private float dangerDefeatStagger = 0.006f;
+    [SerializeField] private float dangerDefeatFlashAlpha = 0.30f;
+    [SerializeField] private float dangerDefeatShakeMultiplier = 1.35f;
+    [SerializeField] private float dangerDefeatShakeDuration = 0.13f;
+
     [Header("回復到着時の盤面波紋")]
     [SerializeField] private Color healWaveColor = new Color(0.65f, 1f, 0.78f, 1f);
     [SerializeField] private float healWaveScale = 1.025f;
@@ -78,6 +88,14 @@ public class PanelBoardController : MonoBehaviour
     [SerializeField] private float healWaveReturnDuration = 0.10f;
     [SerializeField] private float healWaveStagger = 0.004f;
     [SerializeField] private float healWaveFlashAlpha = 0.12f;
+
+    [Header("EXP到着時の盤面チャージ")]
+    [SerializeField] private Color expChargeColor = new Color(1f, 0.92f, 0.45f, 1f);
+    [SerializeField] private float expChargeScale = 1.045f;
+    [SerializeField] private float expChargeExpandDuration = 0.055f;
+    [SerializeField] private float expChargeReturnDuration = 0.085f;
+    [SerializeField] private float expChargeStagger = 0.02f;
+    [SerializeField] private float expChargeFlashAlpha = 0.18f;
 
     [Header("共鳴パネル設定")]
     [SerializeField] private bool enableResonanceSwordPanels = true;
@@ -1343,7 +1361,46 @@ public class PanelBoardController : MonoBehaviour
 
     public void PlayDefeatCelebration()
     {
+        PlayDefeatCelebrationInternal(
+            Color.white,
+            defeatCelebrateScale,
+            defeatCelebrateExpandDuration,
+            defeatCelebrateReturnDuration,
+            defeatCelebrateStagger,
+            defeatCelebrateFlashAlpha,
+            1f,
+            0f);
+    }
+
+    public void PlayDangerDefeatCelebration()
+    {
+        PlayDefeatCelebrationInternal(
+            dangerDefeatFlashColor,
+            dangerDefeatCelebrateScale,
+            dangerDefeatExpandDuration,
+            dangerDefeatReturnDuration,
+            dangerDefeatStagger,
+            dangerDefeatFlashAlpha,
+            dangerDefeatShakeMultiplier,
+            dangerDefeatShakeDuration);
+    }
+
+    private void PlayDefeatCelebrationInternal(
+        Color flashColor,
+        float celebrateScale,
+        float expandDuration,
+        float returnDuration,
+        float stagger,
+        float flashAlpha,
+        float shakeMultiplier,
+        float shakeDuration)
+    {
         if (panelObjects == null || gridData == null) return;
+
+        if (shakeDuration > 0f)
+        {
+            PlayImpactShake(shakeMultiplier, shakeDuration);
+        }
 
         int order = 0;
         for (int r = 0; r < rows; r++)
@@ -1355,7 +1412,7 @@ public class PanelBoardController : MonoBehaviour
                 GameObject panelObj = panelObjects[r, c];
                 if (panelObj == null) continue;
 
-                float delay = order * defeatCelebrateStagger;
+                float delay = order * stagger;
                 order++;
 
                 Transform panelTransform = panelObj.transform;
@@ -1365,8 +1422,8 @@ public class PanelBoardController : MonoBehaviour
                 Sequence seq = DOTween.Sequence();
                 seq.SetLink(panelObj, LinkBehaviour.KillOnDestroy);
                 seq.SetDelay(delay);
-                seq.Append(panelTransform.DOScale(startScale * defeatCelebrateScale, defeatCelebrateExpandDuration).SetEase(Ease.OutQuad));
-                seq.Append(panelTransform.DOScale(Vector3.one, defeatCelebrateReturnDuration).SetEase(Ease.OutBack));
+                seq.Append(panelTransform.DOScale(startScale * celebrateScale, expandDuration).SetEase(Ease.OutQuad));
+                seq.Append(panelTransform.DOScale(startScale, returnDuration).SetEase(Ease.OutBack));
                 seq.OnComplete(() =>
                 {
                     if (panelObj != null)
@@ -1381,15 +1438,15 @@ public class PanelBoardController : MonoBehaviour
                     flash.DOKill();
                     flash.enabled = true;
                     flash.gameObject.SetActive(true);
-                    flash.color = new Color(1f, 1f, 1f, 0f);
-                    flash.DOFade(defeatCelebrateFlashAlpha, defeatCelebrateExpandDuration)
+                    flash.color = new Color(flashColor.r, flashColor.g, flashColor.b, 0f);
+                    flash.DOFade(flashAlpha, expandDuration)
                         .SetDelay(delay)
                         .SetEase(Ease.OutQuad)
                         .OnComplete(() =>
                         {
                             if (flash != null)
                             {
-                                flash.DOFade(0f, defeatCelebrateReturnDuration).OnComplete(() =>
+                                flash.DOFade(0f, returnDuration).OnComplete(() =>
                                 {
                                     if (flash != null)
                                     {
@@ -1428,7 +1485,7 @@ public class PanelBoardController : MonoBehaviour
                 seq.SetLink(panelObj, LinkBehaviour.KillOnDestroy);
                 seq.SetDelay(delay);
                 seq.Append(panelTransform.DOScale(startScale * healWaveScale, healWaveExpandDuration).SetEase(Ease.OutQuad));
-                seq.Append(panelTransform.DOScale(Vector3.one, healWaveReturnDuration).SetEase(Ease.OutSine));
+                seq.Append(panelTransform.DOScale(startScale, healWaveReturnDuration).SetEase(Ease.OutSine));
                 seq.OnComplete(() =>
                 {
                     if (panelObj != null)
@@ -1452,6 +1509,68 @@ public class PanelBoardController : MonoBehaviour
                             if (flash != null)
                             {
                                 flash.DOFade(0f, healWaveReturnDuration).OnComplete(() =>
+                                {
+                                    if (flash != null)
+                                    {
+                                        flash.enabled = false;
+                                    }
+                                });
+                            }
+                        });
+                }
+            }
+        }
+    }
+
+    public void PlayExpChargeFeedback()
+    {
+        if (panelObjects == null || gridData == null) return;
+
+        int order = 0;
+        for (int r = rows - 1; r >= 0; r--)
+        {
+            for (int c = 0; c < cols; c++)
+            {
+                if (gridData[r, c] == PanelType.None) continue;
+
+                GameObject panelObj = panelObjects[r, c];
+                if (panelObj == null) continue;
+
+                float delay = order * expChargeStagger;
+                order++;
+
+                Transform panelTransform = panelObj.transform;
+                panelTransform.DOKill();
+                Vector3 startScale = panelTransform.localScale;
+
+                Sequence seq = DOTween.Sequence();
+                seq.SetLink(panelObj, LinkBehaviour.KillOnDestroy);
+                seq.SetDelay(delay);
+                seq.Append(panelTransform.DOScale(startScale * expChargeScale, expChargeExpandDuration).SetEase(Ease.OutQuad));
+                seq.Append(panelTransform.DOScale(startScale, expChargeReturnDuration).SetEase(Ease.OutSine));
+                seq.OnComplete(() =>
+                {
+                    if (panelObj != null)
+                    {
+                        StartPanelIdleBreath(panelObj);
+                    }
+                });
+
+                Image flash = GetOrCreateTapFlashFx(panelTransform);
+                if (flash != null)
+                {
+                    flash.DOKill();
+                    flash.enabled = true;
+                    flash.gameObject.SetActive(true);
+                    flash.color = new Color(expChargeColor.r, expChargeColor.g, expChargeColor.b, 0f);
+                    flash.DOFade(expChargeFlashAlpha, expChargeExpandDuration)
+                        .SetDelay(delay)
+                        .SetEase(Ease.OutQuad)
+                        .OnComplete(() =>
+                        {
+                            if (flash != null)
+                            {
+                                flash.DOFade(0f, expChargeReturnDuration).OnComplete(() =>
                                 {
                                     if (flash != null)
                                     {
