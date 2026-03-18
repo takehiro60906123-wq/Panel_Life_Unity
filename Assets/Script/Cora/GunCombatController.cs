@@ -35,8 +35,8 @@ public class GunCombatController : MonoBehaviour
 
     [Header("Precision Bonus")]
     [SerializeField] private int pistolDangerBonusDamage = 1;
-    [SerializeField] private int pistolDangerDelayAmount = 1;
     [SerializeField] private int rifleDangerBonusDamage = 2;
+    [SerializeField] private int pistolDangerDelayAmount = 0;
 
     [Header("Machine Gun Burst Bonus")]
     [SerializeField] private bool machineGunUsesBurstBonus = true;
@@ -476,10 +476,6 @@ public class GunCombatController : MonoBehaviour
             TryDelayEnemyTurnByShotgun(target);
         }
 
-        if (gun.gunType == GunType.Pistol && precisionTriggered)
-        {
-            TryDelayEnemyTurnByPistol(target);
-        }
     }
 
     private void TryDelayEnemyTurnByShotgun(BattleUnit target)

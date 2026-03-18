@@ -17,7 +17,7 @@ MonoBehaviour:
   enemyType: 3
   attackPattern: 0
   baseHP: 6
-  attackPower: 4
+  attackPower: 3
   attackInterval: 1
   expYield: 3
   coinYield: 2

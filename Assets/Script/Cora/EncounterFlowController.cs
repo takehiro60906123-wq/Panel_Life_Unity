@@ -331,7 +331,8 @@ public class EncounterFlowController : MonoBehaviour
                 {
                     RequestOneShotEffect(hitEffectPrefab, pos + Vector3.up * 0.5f, 0.7f);
                 }
-                RequestDamageText(PlayerHitTextMarker + damage.ToString(), pos + Vector3.up * 1.45f, Color.red);
+
+                RequestDamageText(PlayerHitTextMarker + damage.ToString(), pos + Vector3.up * 1.15f, Color.red);
 
                 if (playerUnit != null && playerUnit.IsDead())
                 {

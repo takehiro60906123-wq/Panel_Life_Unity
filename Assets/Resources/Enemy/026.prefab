@@ -760,7 +760,7 @@ MonoBehaviour:
   hpSlider: {fileID: 7166529566945923798}
   hpText: {fileID: 2662779214851339163}
   animator: {fileID: 7649217041576899481}
-  attackInterval: 1
+  attackInterval: 2
   currentCooldown: 0
   turnText: {fileID: 6957822152843867208}
 --- !u!114 &2791046625075093319
@@ -805,6 +805,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5cda538ef23feed40944c3871789774b, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  turnIndicatorImage: {fileID: 0}
+  autoFindTurnIndicatorIfMissing: 1
 --- !u!114 &382341450561356135
 MonoBehaviour:
   m_ObjectHideFlags: 0

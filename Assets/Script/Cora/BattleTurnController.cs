@@ -260,7 +260,7 @@ public class BattleTurnController : MonoBehaviour
 
             if (pattern == EnemyAttackPattern.HeavyHit && enemyUnit.isChargingHeavyHit)
             {
-                baseDamage = Mathf.Max(1, enemyUnit.attackPower * 2);
+                baseDamage = Mathf.Max(1, enemyUnit.attackPower + 3);
                 enemyUnit.isChargingHeavyHit = false;
             }
 
@@ -289,7 +289,8 @@ public class BattleTurnController : MonoBehaviour
 
                 if (hitEffectPrefab != null)
                     spawnOneShotEffect?.Invoke(hitEffectPrefab, pos + Vector3.up * 0.5f, 0.7f);
-                spawnDamageText?.Invoke(PlayerHitTextMarker + finalDamage.ToString(), pos + Vector3.up * 1.45f, Color.red);
+
+                spawnDamageText?.Invoke(PlayerHitTextMarker + finalDamage.ToString(), pos + Vector3.up * 1.15f, Color.red);
 
                 if (playerUnit != null && playerUnit.IsDead())
                 {
@@ -333,7 +334,8 @@ public class BattleTurnController : MonoBehaviour
 
                         if (hitEffectPrefab != null)
                             spawnOneShotEffect?.Invoke(hitEffectPrefab, pos2 + Vector3.up * 0.5f, 0.7f);
-                        spawnDamageText?.Invoke(PlayerHitTextMarker + finalDmg2.ToString(), pos2 + Vector3.up * 1.85f, Color.red);
+
+                        spawnDamageText?.Invoke(PlayerHitTextMarker + finalDmg2.ToString(), pos2 + Vector3.up * 1.35f, Color.red);
 
                         if (playerUnit.IsDead())
                         {

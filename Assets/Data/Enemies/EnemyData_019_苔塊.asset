@@ -18,7 +18,7 @@ MonoBehaviour:
   attackPattern: 5
   baseHP: 15
   attackPower: 3
-  attackInterval: 1
+  attackInterval: 2
   expYield: 6
   coinYield: 4
   hpPerLevel: 4

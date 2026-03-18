@@ -901,6 +901,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5cda538ef23feed40944c3871789774b, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  turnIndicatorImage: {fileID: 0}
+  autoFindTurnIndicatorIfMissing: 1
 --- !u!114 &4448968657377948902
 MonoBehaviour:
   m_ObjectHideFlags: 0

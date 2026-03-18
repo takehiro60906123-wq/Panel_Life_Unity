@@ -171,12 +171,12 @@ public class StageFlowController : MonoBehaviour
             return new NextEncounterPlan(false, EncounterType.Enemy, 0);
         }
 
-        if (roll < 80)
+        if (roll < 82)
         {
             return new NextEncounterPlan(false, EncounterType.Empty, 3);
         }
 
-        if (roll < 90)
+        if (roll < 95)
         {
             return new NextEncounterPlan(false, EncounterType.Treasure, 1);
         }

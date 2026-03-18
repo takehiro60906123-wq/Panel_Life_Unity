@@ -33,15 +33,17 @@ public class BattleEffectController : MonoBehaviour
 
 
 [Header("Damage Text - Player Hit")]
-[SerializeField] private float playerHitEntryDrop = 0.04f;
-[SerializeField] private float playerHitRiseHeight = 0.82f;
-[SerializeField] private float playerHitSideDrift = 0.12f;
-[SerializeField] private float playerHitPopDuration = 0.12f;
-[SerializeField] private float playerHitDriftDuration = 0.66f;
-[SerializeField] private float playerHitHoldBeforeFade = 0.42f;
-[SerializeField] private float playerHitFadeDuration = 0.34f;
-[SerializeField] private float playerHitStartScale = 0.76f;
-[SerializeField] private float playerHitPeakScale = 1.12f;
+[SerializeField] private float playerHitWorldOffsetY = -0.95f;
+[SerializeField] private float playerHitLocalOffsetY = -0.90f;
+[SerializeField] private float playerHitEntryDrop = 0.02f;
+[SerializeField] private float playerHitRiseHeight = 0.10f;
+[SerializeField] private float playerHitSideDrift = 0.00f;
+[SerializeField] private float playerHitPopDuration = 0.18f;
+[SerializeField] private float playerHitDriftDuration = 1.00f;
+[SerializeField] private float playerHitHoldBeforeFade = 1.00f;
+[SerializeField] private float playerHitFadeDuration = 1.05f;
+[SerializeField] private float playerHitStartScale = 0.90f;
+[SerializeField] private float playerHitPeakScale = 1.05f;
 [SerializeField] private float playerHitFinalScale = 1.00f;
 
     [Header("Damage Text - Overlink Hit")]
@@ -325,6 +327,12 @@ public class BattleEffectController : MonoBehaviour
 
         MotionProfile profile = BuildMotionProfile(style);
 
+        Vector3 adjustedPosition = position;
+        if (style == DamageTextStyle.PlayerHit)
+        {
+            adjustedPosition += Vector3.up * playerHitWorldOffsetY;
+        }
+
         Color baseColor = color;
         baseColor.a = 1f;
 
@@ -360,11 +368,15 @@ public class BattleEffectController : MonoBehaviour
             ? 0f
             : UnityEngine.Random.Range(-randomStartX, randomStartX);
 
-        root.position = position + new Vector3(startX, -profile.entryDrop, 0f);
+        root.position = adjustedPosition + new Vector3(startX, -profile.entryDrop, 0f);
+        if (style == DamageTextStyle.PlayerHit)
+        {
+            textTransform.localPosition = poseCache.textLocalPosition + new Vector3(0f, playerHitLocalOffsetY, 0f);
+        }
         textTransform.localScale = poseCache.textLocalScale * profile.startScale;
 
-        Vector3 midPos = position + new Vector3(side * secondarySideRatio, profile.riseHeight * secondaryRiseRatio, 0f);
-        Vector3 endPos = position + new Vector3(side, profile.riseHeight, 0f);
+        Vector3 midPos = adjustedPosition + new Vector3(side * secondarySideRatio, profile.riseHeight * secondaryRiseRatio, 0f);
+        Vector3 endPos = adjustedPosition + new Vector3(side, profile.riseHeight, 0f);
 
         Sequence seq = DOTween.Sequence();
         seq.Append(root.DOMove(midPos, profile.popDuration).SetEase(Ease.OutCubic));
@@ -429,7 +441,7 @@ public class BattleEffectController : MonoBehaviour
                 tmp.color = baseColor;
             }
 
-            poseCache.ResetPose(root, textTransform, position);
+            poseCache.ResetPose(root, textTransform, adjustedPosition);
             ReturnPooledObject(damageTextPrefab, textObj);
         });
     }

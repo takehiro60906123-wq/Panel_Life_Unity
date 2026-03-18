@@ -31,62 +31,62 @@ public static class EnemyDataGenerator
     // =========================================================
 
     private static readonly EnemyDef[] AllEnemies = new EnemyDef[]
-    {
-        // === A. 蛾系（Floating）===
-        new EnemyDef { id=1,  name="腐蛾",     type=EnemyType.Floating, pattern=EnemyAttackPattern.Normal,       hp=7,  atk=3, interval=1, exp=3,  coin=2,  appearBattle=1,  hpPerLevel=3, healPerLevel=1, expPerLevel=1 },
-        new EnemyDef { id=2,  name="胞子蛾",   type=EnemyType.Floating, pattern=EnemyAttackPattern.Normal,       hp=12, atk=4, interval=1, exp=5,  coin=3,  appearBattle=7,  hpPerLevel=4, healPerLevel=1, expPerLevel=1 },
-        new EnemyDef { id=6,  name="蟲翼獣",   type=EnemyType.Floating, pattern=EnemyAttackPattern.Normal,       hp=24, atk=7, interval=1, exp=10, coin=6,  appearBattle=16, hpPerLevel=6, healPerLevel=2, expPerLevel=3 },
+{
+    // === A. 蛾系（Floating）===
+    new EnemyDef { id=1,  name="腐蛾",     type=EnemyType.Floating, pattern=EnemyAttackPattern.Normal,       hp=7,  atk=2, interval=2, exp=3,  coin=2,  appearBattle=1,  hpPerLevel=3, healPerLevel=1, expPerLevel=1 },
+    new EnemyDef { id=2,  name="胞子蛾",   type=EnemyType.Floating, pattern=EnemyAttackPattern.Normal,       hp=12, atk=4, interval=2, exp=5,  coin=3,  appearBattle=7,  hpPerLevel=4, healPerLevel=1, expPerLevel=1 },
+    new EnemyDef { id=6,  name="蟲翼獣",   type=EnemyType.Floating, pattern=EnemyAttackPattern.Normal,       hp=24, atk=6, interval=2, exp=10, coin=6,  appearBattle=16, hpPerLevel=6, healPerLevel=2, expPerLevel=3 },
 
-        // === B. 赤蟲系（Rushing）===
-        new EnemyDef { id=3,  name="火蟲",     type=EnemyType.Rushing,  pattern=EnemyAttackPattern.Normal,       hp=6,  atk=4, interval=1, exp=3,  coin=2,  appearBattle=2,  hpPerLevel=3, healPerLevel=1, expPerLevel=1 },
-        new EnemyDef { id=15, name="突撃蟲",   type=EnemyType.Rushing,  pattern=EnemyAttackPattern.MultiHit,     hp=10, atk=3, interval=1, exp=5,  coin=4,  appearBattle=10, hpPerLevel=3, healPerLevel=1, expPerLevel=1 },
-        new EnemyDef { id=16, name="蟲戦車",   type=EnemyType.Rushing,  pattern=EnemyAttackPattern.MultiHit,     hp=18, atk=5, interval=1, exp=9,  coin=6,  appearBattle=19, hpPerLevel=5, healPerLevel=1, expPerLevel=2 },
+    // === B. 赤蟲系（Rushing）===
+    new EnemyDef { id=3,  name="火蟲",     type=EnemyType.Rushing,  pattern=EnemyAttackPattern.Normal,       hp=6,  atk=3, interval=1, exp=3,  coin=2,  appearBattle=2,  hpPerLevel=3, healPerLevel=1, expPerLevel=1 },
+    new EnemyDef { id=15, name="突撃蟲",   type=EnemyType.Rushing,  pattern=EnemyAttackPattern.MultiHit,     hp=10, atk=3, interval=1, exp=5,  coin=4,  appearBattle=10, hpPerLevel=3, healPerLevel=1, expPerLevel=1 },
+    new EnemyDef { id=16, name="蟲戦車",   type=EnemyType.Rushing,  pattern=EnemyAttackPattern.MultiHit,     hp=18, atk=5, interval=1, exp=9,  coin=6,  appearBattle=19, hpPerLevel=5, healPerLevel=1, expPerLevel=2 },
 
-        // === C. 岩殻系（Armored）===
-        new EnemyDef { id=4,  name="岩蟲",     type=EnemyType.Armored,  pattern=EnemyAttackPattern.Normal,       hp=10, atk=3, interval=1, exp=4,  coin=2,  appearBattle=3,  hpPerLevel=4, healPerLevel=1, expPerLevel=1 },
-        new EnemyDef { id=5,  name="棘殻",     type=EnemyType.Armored,  pattern=EnemyAttackPattern.Normal,       hp=16, atk=4, interval=1, exp=6,  coin=4,  appearBattle=9,  hpPerLevel=4, healPerLevel=1, expPerLevel=1 },
-        new EnemyDef { id=7,  name="結晶獣",   type=EnemyType.Armored,  pattern=EnemyAttackPattern.HeavyHit,     hp=28, atk=6, interval=1, exp=11, coin=7,  appearBattle=17, hpPerLevel=6, healPerLevel=2, expPerLevel=3 },
+    // === C. 岩殻系（Armored）===
+    new EnemyDef { id=4,  name="岩蟲",     type=EnemyType.Armored,  pattern=EnemyAttackPattern.Normal,       hp=10, atk=3, interval=2, exp=4,  coin=2,  appearBattle=3,  hpPerLevel=4, healPerLevel=1, expPerLevel=1 },
+    new EnemyDef { id=5,  name="棘殻",     type=EnemyType.Armored,  pattern=EnemyAttackPattern.Normal,       hp=16, atk=4, interval=2, exp=6,  coin=4,  appearBattle=9,  hpPerLevel=4, healPerLevel=1, expPerLevel=1 },
+    new EnemyDef { id=7,  name="結晶獣",   type=EnemyType.Armored,  pattern=EnemyAttackPattern.HeavyHit,     hp=28, atk=6, interval=3, exp=11, coin=7,  appearBattle=17, hpPerLevel=6, healPerLevel=2, expPerLevel=3 },
 
-        // === D. 多脚系 ===
-        new EnemyDef { id=8,  name="蔓脚蟲",   type=EnemyType.Normal,   pattern=EnemyAttackPattern.MultiHit,     hp=8,  atk=2, interval=1, exp=4,  coin=2,  appearBattle=4,  hpPerLevel=3, healPerLevel=1, expPerLevel=1 },
-        new EnemyDef { id=9,  name="蠕蟲",     type=EnemyType.Normal,   pattern=EnemyAttackPattern.MultiHit,     hp=14, atk=3, interval=1, exp=6,  coin=4,  appearBattle=12, hpPerLevel=4, healPerLevel=1, expPerLevel=1 },
+    // === D. 多脚系 ===
+    new EnemyDef { id=8,  name="蔓脚蟲",   type=EnemyType.Normal,   pattern=EnemyAttackPattern.MultiHit,     hp=8,  atk=2, interval=2, exp=4,  coin=2,  appearBattle=4,  hpPerLevel=3, healPerLevel=1, expPerLevel=1 },
+    new EnemyDef { id=9,  name="蠕蟲",     type=EnemyType.Normal,   pattern=EnemyAttackPattern.MultiHit,     hp=14, atk=3, interval=2, exp=6,  coin=4,  appearBattle=12, hpPerLevel=4, healPerLevel=1, expPerLevel=1 },
 
-        // === E. 毛獣系 ===
-        new EnemyDef { id=10, name="毛獣",     type=EnemyType.Normal,   pattern=EnemyAttackPattern.Normal,       hp=8,  atk=3, interval=1, exp=3,  coin=2,  appearBattle=2,  hpPerLevel=3, healPerLevel=1, expPerLevel=1 },
-        new EnemyDef { id=21, name="重牙獣",   type=EnemyType.Normal,   pattern=EnemyAttackPattern.HeavyHit,     hp=19, atk=6, interval=1, exp=9,  coin=5,  appearBattle=13, hpPerLevel=5, healPerLevel=1, expPerLevel=2 },
-        new EnemyDef { id=22, name="暗雲獣",   type=EnemyType.Normal,   pattern=EnemyAttackPattern.PanelCorrupt, hp=28, atk=6, interval=1, exp=11, coin=6,  appearBattle=20, hpPerLevel=6, healPerLevel=2, expPerLevel=3 },
+    // === E. 毛獣系 ===
+    new EnemyDef { id=10, name="毛獣",     type=EnemyType.Normal,   pattern=EnemyAttackPattern.Normal,       hp=8,  atk=3, interval=2, exp=3,  coin=2,  appearBattle=2,  hpPerLevel=3, healPerLevel=1, expPerLevel=1 },
+    new EnemyDef { id=21, name="重牙獣",   type=EnemyType.Normal,   pattern=EnemyAttackPattern.HeavyHit,     hp=19, atk=5, interval=3, exp=9,  coin=5,  appearBattle=13, hpPerLevel=5, healPerLevel=1, expPerLevel=2 },
+    new EnemyDef { id=22, name="暗雲獣",   type=EnemyType.Normal,   pattern=EnemyAttackPattern.PanelCorrupt, hp=28, atk=5, interval=3, exp=11, coin=6,  appearBattle=20, hpPerLevel=6, healPerLevel=2, expPerLevel=3 },
 
-        // === F. 苔系 ===
-        new EnemyDef { id=11, name="苔玉",     type=EnemyType.Normal,   pattern=EnemyAttackPattern.SelfBuff,     hp=9,  atk=2, interval=1, exp=3,  coin=2,  appearBattle=5,  hpPerLevel=3, healPerLevel=2, expPerLevel=1 },
-        new EnemyDef { id=19, name="苔塊",     type=EnemyType.Normal,   pattern=EnemyAttackPattern.SelfBuff,     hp=15, atk=3, interval=1, exp=6,  coin=4,  appearBattle=11, hpPerLevel=4, healPerLevel=3, expPerLevel=2 },
-        new EnemyDef { id=20, name="暗苔塊",   type=EnemyType.Armored,  pattern=EnemyAttackPattern.SelfBuff,     hp=24, atk=5, interval=1, exp=9,  coin=6,  appearBattle=18, hpPerLevel=6, healPerLevel=3, expPerLevel=3 },
+    // === F. 苔系 ===
+    new EnemyDef { id=11, name="苔玉",     type=EnemyType.Normal,   pattern=EnemyAttackPattern.SelfBuff,     hp=9,  atk=2, interval=2, exp=3,  coin=2,  appearBattle=5,  hpPerLevel=3, healPerLevel=2, expPerLevel=1 },
+    new EnemyDef { id=19, name="苔塊",     type=EnemyType.Normal,   pattern=EnemyAttackPattern.SelfBuff,     hp=15, atk=3, interval=2, exp=6,  coin=4,  appearBattle=11, hpPerLevel=4, healPerLevel=3, expPerLevel=2 },
+    new EnemyDef { id=20, name="暗苔塊",   type=EnemyType.Armored,  pattern=EnemyAttackPattern.SelfBuff,     hp=24, atk=5, interval=2, exp=9,  coin=6,  appearBattle=18, hpPerLevel=6, healPerLevel=3, expPerLevel=3 },
 
-        // === G. 幽体系 ===
-        new EnemyDef { id=12, name="幽体蟲",   type=EnemyType.Floating, pattern=EnemyAttackPattern.Normal,       hp=8,  atk=3, interval=1, exp=4,  coin=2,  appearBattle=6,  hpPerLevel=3, healPerLevel=1, expPerLevel=1 },
-        new EnemyDef { id=13, name="雷光水母", type=EnemyType.Floating, pattern=EnemyAttackPattern.PanelCorrupt, hp=17, atk=5, interval=1, exp=8,  coin=5,  appearBattle=14, hpPerLevel=4, healPerLevel=1, expPerLevel=2 },
+    // === G. 幽体系 ===
+    new EnemyDef { id=12, name="幽体蟲",   type=EnemyType.Floating, pattern=EnemyAttackPattern.Normal,       hp=8,  atk=3, interval=2, exp=4,  coin=2,  appearBattle=6,  hpPerLevel=3, healPerLevel=1, expPerLevel=1 },
+    new EnemyDef { id=13, name="雷光水母", type=EnemyType.Floating, pattern=EnemyAttackPattern.PanelCorrupt, hp=17, atk=4, interval=3, exp=8,  coin=5,  appearBattle=14, hpPerLevel=4, healPerLevel=1, expPerLevel=2 },
 
-        // === H. 甲虫系 ===
-        new EnemyDef { id=14, name="甲蟲",     type=EnemyType.Normal,   pattern=EnemyAttackPattern.Normal,       hp=9,  atk=3, interval=1, exp=4,  coin=2,  appearBattle=5,  hpPerLevel=3, healPerLevel=1, expPerLevel=1 },
-        new EnemyDef { id=17, name="鉄甲蟲",   type=EnemyType.Armored,  pattern=EnemyAttackPattern.Normal,       hp=15, atk=4, interval=1, exp=6,  coin=4,  appearBattle=11, hpPerLevel=4, healPerLevel=1, expPerLevel=1 },
-        new EnemyDef { id=18, name="蟲巣",     type=EnemyType.Normal,   pattern=EnemyAttackPattern.PanelCorrupt, hp=22, atk=0, interval=1, exp=8,  coin=5,  appearBattle=20, hpPerLevel=5, healPerLevel=1, expPerLevel=2 },
+    // === H. 甲虫系 ===
+    new EnemyDef { id=14, name="甲蟲",     type=EnemyType.Normal,   pattern=EnemyAttackPattern.Normal,       hp=9,  atk=3, interval=2, exp=4,  coin=2,  appearBattle=5,  hpPerLevel=3, healPerLevel=1, expPerLevel=1 },
+    new EnemyDef { id=17, name="鉄甲蟲",   type=EnemyType.Armored,  pattern=EnemyAttackPattern.Normal,       hp=15, atk=4, interval=2, exp=6,  coin=4,  appearBattle=11, hpPerLevel=4, healPerLevel=1, expPerLevel=1 },
+    new EnemyDef { id=18, name="蟲巣",     type=EnemyType.Normal,   pattern=EnemyAttackPattern.PanelCorrupt, hp=22, atk=0, interval=3, exp=8,  coin=5,  appearBattle=20, hpPerLevel=5, healPerLevel=1, expPerLevel=2 },
 
-        // === I. 炎植物系 ===
-        new EnemyDef { id=23, name="焔蟲",     type=EnemyType.Ranged,   pattern=EnemyAttackPattern.Normal,       hp=14, atk=7, interval=1, exp=10, coin=6,  appearBattle=15, hpPerLevel=4, healPerLevel=1, expPerLevel=2 },
-        new EnemyDef { id=24, name="蝕炎草",   type=EnemyType.Ranged,   pattern=EnemyAttackPattern.PanelCorrupt, hp=20, atk=6, interval=1, exp=10, coin=6,  appearBattle=21, hpPerLevel=5, healPerLevel=2, expPerLevel=3 },
+    // === I. 炎植物系 ===
+    new EnemyDef { id=23, name="焔蟲",     type=EnemyType.Ranged,   pattern=EnemyAttackPattern.Normal,       hp=14, atk=5, interval=3, exp=10, coin=6,  appearBattle=15, hpPerLevel=4, healPerLevel=1, expPerLevel=2 },
+    new EnemyDef { id=24, name="蝕炎草",   type=EnemyType.Ranged,   pattern=EnemyAttackPattern.PanelCorrupt, hp=20, atk=5, interval=3, exp=10, coin=6,  appearBattle=21, hpPerLevel=5, healPerLevel=2, expPerLevel=3 },
 
-        // === J. 棘獣系 ===
-        new EnemyDef { id=25, name="棘紫蟲",   type=EnemyType.Normal,   pattern=EnemyAttackPattern.Normal,       hp=11, atk=4, interval=1, exp=5,  coin=3,  appearBattle=8,  hpPerLevel=3, healPerLevel=1, expPerLevel=1 },
-        new EnemyDef { id=26, name="大棘獣",   type=EnemyType.Normal,   pattern=EnemyAttackPattern.Normal,       hp=18, atk=5, interval=1, exp=8,  coin=5,  appearBattle=14, hpPerLevel=4, healPerLevel=1, expPerLevel=2 },
-        new EnemyDef { id=29, name="蒼棘獣",   type=EnemyType.Rushing,  pattern=EnemyAttackPattern.MultiHit,     hp=17, atk=5, interval=1, exp=10, coin=6,  appearBattle=19, hpPerLevel=5, healPerLevel=1, expPerLevel=2 },
-        new EnemyDef { id=30, name="翠棘獣",   type=EnemyType.Armored,  pattern=EnemyAttackPattern.HeavyHit,     hp=32, atk=7, interval=1, exp=12, coin=7,  appearBattle=23, hpPerLevel=6, healPerLevel=2, expPerLevel=3 },
+    // === J. 棘獣系 ===
+    new EnemyDef { id=25, name="棘紫蟲",   type=EnemyType.Normal,   pattern=EnemyAttackPattern.Normal,       hp=11, atk=4, interval=2, exp=5,  coin=3,  appearBattle=8,  hpPerLevel=3, healPerLevel=1, expPerLevel=1 },
+    new EnemyDef { id=26, name="大棘獣",   type=EnemyType.Normal,   pattern=EnemyAttackPattern.Normal,       hp=18, atk=5, interval=2, exp=8,  coin=5,  appearBattle=14, hpPerLevel=4, healPerLevel=1, expPerLevel=2 },
+    new EnemyDef { id=29, name="蒼棘獣",   type=EnemyType.Rushing,  pattern=EnemyAttackPattern.MultiHit,     hp=17, atk=5, interval=1, exp=10, coin=6,  appearBattle=19, hpPerLevel=5, healPerLevel=1, expPerLevel=2 },
+    new EnemyDef { id=30, name="翠棘獣",   type=EnemyType.Armored,  pattern=EnemyAttackPattern.HeavyHit,     hp=32, atk=7, interval=3, exp=12, coin=7,  appearBattle=23, hpPerLevel=6, healPerLevel=2, expPerLevel=3 },
 
-        // === K. 丸獣〜王蟲系 ===
-        new EnemyDef { id=27, name="巨苔獣",   type=EnemyType.Normal,   pattern=EnemyAttackPattern.SelfBuff,     hp=16, atk=3, interval=1, exp=6,  coin=4,  appearBattle=8,  hpPerLevel=4, healPerLevel=3, expPerLevel=2 },
-        new EnemyDef { id=28, name="眼球蟲",   type=EnemyType.Ranged,   pattern=EnemyAttackPattern.Normal,       hp=13, atk=7, interval=1, exp=9,  coin=6,  appearBattle=15, hpPerLevel=4, healPerLevel=1, expPerLevel=2 },
-        new EnemyDef { id=31, name="暗殻獣",   type=EnemyType.Armored,  pattern=EnemyAttackPattern.HeavyHit,     hp=32, atk=7, interval=1, exp=12, coin=7,  appearBattle=22, hpPerLevel=6, healPerLevel=2, expPerLevel=3 },
-        new EnemyDef { id=32, name="赤眼獣",   type=EnemyType.Rushing,  pattern=EnemyAttackPattern.MultiHit,     hp=21, atk=6, interval=1, exp=13, coin=8,  appearBattle=24, hpPerLevel=5, healPerLevel=2, expPerLevel=4 },
-        new EnemyDef { id=33, name="朽王蟲",   type=EnemyType.Normal,   pattern=EnemyAttackPattern.PanelCorrupt, hp=38, atk=8, interval=1, exp=18, coin=10, appearBattle=25, hpPerLevel=7, healPerLevel=3, expPerLevel=4 },
-    };
+    // === K. 丸獣〜王蟲系 ===
+    new EnemyDef { id=27, name="巨苔獣",   type=EnemyType.Normal,   pattern=EnemyAttackPattern.SelfBuff,     hp=16, atk=3, interval=2, exp=6,  coin=4,  appearBattle=8,  hpPerLevel=4, healPerLevel=3, expPerLevel=2 },
+    new EnemyDef { id=28, name="眼球蟲",   type=EnemyType.Ranged,   pattern=EnemyAttackPattern.Normal,       hp=13, atk=5, interval=3, exp=9,  coin=6,  appearBattle=15, hpPerLevel=4, healPerLevel=1, expPerLevel=2 },
+    new EnemyDef { id=31, name="暗殻獣",   type=EnemyType.Armored,  pattern=EnemyAttackPattern.HeavyHit,     hp=32, atk=7, interval=3, exp=12, coin=7,  appearBattle=22, hpPerLevel=6, healPerLevel=2, expPerLevel=3 },
+    new EnemyDef { id=32, name="赤眼獣",   type=EnemyType.Rushing,  pattern=EnemyAttackPattern.MultiHit,     hp=21, atk=6, interval=1, exp=13, coin=8,  appearBattle=24, hpPerLevel=5, healPerLevel=2, expPerLevel=4 },
+    new EnemyDef { id=33, name="朽王蟲",   type=EnemyType.Normal,   pattern=EnemyAttackPattern.PanelCorrupt, hp=38, atk=7, interval=3, exp=18, coin=10, appearBattle=25, hpPerLevel=7, healPerLevel=3, expPerLevel=4 },
+};
 
     private struct TierDef
     {
@@ -97,56 +97,56 @@ public static class EnemyDataGenerator
     }
 
     private static readonly TierDef[] AllTiers = new TierDef[]
+{
+    new TierDef
     {
-        new TierDef
-        {
-            startBattle = 1, name = "序盤",
-            enemyIds = new[] { 1, 3, 4, 8, 10, 11, 12, 14 },
-            weights  = new[] { 12, 10, 10, 8, 12, 8, 8, 8 }
-        },
-        new TierDef
-        {
-            startBattle = 8, name = "中盤",
-            enemyIds = new[] { 2, 5, 9, 15, 17, 19, 21, 25, 26, 27, 13 },
-            weights  = new[] { 10, 10, 8, 8, 10, 8, 10, 10, 8, 8, 6 }
-        },
-        new TierDef
-        {
-            startBattle = 10, name = "中ボス1",
-            enemyIds = new[] { 21, 5, 13, 26 },
-            weights  = new[] { 30, 20, 25, 25 }
-        },
-        new TierDef
-        {
-            startBattle = 11, name = "中盤後半",
-            enemyIds = new[] { 2, 5, 9, 15, 17, 19, 21, 25, 26, 27, 13 },
-            weights  = new[] { 10, 10, 8, 8, 10, 8, 10, 10, 8, 8, 6 }
-        },
-        new TierDef
-        {
-            startBattle = 16, name = "終盤",
-            enemyIds = new[] { 6, 7, 16, 18, 20, 22, 23, 24, 28, 29, 30, 31 },
-            weights  = new[] { 8, 8, 8, 6, 8, 8, 8, 6, 8, 8, 6, 6 }
-        },
-        new TierDef
-        {
-            startBattle = 20, name = "中ボス2",
-            enemyIds = new[] { 31, 30, 22, 7 },
-            weights  = new[] { 30, 25, 25, 20 }
-        },
-        new TierDef
-        {
-            startBattle = 21, name = "終盤後半",
-            enemyIds = new[] { 6, 7, 16, 18, 20, 22, 23, 24, 28, 29, 30, 31 },
-            weights  = new[] { 8, 8, 8, 6, 8, 8, 8, 6, 8, 8, 6, 6 }
-        },
-        new TierDef
-        {
-            startBattle = 24, name = "最終",
-            enemyIds = new[] { 32, 33, 31, 30, 6 },
-            weights  = new[] { 10, 15, 8, 6, 4 }
-        },
-    };
+        startBattle = 1, name = "序盤",
+        enemyIds = new[] { 1, 3, 4, 8, 10, 11, 12, 14 },
+        weights  = new[] { 12, 8, 10, 8, 12, 8, 8, 8 }
+    },
+    new TierDef
+    {
+        startBattle = 8, name = "中盤",
+        enemyIds = new[] { 2, 5, 9, 15, 17, 19, 25, 27, 13 },
+        weights  = new[] { 10, 10, 8, 8, 10, 8, 10, 8, 6 }
+    },
+    new TierDef
+    {
+        startBattle = 10, name = "中ボス1",
+        enemyIds = new[] { 21, 5, 13, 26 },
+        weights  = new[] { 22, 24, 24, 30 }
+    },
+    new TierDef
+    {
+        startBattle = 11, name = "中盤後半",
+        enemyIds = new[] { 2, 5, 9, 15, 17, 19, 21, 25, 26, 27, 13 },
+        weights  = new[] { 8, 10, 8, 8, 10, 8, 6, 10, 10, 8, 6 }
+    },
+    new TierDef
+    {
+        startBattle = 16, name = "終盤",
+        enemyIds = new[] { 6, 7, 16, 18, 20, 22, 23, 24, 28, 29 },
+        weights  = new[] { 8, 6, 8, 6, 8, 6, 8, 6, 8, 8 }
+    },
+    new TierDef
+    {
+        startBattle = 20, name = "中ボス2",
+        enemyIds = new[] { 31, 30, 22, 7 },
+        weights  = new[] { 24, 24, 28, 24 }
+    },
+    new TierDef
+    {
+        startBattle = 21, name = "終盤後半",
+        enemyIds = new[] { 6, 7, 16, 18, 20, 22, 23, 24, 28, 29, 30, 31 },
+        weights  = new[] { 8, 6, 8, 6, 8, 8, 8, 6, 8, 8, 5, 5 }
+    },
+    new TierDef
+    {
+        startBattle = 24, name = "最終",
+        enemyIds = new[] { 32, 33, 31, 30, 6 },
+        weights  = new[] { 12, 14, 8, 8, 6 }
+    },
+};
 
     [MenuItem("Tools/Battle/Generate All Enemy Data")]
     public static void GenerateAll()
