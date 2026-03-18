@@ -5,7 +5,7 @@ public class PlayerCombatController : MonoBehaviour
     [Header("Loadout")]
     public PlayerCombatLoadout loadout;
 
-    [Header("‹ßÚƒŒƒxƒ‹•â³")]
+    [Header("ßÚƒxâ³")]
     [SerializeField] private int levelAttackBonus = 0;
 
     [SerializeField] private GunDefinition defaultGunDefinition;
@@ -27,24 +27,24 @@ public class PlayerCombatController : MonoBehaviour
             loadout.meleeWeapon = new WeaponData
             {
                 weaponType = WeaponType.None,
-                weaponName = "‘fè",
+                weaponName = "f",
                 maxLink = 3,
                 baseAttack = 1
             };
         }
 
-        // Default Gun Definition ‚ª‚ ‚ê‚ÎÅ—Dæ‚Åg‚¤
+        // Default Gun Definition ÎÅ—DÅg
         if (defaultGunDefinition != null)
         {
             loadout.gun = defaultGunDefinition.ToGunData();
         }
         else if (loadout.gun == null)
         {
-            // •ÛŒ¯: ’è‹`‚ª–¢İ’è‚È‚çƒVƒ‡ƒbƒgƒKƒ“‚ğ’¼w’è
+            // ÛŒ: `İ’È‚VbgKğ’¼w
             loadout.gun = new GunData
             {
                 gunType = GunType.Shotgun,
-                gunName = "ƒVƒ‡ƒbƒgƒKƒ“",
+                gunName = "VbgK",
                 gaugeCost = 5,
                 shotCount = 3,
                 damagePerShot = 1,
@@ -55,14 +55,16 @@ public class PlayerCombatController : MonoBehaviour
             };
         }
 
-        // ƒQ[ƒWÅ‘å‚ª–¢İ’è‚È‚çÅ’áŒÀ•â³
+        // Q[WÅ‘å‚ªİ’È‚Å’â³
         if (loadout.maxGunGauge <= 0)
         {
             loadout.maxGunGauge = 10;
         }
 
-        // Œ»İƒQ[ƒW‚Í”ÍˆÍ“à‚É•â³
+        // İƒQ[WÍ”ÍˆÍ“É•â³
         loadout.currentGunGauge = Mathf.Clamp(loadout.currentGunGauge, 0, loadout.maxGunGauge);
+
+        NormalizeEquippedGunData();
     }
 
     public int GetMaxLink()
@@ -178,7 +180,7 @@ public class PlayerCombatController : MonoBehaviour
     public string GetWeaponName()
     {
         if (loadout == null || loadout.meleeWeapon == null)
-            return "‘fè";
+            return "f";
 
         return loadout.meleeWeapon.weaponName;
     }
@@ -186,7 +188,7 @@ public class PlayerCombatController : MonoBehaviour
     public string GetGunName()
     {
         if (loadout == null || loadout.gun == null)
-            return "‚È‚µ";
+            return "È‚";
 
         return loadout.gun.gunName;
     }
@@ -194,7 +196,44 @@ public class PlayerCombatController : MonoBehaviour
     public GunData GetGunData()
     {
         if (loadout == null) return null;
+
+        NormalizeEquippedGunData();
         return loadout.gun;
+    }
+
+    private void NormalizeEquippedGunData()
+    {
+        if (loadout == null || loadout.gun == null) return;
+
+        GunData gun = loadout.gun;
+        switch (gun.gunType)
+        {
+            case GunType.Pistol:
+                gun.gunName = string.IsNullOrEmpty(gun.gunName) ? "ãƒ”ã‚¹ãƒˆãƒ«" : gun.gunName;
+                gun.gaugeCost = 2;
+                gun.minGaugeToFire = 2;
+                gun.shotCount = 2;
+                gun.damagePerShot = 2;
+                if (gun.scalingRate <= 0f) gun.scalingRate = 0.15f;
+                break;
+
+            case GunType.Rifle:
+                gun.gunName = string.IsNullOrEmpty(gun.gunName) ? "ãƒ©ã‚¤ãƒ•ãƒ«" : gun.gunName;
+                gun.gaugeCost = 4;
+                gun.minGaugeToFire = 4;
+                gun.shotCount = 1;
+                gun.damagePerShot = 5;
+                if (gun.scalingRate <= 0f) gun.scalingRate = 0.5f;
+                break;
+
+            case GunType.Shotgun:
+                if (gun.scalingRate <= 0f) gun.scalingRate = 0.2f;
+                break;
+
+            case GunType.MachineGun:
+                if (gun.scalingRate <= 0f) gun.scalingRate = 0.1f;
+                break;
+        }
     }
 
     public void EquipSword()
@@ -202,7 +241,7 @@ public class PlayerCombatController : MonoBehaviour
         loadout.meleeWeapon = new WeaponData
         {
             weaponType = WeaponType.Sword,
-            weaponName = "Œ•",
+            weaponName = "",
             maxLink = 4,
             baseAttack = 1
         };
@@ -213,7 +252,7 @@ public class PlayerCombatController : MonoBehaviour
         loadout.meleeWeapon = new WeaponData
         {
             weaponType = WeaponType.GreatSword,
-            weaponName = "‘åŒ•",
+            weaponName = "åŒ•",
             maxLink = 5,
             baseAttack = 1
         };

@@ -422,13 +422,24 @@ public class BattleDamageResolver : MonoBehaviour
             panelBattleManager = GetComponent<PanelBattleManager>();
         }
 
-        if (defeatedEnemy != null && defeatedEnemy.IsDangerEnemy())
+        panelBattleManager?.panelBoardController?.PlayDefeatCelebration();
+
+        // ここを復活
+        int gainedCoins = panelBattleManager != null
+            ? panelBattleManager.CalculateEnemyCoinReward(defeatedEnemy)
+            : 0;
+
+        if (gainedCoins > 0)
         {
-            panelBattleManager?.panelBoardController?.PlayDangerDefeatCelebration();
-        }
-        else
-        {
-            panelBattleManager?.panelBoardController?.PlayDefeatCelebration();
+            panelBattleManager.AddCoins(gainedCoins);
+
+            Vector3 coinTextPos = defeatedEnemy.transform.position
+                                  + Vector3.up * (expTextHeight + 0.45f);
+
+            battleEventHub?.RaiseDamageTextRequested(
+                $"+{gainedCoins}G",
+                coinTextPos,
+                new Color(1f, 0.9f, 0.2f));
         }
 
         Vector3 expTextPos = defeatedEnemy.transform.position + Vector3.up * expTextHeight;
@@ -440,19 +451,16 @@ public class BattleDamageResolver : MonoBehaviour
             isLevelUp = playerUnit.AddExp(defeatedEnemy.expYield);
         }
 
-        // ここを追加
-        if (panelBattleManager == null)
-        {
-            panelBattleManager = GetComponent<PanelBattleManager>();
-        }
-
         panelBattleManager?.RefreshPlayerExpUI();
 
         if (isLevelUp)
         {
             if (playerUnit != null)
             {
-                battleEventHub?.RaiseOneShotEffectRequested(levelUpEffectPrefab, playerUnit.transform.position, 1.2f);
+                battleEventHub?.RaiseOneShotEffectRequested(
+                    levelUpEffectPrefab,
+                    playerUnit.transform.position,
+                    1.2f);
             }
 
             battleEventHub?.RaiseLevelUpTextRequested(levelUpTextDelay);

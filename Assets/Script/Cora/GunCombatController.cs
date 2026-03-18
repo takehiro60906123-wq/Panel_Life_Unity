@@ -21,16 +21,22 @@ public class GunCombatController : MonoBehaviour
     [SerializeField] private int shotgunDangerBonusDamage = 2;
     [SerializeField] private int shotgunDelayChance = 30;
 
+    [Header("Gun Scaling")]
+    [SerializeField] private float pistolScalingRate = 0.15f;
+    [SerializeField] private float machineGunScalingRate = 0.10f;
+    [SerializeField] private float shotgunScalingRate = 0.20f;
+    [SerializeField] private float rifleScalingRate = 0.50f;
+
     [Header("Shotgun Corrosion")]
     [SerializeField] private bool shotgunAppliesCorrosion = true;
     [SerializeField, Range(0, 100)] private int shotgunCorrosionChance = 100;
     [SerializeField] private int shotgunCorrosionTurns = 1;
     [SerializeField] private int shotgunCorrosionPotency = 1;
 
-    [Header("Pistol Slow")]
-    [SerializeField] private bool pistolAppliesSlow = true;
-    [SerializeField, Range(0, 100)] private int pistolSlowChance = 40;
-    [SerializeField] private int pistolSlowTurns = 1;
+    [Header("Precision Bonus")]
+    [SerializeField] private int pistolDangerBonusDamage = 1;
+    [SerializeField] private int pistolDangerDelayAmount = 1;
+    [SerializeField] private int rifleDangerBonusDamage = 2;
 
     [Header("Machine Gun Burst Bonus")]
     [SerializeField] private bool machineGunUsesBurstBonus = true;
@@ -207,18 +213,19 @@ public class GunCombatController : MonoBehaviour
             playerAnim.PlayRunShoot();
         }
 
+        bool precisionTriggered = HasDangerPrecisionBonus(gun, target);
         int damagePerShot = ResolveGunHitDamage(gun, target);
-        bool queuedSuccessfulHitStatusEffect = QueueGunStatusEffectOnNextSuccessfulHit(gun);
+        bool queuedSuccessfulHitStatusEffect = QueueGunStatusEffectOnNextSuccessfulHit(gun, target);
 
         if (shotCount <= 1)
         {
             int resolvedDamage = ResolveShotDamageForIndex(gun, damagePerShot, 0);
-            ExecuteGunHit(gun, target, resolvedDamage, 0);
+            ExecuteGunHit(gun, target, resolvedDamage, 0, precisionTriggered);
         }
         else
         {
             yield return StartCoroutine(
-                ExecuteRepeatedGunHitsRoutine(gun, target, shotCount, damagePerShot, interval));
+                ExecuteRepeatedGunHitsRoutine(gun, target, shotCount, damagePerShot, interval, precisionTriggered));
         }
 
         if (queuedSuccessfulHitStatusEffect && battleDamageResolver != null)
@@ -226,7 +233,7 @@ public class GunCombatController : MonoBehaviour
             battleDamageResolver.ClearQueuedSuccessfulEnemyHitStatusEffect();
         }
 
-        ApplyGunAfterEffects(gun, target);
+        ApplyGunAfterEffects(gun, target, precisionTriggered);
 
         yield return StartCoroutine(FinishGunActionRoutine(logMessage, finishDelay));
     }
@@ -236,7 +243,8 @@ public class GunCombatController : MonoBehaviour
         BattleUnit target,
         int shotCount,
         int damagePerShot,
-        float interval)
+        float interval,
+        bool precisionTriggered)
     {
         int safeShotCount = Mathf.Max(1, shotCount);
         float safeInterval = Mathf.Max(0.01f, interval);
@@ -249,7 +257,7 @@ public class GunCombatController : MonoBehaviour
             }
 
             int resolvedDamage = ResolveShotDamageForIndex(gun, damagePerShot, i);
-            ExecuteGunHit(gun, target, resolvedDamage, i);
+            ExecuteGunHit(gun, target, resolvedDamage, i, precisionTriggered && i == 0);
 
             if (i < safeShotCount - 1)
             {
@@ -258,9 +266,14 @@ public class GunCombatController : MonoBehaviour
         }
     }
 
-    private void ExecuteGunHit(GunData gun, BattleUnit target, int damage, int shotIndex)
+    private void ExecuteGunHit(GunData gun, BattleUnit target, int damage, int shotIndex, bool showPrecisionText)
     {
         if (gun == null || target == null || target.IsDead()) return;
+
+        if (showPrecisionText)
+        {
+            battleEventHub?.RaiseDamageTextRequested("PRECISION", target.transform.position + Vector3.up * 1.55f, ResolvePrecisionTextColor(gun));
+        }
 
         PlayGunShotVisual(gun, target);
 
@@ -319,11 +332,22 @@ public class GunCombatController : MonoBehaviour
     {
         if (gun == null) return 0;
 
-        int damage = gun.damagePerShot;
+        int damage = Mathf.Max(0, gun.damagePerShot);
+        damage += ResolveGunScalingBonus(gun);
 
         if (gun.gunType == GunType.Shotgun && target != null && target.IsDangerEnemy())
         {
             damage += shotgunDangerBonusDamage;
+        }
+
+        if (gun.gunType == GunType.Pistol && HasDangerPrecisionBonus(gun, target))
+        {
+            damage += Mathf.Max(0, pistolDangerBonusDamage);
+        }
+
+        if (gun.gunType == GunType.Rifle && HasDangerPrecisionBonus(gun, target))
+        {
+            damage += Mathf.Max(0, rifleDangerBonusDamage);
         }
 
         if (applyPlayerDamageModifiers != null)
@@ -332,6 +356,58 @@ public class GunCombatController : MonoBehaviour
         }
 
         return damage;
+    }
+
+    private int ResolveGunScalingBonus(GunData gun)
+    {
+        if (gun == null || playerCombatController == null) return 0;
+
+        float scalingRate = gun.scalingRate > 0f
+            ? gun.scalingRate
+            : ResolveDefaultScalingRate(gun.gunType);
+
+        if (scalingRate <= 0f) return 0;
+
+        int playerAttack = Mathf.Max(0, playerCombatController.GetMeleeAttack());
+        return Mathf.Max(0, Mathf.FloorToInt(playerAttack * scalingRate));
+    }
+
+    private float ResolveDefaultScalingRate(GunType gunType)
+    {
+        switch (gunType)
+        {
+            case GunType.Pistol:
+                return Mathf.Max(0f, pistolScalingRate);
+            case GunType.MachineGun:
+                return Mathf.Max(0f, machineGunScalingRate);
+            case GunType.Shotgun:
+                return Mathf.Max(0f, shotgunScalingRate);
+            case GunType.Rifle:
+                return Mathf.Max(0f, rifleScalingRate);
+            default:
+                return 0f;
+        }
+    }
+
+    private bool HasDangerPrecisionBonus(GunData gun, BattleUnit target)
+    {
+        if (gun == null || target == null) return false;
+        if (!target.IsDangerEnemy()) return false;
+
+        return gun.gunType == GunType.Pistol || gun.gunType == GunType.Rifle;
+    }
+
+    private Color ResolvePrecisionTextColor(GunData gun)
+    {
+        switch (gun != null ? gun.gunType : GunType.None)
+        {
+            case GunType.Rifle:
+                return new Color(1f, 0.88f, 0.35f, 1f);
+            case GunType.Pistol:
+                return new Color(0.55f, 0.92f, 1f, 1f);
+            default:
+                return Color.white;
+        }
     }
 
     private int ResolveShotDamageForIndex(GunData gun, int baseDamage, int shotIndex)
@@ -361,7 +437,7 @@ public class GunCombatController : MonoBehaviour
         return oneBasedIndex % everyNth == 0;
     }
 
-    private bool QueueGunStatusEffectOnNextSuccessfulHit(GunData gun)
+    private bool QueueGunStatusEffectOnNextSuccessfulHit(GunData gun, BattleUnit target)
     {
         if (gun == null) return false;
         if (battleDamageResolver == null) return false;
@@ -370,9 +446,6 @@ public class GunCombatController : MonoBehaviour
         {
             case GunType.Shotgun:
                 return QueueShotgunCorrosionOnNextSuccessfulHit();
-
-            case GunType.Pistol:
-                return QueuePistolSlowOnNextSuccessfulHit();
 
             default:
                 return false;
@@ -394,28 +467,18 @@ public class GunCombatController : MonoBehaviour
         return true;
     }
 
-    private bool QueuePistolSlowOnNextSuccessfulHit()
-    {
-        if (!pistolAppliesSlow) return false;
-        if (pistolSlowTurns <= 0) return false;
-        if (battleDamageResolver == null) return false;
-
-        battleDamageResolver.QueueNextSuccessfulEnemyHitStatusEffect(
-            StatusEffectType.Slow,
-            pistolSlowTurns,
-            removeOnDamage: false,
-            potency: 0,
-            chancePercent: pistolSlowChance);
-        return true;
-    }
-
-    private void ApplyGunAfterEffects(GunData gun, BattleUnit target)
+    private void ApplyGunAfterEffects(GunData gun, BattleUnit target, bool precisionTriggered)
     {
         if (gun == null || target == null || target.IsDead()) return;
 
         if (gun.gunType == GunType.Shotgun)
         {
             TryDelayEnemyTurnByShotgun(target);
+        }
+
+        if (gun.gunType == GunType.Pistol && precisionTriggered)
+        {
+            TryDelayEnemyTurnByPistol(target);
         }
     }
 
@@ -426,6 +489,15 @@ public class GunCombatController : MonoBehaviour
 
         target.DelayCooldown(1);
         battleEventHub?.RaiseDamageTextRequested("STAGGER", target.transform.position + Vector3.up * 1.5f, Color.yellow);
+    }
+
+    private void TryDelayEnemyTurnByPistol(BattleUnit target)
+    {
+        if (target == null || target.IsDead()) return;
+        if (pistolDangerDelayAmount <= 0) return;
+
+        target.DelayCooldown(pistolDangerDelayAmount);
+        battleEventHub?.RaiseDamageTextRequested("PIN", target.transform.position + Vector3.up * 1.45f, new Color(0.55f, 0.92f, 1f, 1f));
     }
 
     private IEnumerator FinishGunActionRoutine(string logMessage, float waitSeconds)

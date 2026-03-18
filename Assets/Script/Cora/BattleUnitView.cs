@@ -1,4 +1,4 @@
-using TMPro;
+ï»¿using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -10,8 +10,24 @@ public class BattleUnitView : MonoBehaviour
     private TextMeshProUGUI turnText;
     private Animator animator;
 
+    [Header("Turn Hint UI")]
+    [SerializeField] private Image turnIndicatorImage;
+    [SerializeField] private bool autoFindTurnIndicatorIfMissing = true;
+
+    private Color cachedTurnIndicatorBaseColor = Color.white;
+    private bool hasCachedTurnIndicatorBaseColor;
+    private Color cachedTurnTextBaseColor = Color.white;
+    private bool hasCachedTurnTextBaseColor;
+
     private EnemyTweenPresenter tweenPresenter;
     private PlayerAnimationPresenter playerAnimationPresenter;
+    private BattleUnit battleUnit;
+    private PlayerCombatController cachedPlayerCombatController;
+
+    private GunType lastHintGunType = GunType.None;
+    private EnemyType lastHintEnemyType = EnemyType.Normal;
+    private bool lastHintDanger;
+    private bool hintInitialized;
 
     public void BindLegacyReferences(
         Slider slider,
@@ -36,7 +52,29 @@ public class BattleUnitView : MonoBehaviour
             playerAnimationPresenter = GetComponent<PlayerAnimationPresenter>();
         }
 
+        if (battleUnit == null)
+        {
+            battleUnit = GetComponent<BattleUnit>();
+        }
+
         tweenPresenter?.EnsureSetup();
+        CacheTurnIndicatorReferences();
+        RefreshTurnHintFromCurrentState(force: true);
+    }
+
+    private void Awake()
+    {
+        if (battleUnit == null)
+        {
+            battleUnit = GetComponent<BattleUnit>();
+        }
+
+        CacheTurnIndicatorReferences();
+    }
+
+    private void Update()
+    {
+        RefreshTurnHintFromCurrentState();
     }
 
     public void RefreshHP(int currentHP, int maxHP)
@@ -73,6 +111,131 @@ public class BattleUnitView : MonoBehaviour
         {
             turnText.text = "!";
         }
+
+        RefreshTurnHintFromCurrentState(force: true);
+    }
+
+    private void RefreshTurnHintFromCurrentState(bool force = false)
+    {
+        if (battleUnit == null)
+        {
+            battleUnit = GetComponent<BattleUnit>();
+        }
+
+        PlayerCombatController playerCombat = GetPlayerCombatController();
+        GunType gunType = GunType.None;
+        if (playerCombat != null)
+        {
+            GunData gun = playerCombat.GetGunData();
+            gunType = gun != null ? gun.gunType : GunType.None;
+        }
+
+        EnemyType enemyType = battleUnit != null ? battleUnit.enemyType : EnemyType.Normal;
+        bool isDanger = battleUnit != null && battleUnit.IsDangerEnemy();
+
+        if (!force && hintInitialized && gunType == lastHintGunType && enemyType == lastHintEnemyType && isDanger == lastHintDanger)
+        {
+            return;
+        }
+
+        lastHintGunType = gunType;
+        lastHintEnemyType = enemyType;
+        lastHintDanger = isDanger;
+        hintInitialized = true;
+
+        ApplyTurnIndicatorTint(gunType, enemyType, isDanger);
+    }
+
+    private PlayerCombatController GetPlayerCombatController()
+    {
+        if (cachedPlayerCombatController == null)
+        {
+#if UNITY_2023_1_OR_NEWER
+            cachedPlayerCombatController = FindFirstObjectByType<PlayerCombatController>();
+#else
+            cachedPlayerCombatController = FindObjectOfType<PlayerCombatController>();
+#endif
+        }
+
+        return cachedPlayerCombatController;
+    }
+
+    private void CacheTurnIndicatorReferences()
+    {
+        if (turnText != null && !hasCachedTurnTextBaseColor)
+        {
+            cachedTurnTextBaseColor = turnText.color;
+            hasCachedTurnTextBaseColor = true;
+        }
+
+        if (turnIndicatorImage == null && autoFindTurnIndicatorIfMissing && turnText != null)
+        {
+            turnIndicatorImage = turnText.GetComponentInParent<Image>();
+        }
+
+        if (turnIndicatorImage != null && !hasCachedTurnIndicatorBaseColor)
+        {
+            cachedTurnIndicatorBaseColor = turnIndicatorImage.color;
+            hasCachedTurnIndicatorBaseColor = true;
+        }
+    }
+
+    private void ApplyTurnIndicatorTint(GunType gunType, EnemyType enemyType, bool isDangerEnemy)
+    {
+        CacheTurnIndicatorReferences();
+
+        Color baseIconColor = hasCachedTurnIndicatorBaseColor ? cachedTurnIndicatorBaseColor : Color.white;
+        Color baseTextColor = hasCachedTurnTextBaseColor ? cachedTurnTextBaseColor : Color.white;
+        Color targetColor = ResolveTurnHintColor(gunType, enemyType, isDangerEnemy, baseIconColor);
+
+        if (turnIndicatorImage != null)
+        {
+            turnIndicatorImage.color = targetColor;
+        }
+
+        if (turnText != null)
+        {
+            turnText.color = Color.Lerp(baseTextColor, targetColor, 0.85f);
+        }
+    }
+
+    private Color ResolveTurnHintColor(GunType gunType, EnemyType enemyType, bool isDangerEnemy, Color baseColor)
+    {
+        // ä½™è¨ˆãªè‰²ã‚’æŒŸã¾ãšã€ã€Œæœ‰åŠ¹ãªã‚‰é»„è‰² / ãã‚Œä»¥å¤–ã¯å…ƒè‰²ã€ã«å›ºå®šã™ã‚‹ã€‚
+        // danger ç”¨ã®èµ¤ã‚’ã“ã“ã§æ··ãœã‚‹ã¨ã€åŒã˜æ•µã§ã‚‚æ®‹ã‚Šã‚¿ãƒ¼ãƒ³ã§è‰²ãŒå¤‰ã‚ã‚Šã€
+        // æœ‰åŠ¹åˆ¤å®šãŒã¶ã‚Œã¦è¦‹ãˆã‚‹åŸå› ã«ãªã‚‹ã€‚
+        if (IsGunEffectiveAgainstHintEnemy(gunType, enemyType))
+        {
+            return new Color(1f, 0.92f, 0.35f, baseColor.a);
+        }
+
+        return baseColor;
+    }
+
+    private bool IsGunEffectiveAgainstHintEnemy(GunType gunType, EnemyType enemyType)
+    {
+        switch (gunType)
+        {
+            case GunType.Pistol:
+                return enemyType == EnemyType.Ranged || enemyType == EnemyType.Rushing;
+
+            case GunType.Rifle:
+                return enemyType == EnemyType.Floating || enemyType == EnemyType.Ranged || enemyType == EnemyType.Armored;
+
+            case GunType.Shotgun:
+                return enemyType == EnemyType.Armored || enemyType == EnemyType.Rushing;
+
+            case GunType.MachineGun:
+                return enemyType == EnemyType.Rushing;
+
+            default:
+                return false;
+        }
+    }
+
+    public void RefreshGunAdvantageHint()
+    {
+        RefreshTurnHintFromCurrentState(force: true);
     }
 
     public void PlayDamaged(bool dead)
@@ -149,7 +312,7 @@ public class BattleUnitView : MonoBehaviour
     }
 
     // =============================================================
-    // ’ÊíUŒ‚iŠù‘¶j
+    // ÊUij
     // =============================================================
 
     public void PlayAttack()
@@ -170,11 +333,11 @@ public class BattleUnitView : MonoBehaviour
     }
 
     // =============================================================
-    // “ÁêUŒ‚‰‰o
+    // Uo
     // =============================================================
 
     /// <summary>
-    /// HeavyHit —­‚ßƒ^[ƒ“F‘Ì‚ªk‚¦‚ÄƒIƒŒƒ“ƒW‚ÉŒõ‚é
+    /// HeavyHit ßƒ^[FÌ‚kÄƒIWÉŒ
     /// </summary>
     public void PlayCharge()
     {
@@ -188,7 +351,7 @@ public class BattleUnitView : MonoBehaviour
     }
 
     /// <summary>
-    /// HeavyHit ”­Ëƒ^[ƒ“F’Êí‚æ‚è‘å‚«‚­“Ëi‚µ‚ÄÔƒIƒŒƒ“ƒW‚ÉŒõ‚é
+    /// HeavyHit Ëƒ^[FÊå‚«ËiÄÔƒIWÉŒ
     /// </summary>
     public void PlayHeavyAttack()
     {
@@ -202,7 +365,7 @@ public class BattleUnitView : MonoBehaviour
     }
 
     /// <summary>
-    /// PanelCorrupt ƒXƒLƒ‹”­“®F‡‚É–¬“®‚µ‚Ä”g“®‚ğ•ú‚Â
+    /// PanelCorrupt XLFÉ–Ä”g
     /// </summary>
     public void PlayCorruptSkill()
     {
@@ -216,7 +379,7 @@ public class BattleUnitView : MonoBehaviour
     }
 
     /// <summary>
-    /// SelfBuff ‰ñ•œF—Î‚ÉŒõ‚Á‚Ä­‚µ•‚‚­
+    /// SelfBuff ñ•œFÎ‚ÉŒÄ
     /// </summary>
     public void PlayEnemyHeal()
     {
@@ -230,7 +393,7 @@ public class BattleUnitView : MonoBehaviour
     }
 
     // =============================================================
-    // Šù‘¶ƒƒ\ƒbƒh
+    // \bh
     // =============================================================
 
     public void PlayHeal()

@@ -274,6 +274,20 @@ public class BattleUnit : MonoBehaviour
         UpdateTurnUI();
     }
 
+    public void ApplyEncounterScaling(float hpMultiplier, int attackBonus, int rewardBonus)
+    {
+        hpMultiplier = Mathf.Max(1f, hpMultiplier);
+        maxHP = Mathf.Max(1, Mathf.RoundToInt(maxHP * hpMultiplier));
+        currentHP = Mathf.Max(1, Mathf.RoundToInt(currentHP * hpMultiplier));
+        currentHP = Mathf.Clamp(currentHP, 0, maxHP);
+
+        attackPower = Mathf.Max(0, attackPower + attackBonus);
+        expYield = Mathf.Max(0, expYield + rewardBonus);
+        coinYield = Mathf.Max(0, coinYield + rewardBonus);
+
+        RefreshAll();
+    }
+
     public struct EnemyLevelUpResult
     {
         public int levelsGained;

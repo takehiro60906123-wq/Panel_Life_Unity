@@ -31,6 +31,19 @@ public class BattleEffectController : MonoBehaviour
     [SerializeField] private float criticalPeakScale = 1.34f;
     [SerializeField] private float criticalFinalScale = 1.06f;
 
+
+[Header("Damage Text - Player Hit")]
+[SerializeField] private float playerHitEntryDrop = 0.04f;
+[SerializeField] private float playerHitRiseHeight = 0.82f;
+[SerializeField] private float playerHitSideDrift = 0.12f;
+[SerializeField] private float playerHitPopDuration = 0.12f;
+[SerializeField] private float playerHitDriftDuration = 0.66f;
+[SerializeField] private float playerHitHoldBeforeFade = 0.42f;
+[SerializeField] private float playerHitFadeDuration = 0.34f;
+[SerializeField] private float playerHitStartScale = 0.76f;
+[SerializeField] private float playerHitPeakScale = 1.12f;
+[SerializeField] private float playerHitFinalScale = 1.00f;
+
     [Header("Damage Text - Overlink Hit")]
     [SerializeField] private float overlinkHitEntryDrop = 0.14f;
     [SerializeField] private float overlinkHitRiseHeight = 1.95f;
@@ -103,6 +116,7 @@ public class BattleEffectController : MonoBehaviour
     private EffectPoolManager effectPoolManager;
 
     private const string OverlinkImpactTextMarker = "<ovl>";
+    private const string PlayerHitTextMarker = "<playerhit>";
 
     [Header("Overlink UI (Preplaced)")]
     [SerializeField] private RectTransform overlinkBannerRoot;
@@ -195,6 +209,7 @@ public class BattleEffectController : MonoBehaviour
         Normal,
         Critical,
         OverlinkImpact,
+        PlayerHit,
         Miss,
         Guard,
         Reward,
@@ -296,11 +311,16 @@ public class BattleEffectController : MonoBehaviour
         poseCache.ResetPose(root, textTransform, position);
 
         bool isOverlinkImpact = TryConsumeMarker(ref text, OverlinkImpactTextMarker);
+        bool isPlayerHit = TryConsumeMarker(ref text, PlayerHitTextMarker);
 
         DamageTextStyle style = ResolveDamageTextStyle(text);
         if (isOverlinkImpact && style != DamageTextStyle.Overlink)
         {
             style = DamageTextStyle.OverlinkImpact;
+        }
+        else if (isPlayerHit && style == DamageTextStyle.Normal)
+        {
+            style = DamageTextStyle.PlayerHit;
         }
 
         MotionProfile profile = BuildMotionProfile(style);
@@ -322,8 +342,23 @@ public class BattleEffectController : MonoBehaviour
 
         RegisterTotalDamageIfNeeded(style, text);
 
-        float side = (style == DamageTextStyle.Overlink || style == DamageTextStyle.OverlinkImpact) ? UnityEngine.Random.Range(-profile.sideDrift * 0.35f, profile.sideDrift * 0.35f) : UnityEngine.Random.Range(-profile.sideDrift, profile.sideDrift);
-        float startX = style == DamageTextStyle.Overlink ? 0f : UnityEngine.Random.Range(-randomStartX, randomStartX);
+        float side;
+        if (style == DamageTextStyle.Overlink || style == DamageTextStyle.OverlinkImpact)
+        {
+            side = UnityEngine.Random.Range(-profile.sideDrift * 0.35f, profile.sideDrift * 0.35f);
+        }
+        else if (style == DamageTextStyle.PlayerHit)
+        {
+            side = UnityEngine.Random.Range(-profile.sideDrift, profile.sideDrift);
+        }
+        else
+        {
+            side = UnityEngine.Random.Range(-profile.sideDrift, profile.sideDrift);
+        }
+
+        float startX = (style == DamageTextStyle.Overlink || style == DamageTextStyle.PlayerHit)
+            ? 0f
+            : UnityEngine.Random.Range(-randomStartX, randomStartX);
 
         root.position = position + new Vector3(startX, -profile.entryDrop, 0f);
         textTransform.localScale = poseCache.textLocalScale * profile.startScale;
@@ -733,6 +768,19 @@ public class BattleEffectController : MonoBehaviour
                     overlinkHitStartScale,
                     overlinkHitPeakScale,
                     overlinkHitFinalScale);
+
+            case DamageTextStyle.PlayerHit:
+                return new MotionProfile(
+                    playerHitEntryDrop,
+                    playerHitRiseHeight,
+                    playerHitSideDrift,
+                    playerHitPopDuration,
+                    playerHitDriftDuration,
+                    playerHitHoldBeforeFade,
+                    playerHitFadeDuration,
+                    playerHitStartScale,
+                    playerHitPeakScale,
+                    playerHitFinalScale);
 
             case DamageTextStyle.Miss:
             case DamageTextStyle.Guard:

@@ -1277,6 +1277,10 @@ PrefabInstance:
       propertyPath: m_LocalScale.z
       value: 2.9999998
       objectReference: {fileID: 0}
+    - target: {fileID: 6622134697843253263, guid: fc2ce294a5a6d3945b92030d76725eaa, type: 3}
+      propertyPath: turnIndicatorImage
+      value: 
+      objectReference: {fileID: 1045184879}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects:
@@ -1578,6 +1582,7 @@ MonoBehaviour:
       gaugeCost: 3
       shotCount: 4
       damagePerShot: 1
+      scalingRate: 0
       useAllGauge: 0
       minGaugeToFire: 0
       shotInterval: 0
@@ -3494,6 +3499,153 @@ CanvasRenderer:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 554640851}
+  m_CullTransparentMesh: 1
+--- !u!1 &583004232
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 583004233}
+  - component: {fileID: 583004236}
+  - component: {fileID: 583004235}
+  - component: {fileID: 583004234}
+  m_Layer: 5
+  m_Name: WeakText (TMP) (2)
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!224 &583004233
+RectTransform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 583004232}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 2129960977}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+  m_AnchorMin: {x: 0.59225935, y: 0.086645834}
+  m_AnchorMax: {x: 0.83674085, y: 0.16239583}
+  m_AnchoredPosition: {x: 3.0720978, y: -3.8000488}
+  m_SizeDelta: {x: -6.144287, y: 11.068848}
+  m_Pivot: {x: 0.5, y: 0.5}
+--- !u!225 &583004234
+CanvasGroup:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 583004232}
+  m_Enabled: 1
+  m_Alpha: 1
+  m_Interactable: 1
+  m_BlocksRaycasts: 1
+  m_IgnoreParentGroups: 0
+--- !u!114 &583004235
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 583004232}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f4688fdb7df04437aeb418b961361dc5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  m_Material: {fileID: 0}
+  m_Color: {r: 1, g: 1, b: 1, a: 1}
+  m_RaycastTarget: 1
+  m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
+  m_Maskable: 1
+  m_OnCullStateChanged:
+    m_PersistentCalls:
+      m_Calls: []
+  m_text: Weak
+  m_isRightToLeft: 0
+  m_fontAsset: {fileID: 11400000, guid: 5c45588077408de4892bfe43454d6eee, type: 2}
+  m_sharedMaterial: {fileID: 4708872311435771878, guid: 5c45588077408de4892bfe43454d6eee, type: 2}
+  m_fontSharedMaterials: []
+  m_fontMaterial: {fileID: 0}
+  m_fontMaterials: []
+  m_fontColor32:
+    serializedVersion: 2
+    rgba: 4294967295
+  m_fontColor: {r: 1, g: 1, b: 1, a: 1}
+  m_enableVertexGradient: 1
+  m_colorMode: 0
+  m_fontColorGradient:
+    topLeft: {r: 1, g: 1, b: 1, a: 1}
+    topRight: {r: 1, g: 1, b: 1, a: 1}
+    bottomLeft: {r: 1, g: 1, b: 1, a: 1}
+    bottomRight: {r: 1, g: 1, b: 1, a: 1}
+  m_fontColorGradientPreset: {fileID: 0}
+  m_spriteAsset: {fileID: 0}
+  m_tintAllSprites: 0
+  m_StyleSheet: {fileID: 0}
+  m_TextStyleHashCode: -1183493901
+  m_overrideHtmlColors: 0
+  m_faceColor:
+    serializedVersion: 2
+    rgba: 4294967295
+  m_fontSize: 80.7
+  m_fontSizeBase: 80.7
+  m_fontWeight: 400
+  m_enableAutoSizing: 0
+  m_fontSizeMin: 18
+  m_fontSizeMax: 72
+  m_fontStyle: 0
+  m_HorizontalAlignment: 2
+  m_VerticalAlignment: 512
+  m_textAlignment: 65535
+  m_characterSpacing: 0
+  m_wordSpacing: 0
+  m_lineSpacing: 0
+  m_lineSpacingMax: 0
+  m_paragraphSpacing: 0
+  m_charWidthMaxAdj: 0
+  m_enableWordWrapping: 1
+  m_wordWrappingRatios: 0.4
+  m_overflowMode: 0
+  m_linkedTextComponent: {fileID: 0}
+  parentLinkedComponent: {fileID: 0}
+  m_enableKerning: 1
+  m_enableExtraPadding: 0
+  checkPaddingRequired: 0
+  m_isRichText: 1
+  m_parseCtrlCharacters: 1
+  m_isOrthographic: 1
+  m_isCullingEnabled: 0
+  m_horizontalMapping: 0
+  m_verticalMapping: 0
+  m_uvLineOffset: 0
+  m_geometrySortingOrder: 0
+  m_IsTextObjectScaleStatic: 0
+  m_VertexBufferAutoSizeReduction: 0
+  m_useMaxVisibleDescender: 1
+  m_pageToDisplay: 1
+  m_margin: {x: 0, y: 0, z: -20.859497, w: 0}
+  m_isUsingLegacyAnimationComponent: 0
+  m_isVolumetricText: 0
+  m_hasFontAssetChanged: 0
+  m_baseMaterial: {fileID: 0}
+  m_maskOffset: {x: 0, y: 0, z: 0, w: 0}
+--- !u!222 &583004236
+CanvasRenderer:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 583004232}
   m_CullTransparentMesh: 1
 --- !u!1 &589167892
 GameObject:
@@ -7939,6 +8091,7 @@ MonoBehaviour:
       gaugeCost: 0
       shotCount: 0
       damagePerShot: 0
+      scalingRate: 0
       useAllGauge: 0
       minGaugeToFire: 0
       shotInterval: 0
@@ -8170,6 +8323,16 @@ MonoBehaviour:
   criticalStartScale: 0.72
   criticalPeakScale: 1.34
   criticalFinalScale: 1.06
+  playerHitEntryDrop: 0.04
+  playerHitRiseHeight: 0.82
+  playerHitSideDrift: 0.12
+  playerHitPopDuration: 0.12
+  playerHitDriftDuration: 0.66
+  playerHitHoldBeforeFade: 0.42
+  playerHitFadeDuration: 0.34
+  playerHitStartScale: 0.76
+  playerHitPeakScale: 1.12
+  playerHitFinalScale: 1
   overlinkHitEntryDrop: 0.14
   overlinkHitRiseHeight: 1.95
   overlinkHitSideDrift: 0.32
@@ -8268,6 +8431,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 84fa0011ffd52374690b49b4ac8af947, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  enableEndlessAfterFinalFloor: 1
+  endlessHpGrowthPerBattle: 0.04
+  endlessAttackBonusEveryBattles: 8
+  endlessAttackBonusStep: 1
+  endlessRewardBonusEveryBattles: 10
+  endlessRewardBonusStep: 1
 --- !u!114 &1314218350
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -8316,7 +8485,7 @@ MonoBehaviour:
   overlinkExtraLungeDistance: 0.08
   overlinkExtraHitScale: 0.12
   overlinkExtraPunchRotation: 7
-  overlinkHitPause: 0.5
+  overlinkHitPause: 0.05
 --- !u!114 &1314218352
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -12311,6 +12480,7 @@ RectTransform:
   - {fileID: 2096980397}
   - {fileID: 1890865562}
   - {fileID: 1937357751}
+  - {fileID: 583004233}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
@@ -12376,6 +12546,13 @@ MonoBehaviour:
   gunShellScale: 0.42
   gunShellFadeStartRatio: 0.48
   gunShellTint: {r: 1, g: 0.96, b: 0.82, a: 0.96}
+  neutralGunHintColor: {r: 1, g: 1, b: 1, a: 1}
+  readyGunHintColor: {r: 1, g: 1, b: 1, a: 1}
+  effectiveGunHintColor: {r: 1, g: 0.97088087, b: 0, a: 1}
+  weakPointText: {fileID: 583004235}
+  weakPointLabel: "\u5F31\u70B9"
+  weakPointTextColor: {r: 1, g: 0.9725491, b: 0, a: 1}
+  hideWeakPointTextWhenInactive: 1
   itemSlotButtons:
   - {fileID: 1270489402}
   - {fileID: 1988369391}
@@ -12447,6 +12624,7 @@ MonoBehaviour:
   statsText: {fileID: 1651750005}
   patternText: {fileID: 1633507590}
   adviceText: {fileID: 705978023}
+  weaknessText: {fileID: 0}
   scanLineImage: {fileID: 714673797}
   scanHintPrefab: {fileID: 0}
   scanHintOffset: {x: 0, y: 1.8, z: 0}

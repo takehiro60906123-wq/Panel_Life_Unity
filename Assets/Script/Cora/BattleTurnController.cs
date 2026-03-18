@@ -4,6 +4,7 @@ using UnityEngine;
 
 public class BattleTurnController : MonoBehaviour
 {
+    private const string PlayerHitTextMarker = "<playerhit>";
     [Header("ターン進行タイミング")]
     [SerializeField] private float endPlayerTurnDelay = 0.5f;
     [SerializeField] private float enemyAttackWindupDelay = 0.2f;
@@ -265,7 +266,6 @@ public class BattleTurnController : MonoBehaviour
 
             // 1発目
             bool isEvasion = UnityEngine.Random.Range(0, 100) < 15;
-            bool isCritical = (pattern != EnemyAttackPattern.HeavyHit) && UnityEngine.Random.Range(0, 100) < 10;
             Vector3 pos = playerUnit != null ? playerUnit.transform.position : Vector3.zero;
 
             if (isEvasion)
@@ -274,7 +274,7 @@ public class BattleTurnController : MonoBehaviour
             }
             else
             {
-                int finalDamage = isCritical ? baseDamage * 2 : baseDamage;
+                int finalDamage = baseDamage;
 
                 // === 状態異常: プレイヤー腐食チェック ===
                 finalDamage = ApplyPlayerCorrosionBonus(finalDamage, playerUnit, spawnDamageText);
@@ -289,10 +289,7 @@ public class BattleTurnController : MonoBehaviour
 
                 if (hitEffectPrefab != null)
                     spawnOneShotEffect?.Invoke(hitEffectPrefab, pos + Vector3.up * 0.5f, 0.7f);
-
-                Color textColor = isCritical ? Color.yellow : Color.red;
-                string textStr = isCritical ? $"CRITICAL!\n{finalDamage}" : finalDamage.ToString();
-                spawnDamageText?.Invoke(textStr, pos + Vector3.up * 1.5f, textColor);
+                spawnDamageText?.Invoke(PlayerHitTextMarker + finalDamage.ToString(), pos + Vector3.up * 1.45f, Color.red);
 
                 if (playerUnit != null && playerUnit.IsDead())
                 {
@@ -313,7 +310,6 @@ public class BattleTurnController : MonoBehaviour
 
                     int hit2Damage = Mathf.Max(1, enemyUnit.attackPower);
                     bool hit2Evasion = UnityEngine.Random.Range(0, 100) < 15;
-                    bool hit2Crit = UnityEngine.Random.Range(0, 100) < 10;
                     Vector3 pos2 = playerUnit.transform.position;
 
                     if (hit2Evasion)
@@ -322,7 +318,7 @@ public class BattleTurnController : MonoBehaviour
                     }
                     else
                     {
-                        int finalDmg2 = hit2Crit ? hit2Damage * 2 : hit2Damage;
+                        int finalDmg2 = hit2Damage;
 
                         // === 状態異常: プレイヤー腐食チェック（MultiHit 2発目） ===
                         finalDmg2 = ApplyPlayerCorrosionBonus(finalDmg2, playerUnit, spawnDamageText);
@@ -337,10 +333,7 @@ public class BattleTurnController : MonoBehaviour
 
                         if (hitEffectPrefab != null)
                             spawnOneShotEffect?.Invoke(hitEffectPrefab, pos2 + Vector3.up * 0.5f, 0.7f);
-
-                        Color col2 = hit2Crit ? Color.yellow : Color.red;
-                        string txt2 = hit2Crit ? $"CRITICAL!\n{finalDmg2}" : finalDmg2.ToString();
-                        spawnDamageText?.Invoke(txt2, pos2 + Vector3.up * 1.5f, col2);
+                        spawnDamageText?.Invoke(PlayerHitTextMarker + finalDmg2.ToString(), pos2 + Vector3.up * 1.85f, Color.red);
 
                         if (playerUnit.IsDead())
                         {

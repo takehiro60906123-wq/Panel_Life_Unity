@@ -4,6 +4,7 @@ using UnityEngine;
 
 public class EncounterFlowController : MonoBehaviour
 {
+    private const string PlayerHitTextMarker = "<playerhit>";
     private BattleEventHub battleEventHub;
     private StageFlowController stageFlowController;
     private BattleTurnController battleTurnController;
@@ -195,7 +196,14 @@ public class EncounterFlowController : MonoBehaviour
                 () => setIsEnemyDefeatedThisTurn?.Invoke(false),
                 () => getEnemyUnit != null ? getEnemyUnit() : null,
                 RequestStageClear,
-                EnemyTurnRoutine,
+                () => battleTurnController.EnemyTurnRoutine(
+                    getEnemyUnit != null ? getEnemyUnit() : null,
+                    playerUnit,
+                    hitEffectPrefab,
+                    RequestDamageText,
+                    RequestOneShotEffect,
+                    RequestPlayerDefeated,
+                    RequestBoardInteractable),
                 AdvanceEmptyTurn,
                 RequestBoardInteractable);
 
@@ -286,7 +294,6 @@ public class EncounterFlowController : MonoBehaviour
             yield return new WaitForSeconds(0.2f);
 
             bool isEvasion = UnityEngine.Random.Range(0, 100) < 15;
-            bool isCritical = UnityEngine.Random.Range(0, 100) < 10;
             Vector3 pos = playerUnit != null ? playerUnit.transform.position : Vector3.zero;
 
             if (isEvasion)
@@ -295,7 +302,7 @@ public class EncounterFlowController : MonoBehaviour
             }
             else
             {
-                int damage = isCritical ? 3 : 1;
+                int damage = Mathf.Max(1, enemyUnit.attackPower);
 
                 // === 状態異常: プレイヤー腐食チェック（フォールバック） ===
                 if (playerUnit != null && playerUnit.StatusEffects != null
@@ -324,10 +331,7 @@ public class EncounterFlowController : MonoBehaviour
                 {
                     RequestOneShotEffect(hitEffectPrefab, pos + Vector3.up * 0.5f, 0.7f);
                 }
-
-                Color textColor = isCritical ? Color.yellow : Color.red;
-                string textStr = isCritical ? $"CRITICAL!\n{damage}" : damage.ToString();
-                RequestDamageText(textStr, pos + Vector3.up * 1.5f, textColor);
+                RequestDamageText(PlayerHitTextMarker + damage.ToString(), pos + Vector3.up * 1.45f, Color.red);
 
                 if (playerUnit != null && playerUnit.IsDead())
                 {

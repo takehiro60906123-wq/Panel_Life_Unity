@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
 using DG.Tweening;
@@ -22,6 +22,7 @@ public class EnemyScannerUI : MonoBehaviour
     [SerializeField] private TMP_Text statsText;
     [SerializeField] private TMP_Text patternText;
     [SerializeField] private TMP_Text adviceText;
+    [SerializeField] private TMP_Text weaknessText;
 
     [Header("スキャンライン（任意）")]
     [SerializeField] private RectTransform scanLineImage;
@@ -267,8 +268,15 @@ public class EnemyScannerUI : MonoBehaviour
 
         if (adviceText != null)
         {
-            adviceText.text = GetAdviceText(enemy.enemyType, enemy.attackPattern);
+            adviceText.text = GetAdviceText(enemy);
             adviceText.color = typeColor;
+        }
+
+        if (weaknessText != null)
+        {
+            weaknessText.text = GetWeaknessText(enemy);
+            weaknessText.color = new Color(1f, 0.92f, 0.35f, 1f);
+            weaknessText.gameObject.SetActive(!string.IsNullOrEmpty(weaknessText.text));
         }
     }
     private string GetTypeLabel(EnemyType type)
@@ -314,16 +322,19 @@ public class EnemyScannerUI : MonoBehaviour
         }
     }
 
-    private string GetAdviceText(EnemyType type, EnemyAttackPattern pattern)
+    private string GetAdviceText(BattleUnit enemy)
     {
-        string typeAdvice = GetTypeAdvice(type);
-        string patternAdvice = GetPatternAdvice(pattern);
+        if (enemy == null) return "";
 
-        if (!string.IsNullOrEmpty(typeAdvice) && !string.IsNullOrEmpty(patternAdvice))
-            return $"{typeAdvice}\n{patternAdvice}";
-        if (!string.IsNullOrEmpty(typeAdvice)) return typeAdvice;
-        if (!string.IsNullOrEmpty(patternAdvice)) return patternAdvice;
-        return "";
+        string typeAdvice = GetTypeAdvice(enemy.enemyType);
+        string patternAdvice = GetPatternAdvice(enemy.attackPattern);
+        string gunAdvice = GetGunRecommendationText(enemy);
+
+        string result = "";
+        if (!string.IsNullOrEmpty(typeAdvice)) result = typeAdvice;
+        if (!string.IsNullOrEmpty(patternAdvice)) result = string.IsNullOrEmpty(result) ? patternAdvice : $"{result}\n{patternAdvice}";
+        if (!string.IsNullOrEmpty(gunAdvice)) result = string.IsNullOrEmpty(result) ? gunAdvice : $"{result}\n{gunAdvice}";
+        return result;
     }
 
     private string GetTypeAdvice(EnemyType type)
@@ -335,6 +346,44 @@ public class EnemyScannerUI : MonoBehaviour
             case EnemyType.Rushing: return "・毎ターン攻撃してくる。優先して倒したい。";
             case EnemyType.Ranged: return "・後衛から高圧をかける。早めに処理したい。";
             default: return "";
+        }
+    }
+
+    private string GetWeaknessText(BattleUnit enemy)
+    {
+        if (enemy == null) return "";
+
+        switch (enemy.enemyType)
+        {
+            case EnemyType.Floating:
+                return "弱点: ライフル";
+            case EnemyType.Ranged:
+                return "弱点: ピストル / ライフル";
+            case EnemyType.Armored:
+                return "弱点: ショットガン / ライフル";
+            case EnemyType.Rushing:
+                return "弱点: ピストル / ショットガン";
+            default:
+                return "";
+        }
+    }
+
+    private string GetGunRecommendationText(BattleUnit enemy)
+    {
+        if (enemy == null) return "";
+
+        switch (enemy.enemyType)
+        {
+            case EnemyType.Floating:
+                return "・推奨銃: ライフル";
+            case EnemyType.Ranged:
+                return "・推奨銃: ピストル / ライフル";
+            case EnemyType.Armored:
+                return "・推奨銃: ショットガン / ライフル";
+            case EnemyType.Rushing:
+                return "・推奨銃: ピストル / ショットガン";
+            default:
+                return "";
         }
     }
 
