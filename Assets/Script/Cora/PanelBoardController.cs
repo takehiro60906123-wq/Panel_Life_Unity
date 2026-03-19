@@ -1,9 +1,25 @@
-﻿using System;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 using DG.Tweening;
+using UnityEngine.EventSystems;
+
+
+
+public class BoardRewardPanelCell
+{
+    public string rewardId;
+    public string shortLabel;
+    public string detailText;
+    public Sprite iconSprite;
+    public Color iconTint = Color.white;
+    public int row;
+    public int col;
+    public PanelType originalType;
+    public bool originalResonance;
+}
 
 public class PanelBoardController : MonoBehaviour
 {
@@ -111,6 +127,9 @@ public class PanelBoardController : MonoBehaviour
     [SerializeField] private float resonanceBadgePulseDuration = 0.55f;
 
     private Action<int, int> onPanelClicked;
+    private Func<int, int, bool> onSpecialPanelClicked;
+    private BoardRewardPanelCell[,] rewardPanels;
+    private static Font cachedRuntimeFont;
 
     private int rows;
     private int cols;
@@ -179,8 +198,20 @@ public class PanelBoardController : MonoBehaviour
         panelObjects = new GameObject[rows, cols];
         attachedItems = new BattleItemData[rows, cols];
         resonanceFlags = new bool[rows, cols];
+        rewardPanels = new BoardRewardPanelCell[rows, cols];
 
         return true;
+    }
+
+    public void SetSpecialPanelClickHandler(Func<int, int, bool> handler)
+    {
+        onSpecialPanelClicked = handler;
+    }
+
+    public GameObject GetPanelObject(int row, int col)
+    {
+        if (!IsInRange(row, col) || panelObjects == null) return null;
+        return panelObjects[row, col];
     }
 
     public void GenerateBoard()
@@ -214,6 +245,17 @@ public class PanelBoardController : MonoBehaviour
                     btn.onClick.RemoveAllListeners();
                     btn.onClick.AddListener(() =>
                     {
+                        RewardPanelPressHandler pressHandler = newPanel.GetComponent<RewardPanelPressHandler>();
+                        if (pressHandler != null && pressHandler.ConsumeSuppressClick())
+                        {
+                            return;
+                        }
+
+                        if (onSpecialPanelClicked != null && onSpecialPanelClicked.Invoke(row, col))
+                        {
+                            return;
+                        }
+
                         onPanelClicked?.Invoke(row, col);
                     });
                 }
@@ -224,7 +266,115 @@ public class PanelBoardController : MonoBehaviour
     public PanelType GetPanelType(int row, int col)
     {
         if (!IsInRange(row, col)) return PanelType.None;
+        if (HasRewardPanelAt(row, col)) return PanelType.None;
         return gridData[row, col];
+    }
+
+    public bool HasRewardPanelAt(int row, int col)
+    {
+        return IsInRange(row, col) && rewardPanels != null && rewardPanels[row, col] != null;
+    }
+
+    public BoardRewardPanelCell GetRewardPanelAt(int row, int col)
+    {
+        if (!HasRewardPanelAt(row, col)) return null;
+        return rewardPanels[row, col];
+    }
+
+    public bool TryPlaceRewardPanels(List<BoardRewardPanelCell> rewards)
+    {
+        if (rewards == null || rewards.Count == 0) return false;
+        if (gridData == null || panelObjects == null || rewardPanels == null) return false;
+
+        ClearRewardPanels(true);
+
+        List<Vector2Int> candidates = new List<Vector2Int>();
+        for (int r = 0; r < rows; r++)
+        {
+            for (int c = 0; c < cols; c++)
+            {
+                if (gridData[r, c] == PanelType.None) continue;
+                candidates.Add(new Vector2Int(r, c));
+            }
+        }
+
+        if (candidates.Count < rewards.Count)
+        {
+            return false;
+        }
+
+        for (int i = candidates.Count - 1; i > 0; i--)
+        {
+            int j = UnityEngine.Random.Range(0, i + 1);
+            Vector2Int tmp = candidates[i];
+            candidates[i] = candidates[j];
+            candidates[j] = tmp;
+        }
+
+        Vector2 center = new Vector2((rows - 1) * 0.5f, (cols - 1) * 0.5f);
+        candidates.Sort((a, b) =>
+        {
+            float da = Vector2.SqrMagnitude(new Vector2(a.x, a.y) - center);
+            float db = Vector2.SqrMagnitude(new Vector2(b.x, b.y) - center);
+            int cmp = da.CompareTo(db);
+            if (cmp != 0) return cmp;
+
+            cmp = a.x.CompareTo(b.x);
+            if (cmp != 0) return cmp;
+
+            return a.y.CompareTo(b.y);
+        });
+
+        for (int i = 0; i < rewards.Count; i++)
+        {
+            BoardRewardPanelCell cell = rewards[i];
+            Vector2Int pos = candidates[i];
+            cell.row = pos.x;
+            cell.col = pos.y;
+            cell.originalType = gridData[pos.x, pos.y];
+            cell.originalResonance = resonanceFlags[pos.x, pos.y];
+
+            rewardPanels[pos.x, pos.y] = cell;
+
+            UpdatePanelVisual(pos.x, pos.y);
+            RefreshPanelHighlightVisual(pos.x, pos.y);
+            AttachRewardLongPressHandler(pos.x, pos.y);
+
+            GameObject panelObj = panelObjects[pos.x, pos.y];
+            if (panelObj != null)
+            {
+                panelObj.transform.DOKill();
+                panelObj.transform.localScale = Vector3.one;
+                panelObj.transform.DOPunchScale(new Vector3(0.16f, 0.16f, 0f), 0.24f, 6, 0.85f)
+                    .SetUpdate(false);
+            }
+        }
+
+        return true;
+    }
+
+    public void ClearRewardPanels(bool restoreUnderlying)
+    {
+        if (rewardPanels == null) return;
+
+        for (int r = 0; r < rows; r++)
+        {
+            for (int c = 0; c < cols; c++)
+            {
+                BoardRewardPanelCell reward = rewardPanels[r, c];
+                if (reward == null) continue;
+
+                if (restoreUnderlying)
+                {
+                    gridData[r, c] = reward.originalType;
+                    resonanceFlags[r, c] = reward.originalResonance;
+                }
+
+                rewardPanels[r, c] = null;
+                DetachRewardLongPressHandler(r, c);
+                UpdatePanelVisual(r, c);
+            }
+        }
     }
 
     public int GetPanelCount(PanelType targetType)
@@ -237,6 +387,8 @@ public class PanelBoardController : MonoBehaviour
         {
             for (int c = 0; c < cols; c++)
             {
+                if (HasRewardPanelAt(r, c)) continue;
+
                 if (gridData[r, c] == targetType)
                 {
                     count++;
@@ -271,6 +423,8 @@ public class PanelBoardController : MonoBehaviour
         {
             for (int c = 0; c < cols; c++)
             {
+                if (HasRewardPanelAt(r, c)) continue;
+
                 if (gridData[r, c] == PanelType.Sword
                     || gridData[r, c] == PanelType.Heal
                     || gridData[r, c] == PanelType.LvUp)
@@ -331,6 +485,8 @@ public class PanelBoardController : MonoBehaviour
         {
             for (int c = 0; c < cols; c++)
             {
+                if (HasRewardPanelAt(r, c)) continue;
+
                 if (gridData[r, c] == targetType)
                 {
                     positions.Add(new Vector2Int(r, c));
@@ -425,10 +581,10 @@ public class PanelBoardController : MonoBehaviour
         };
 
         if (!IsInRange(startRow, startCol)) return result;
+        if (HasRewardPanelAt(startRow, startCol)) return result;
 
         int maxLink = GetCurrentMaxLink();
 
-        // --- Phase 1: 制限なしで全連結を BFS 探索 ---
         List<Vector2Int> allConnected = new List<Vector2Int>();
         Queue<Vector2Int> queue = new Queue<Vector2Int>();
         HashSet<Vector2Int> visited = new HashSet<Vector2Int>();
@@ -456,6 +612,7 @@ public class PanelBoardController : MonoBehaviour
                 int nc = current.y + dir.y;
 
                 if (!IsInRange(nr, nc)) continue;
+                if (HasRewardPanelAt(nr, nc)) continue;
 
                 Vector2Int nextNode = new Vector2Int(nr, nc);
                 if (!visited.Contains(nextNode) && gridData[nr, nc] == targetType)
@@ -466,7 +623,6 @@ public class PanelBoardController : MonoBehaviour
             }
         }
 
-        // --- Phase 2: BFS順で先頭 maxLink 個だけ消去対象にする ---
         int selectCount = Mathf.Min(allConnected.Count, maxLink);
         result.selected = allConnected.GetRange(0, selectCount);
         result.totalConnected = allConnected.Count;
@@ -494,6 +650,7 @@ public class PanelBoardController : MonoBehaviour
                 int nc = pos.y + dir.y;
 
                 if (!IsInRange(nr, nc)) continue;
+                if (HasRewardPanelAt(nr, nc)) continue;
 
                 if (gridData[nr, nc] == PanelType.LvUp)
                 {
@@ -538,6 +695,12 @@ public class PanelBoardController : MonoBehaviour
 
     public void DropAndFillPanels()
     {
+        if (HasAnyRewardPanels())
+        {
+            DropAndFillPanelsKeepingRewards();
+            return;
+        }
+
         for (int c = 0; c < cols; c++)
         {
             int writeRow = rows - 1;
@@ -673,6 +836,7 @@ public class PanelBoardController : MonoBehaviour
         if (panelObj == null) return;
 
         Transform icon = panelObj.transform.Find("IconImage");
+        BoardRewardPanelCell reward = HasRewardPanelAt(row, col) ? rewardPanels[row, col] : null;
         if (icon != null)
         {
             icon.DOKill();
@@ -681,15 +845,24 @@ public class PanelBoardController : MonoBehaviour
             if (img != null)
             {
                 img.DOKill();
-                img.sprite = GetSpriteForType(gridData[row, col]);
-                img.color = HasResonanceAt(row, col) ? resonanceIconTint : Color.white;
+                if (reward != null)
+                {
+                    img.sprite = reward.iconSprite != null ? reward.iconSprite : GetSpriteForType(reward.originalType);
+                    img.color = reward.iconTint;
+                }
+                else
+                {
+                    img.sprite = GetSpriteForType(gridData[row, col]);
+                    img.color = HasResonanceAt(row, col) ? resonanceIconTint : Color.white;
+                }
             }
 
-            icon.localScale = Vector3.one;
+            icon.localScale = reward != null ? Vector3.one * 1.08f : Vector3.one;
             icon.localPosition = Vector3.zero;
             icon.localRotation = Quaternion.identity;
         }
 
+        UpdateRewardBadgeVisual(panelObj.transform, reward);
         SetPanelBackgroundTransparent(panelObj);
         RefreshPanelHighlightVisual(row, col);
     }
@@ -702,6 +875,7 @@ public class PanelBoardController : MonoBehaviour
         if (panelObj == null) return;
 
         bool hasItem = attachedItems != null && attachedItems[row, col] != null;
+        bool hasReward = HasRewardPanelAt(row, col);
 
         // 親パネルは常に完全透明
         SetPanelBackgroundTransparent(panelObj);
@@ -712,9 +886,9 @@ public class PanelBoardController : MonoBehaviour
         Image itemFx = GetOrCreateItemPanelFx(panelObj.transform);
         if (itemFx != null)
         {
-            itemFx.color = attachedItemPanelTint;
-            itemFx.enabled = hasItem;
-            itemFx.gameObject.SetActive(hasItem);
+            itemFx.color = hasReward ? new Color(1f, 0.82f, 0.2f, 0.45f) : attachedItemPanelTint;
+            itemFx.enabled = hasItem || hasReward;
+            itemFx.gameObject.SetActive(hasItem || hasReward);
         }
 
         Transform badge = panelObj.transform.Find("ItemBadgeImage");
@@ -725,7 +899,7 @@ public class PanelBoardController : MonoBehaviour
 
         if (badge != null)
         {
-            badge.gameObject.SetActive(hasItem);
+            badge.gameObject.SetActive(hasItem && !hasReward);
         }
     }
 
@@ -755,8 +929,82 @@ public class PanelBoardController : MonoBehaviour
         seq.SetLoops(-1, LoopType.Restart);
     }
 
+
+
+    private bool HasAnyRewardPanels()
+    {
+        if (rewardPanels == null) return false;
+
+        for (int r = 0; r < rows; r++)
+        {
+            for (int c = 0; c < cols; c++)
+            {
+                if (rewardPanels[r, c] != null)
+                {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    private void DropAndFillPanelsKeepingRewards()
+    {
+        for (int c = 0; c < cols; c++)
+        {
+            List<PanelType> types = new List<PanelType>();
+            List<BattleItemData> items = new List<BattleItemData>();
+            List<bool> resFlags = new List<bool>();
+
+            for (int r = rows - 1; r >= 0; r--)
+            {
+                if (HasRewardPanelAt(r, c)) continue;
+                if (gridData[r, c] == PanelType.None) continue;
+
+                types.Add(gridData[r, c]);
+                items.Add(attachedItems[r, c]);
+                resFlags.Add(resonanceFlags[r, c]);
+            }
+
+            int readIndex = 0;
+
+            for (int r = rows - 1; r >= 0; r--)
+            {
+                if (HasRewardPanelAt(r, c))
+                {
+                    UpdatePanelVisual(r, c);
+                    continue;
+                }
+
+                if (readIndex < types.Count)
+                {
+                    gridData[r, c] = types[readIndex];
+                    attachedItems[r, c] = items[readIndex];
+                    resonanceFlags[r, c] = resFlags[readIndex];
+                }
+                else
+                {
+                    PanelType newType = GetRandomPanelType();
+                    gridData[r, c] = newType;
+                    attachedItems[r, c] = null;
+                    resonanceFlags[r, c] = ShouldSpawnResonanceForPanel(newType);
+                }
+
+                readIndex++;
+                UpdatePanelVisual(r, c);
+                RefreshPanelHighlightVisual(r, c);
+            }
+        }
+    }
+
     private bool HasResonanceAt(int row, int col)
     {
+        if (HasRewardPanelAt(row, col))
+        {
+            return false;
+        }
+
         return enableResonanceSwordPanels
             && resonanceFlags != null
             && IsInRange(row, col)
@@ -955,6 +1203,97 @@ public class PanelBoardController : MonoBehaviour
         }
 
         return PanelType.Sword;
+    }
+
+    private void UpdateRewardBadgeVisual(Transform parent, BoardRewardPanelCell reward)
+    {
+        Transform badgeTransform = parent.Find("RewardBadgeText");
+        if (reward == null)
+        {
+            if (badgeTransform != null)
+            {
+                badgeTransform.gameObject.SetActive(false);
+            }
+            return;
+        }
+
+        Text text = badgeTransform != null ? badgeTransform.GetComponent<Text>() : null;
+        if (text == null)
+        {
+            GameObject go = new GameObject("RewardBadgeText", typeof(RectTransform));
+            go.transform.SetParent(parent, false);
+            RectTransform rt = go.GetComponent<RectTransform>();
+            rt.anchorMin = new Vector2(0.5f, 0f);
+            rt.anchorMax = new Vector2(0.5f, 0f);
+            rt.pivot = new Vector2(0.5f, 0.5f);
+            rt.anchoredPosition = new Vector2(0f, 18f);
+            rt.sizeDelta = new Vector2(110f, 28f);
+            text = go.AddComponent<Text>();
+            text.font = GetRuntimeFont();
+            text.alignment = TextAnchor.MiddleCenter;
+            text.fontSize = 22;
+            text.raycastTarget = false;
+            badgeTransform = go.transform;
+        }
+
+        text.text = reward.shortLabel;
+        text.color = Color.white;
+        badgeTransform.gameObject.SetActive(true);
+    }
+
+    private Font GetRuntimeFont()
+    {
+        if (cachedRuntimeFont == null)
+        {
+            cachedRuntimeFont = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        }
+        return cachedRuntimeFont;
+    }
+
+    private void AttachRewardLongPressHandler(int row, int col)
+    {
+        GameObject panelObj = GetPanelObject(row, col);
+        if (panelObj == null) return;
+
+        RewardPanelPressHandler handler = panelObj.GetComponent<RewardPanelPressHandler>();
+        if (handler == null)
+        {
+            handler = panelObj.AddComponent<RewardPanelPressHandler>();
+        }
+
+        handler.Configure(row, col, onSpecialPanelLongPressed, onSpecialPanelLongPressReleased);
+    }
+
+    private void DetachRewardLongPressHandler(int row, int col)
+    {
+        GameObject panelObj = GetPanelObject(row, col);
+        if (panelObj == null) return;
+
+        RewardPanelPressHandler handler = panelObj.GetComponent<RewardPanelPressHandler>();
+        if (handler != null)
+        {
+            handler.Clear();
+        }
+    }
+
+    private Action<int, int> onSpecialPanelLongPressed;
+    private Action<int, int> onSpecialPanelLongPressReleased;
+
+    public void SetSpecialPanelLongPressHandler(Action<int, int> handler)
+    {
+        onSpecialPanelLongPressed = handler;
+        onSpecialPanelLongPressReleased = null;
+    }
+
+    public void SetSpecialPanelLongPressHandlers(Action<int, int> onPressed, Action<int, int> onReleased)
+    {
+        onSpecialPanelLongPressed = onPressed;
+        onSpecialPanelLongPressReleased = onReleased;
+    }
+
+    public Sprite GetDisplaySpriteForPanelType(PanelType type)
+    {
+        return GetSpriteForType(type);
     }
 
     private Sprite GetSpriteForType(PanelType type)

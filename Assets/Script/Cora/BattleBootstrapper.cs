@@ -39,6 +39,7 @@ public class BattleBootstrapper : MonoBehaviour
         manager.encounterFlowController = ResolveOrAdd(manager.encounterFlowController);
         manager.battleDamageResolver = ResolveOrAdd(manager.battleDamageResolver);
         manager.gunCombatController = ResolveOrAdd(manager.gunCombatController);
+        manager.rewardDropController = ResolveOrAdd(manager.rewardDropController);
     }
 
     public bool Initialize(PanelBattleManager manager)

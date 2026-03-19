@@ -33,6 +33,8 @@ public class BattleDamageResolver : MonoBehaviour
 
     private bool isSubscribed;
     private PanelBattleManager panelBattleManager;
+    private RewardDropController rewardDropController;
+    private Func<int> getCurrentRewardBattleNumber;
     [SerializeField] private float postDefeatRespawnDelay = 0.05f;
     [SerializeField] private float damageTextDelay = 0.04f;
 
@@ -120,6 +122,12 @@ public class BattleDamageResolver : MonoBehaviour
         this.hitEffectPrefab = hitEffectPrefab;
         this.levelUpEffectPrefab = levelUpEffectPrefab;
         this.enemyRespawnRoutineFactory = enemyRespawnRoutineFactory;
+    }
+
+    public void SetRewardDropController(RewardDropController controller, Func<int> getCurrentRewardBattleNumber)
+    {
+        rewardDropController = controller;
+        this.getCurrentRewardBattleNumber = getCurrentRewardBattleNumber;
     }
 
     private void OnEnable()
@@ -404,6 +412,12 @@ public class BattleDamageResolver : MonoBehaviour
         }
 
         yield return new WaitForSeconds(postDefeatRespawnDelay);
+
+        if (rewardDropController != null && getCurrentRewardBattleNumber != null)
+        {
+            int rewardBattleNumber = Mathf.Max(1, getCurrentRewardBattleNumber.Invoke());
+            yield return rewardDropController.TryPresentBoardRewardRoutine(rewardBattleNumber);
+        }
 
         if (enemyRespawnRoutineFactory != null)
         {

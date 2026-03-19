@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections;
 using UnityEngine;
 
@@ -39,6 +39,7 @@ public class EncounterFlowController : MonoBehaviour
     // 商店コントローラー参照
     // ============================================
     private ShopController shopController;
+    private RewardDropController rewardDropController;
 
     public void Initialize(
         BattleEventHub battleEventHub,
@@ -101,6 +102,11 @@ public class EncounterFlowController : MonoBehaviour
     public void SetShopController(ShopController controller)
     {
         shopController = controller;
+    }
+
+    public void SetRewardDropController(RewardDropController controller)
+    {
+        rewardDropController = controller;
     }
 
     private void PublishEncounterState(EncounterType encounterType, int steps)
@@ -462,6 +468,9 @@ public class EncounterFlowController : MonoBehaviour
             Destroy(enemyUnit.gameObject);
             setEnemyUnit?.Invoke(null);
         }
+
+        // 報酬パネル表示は BattleDamageResolver 側で処理する。
+        // ここで二重に待つと、撃破後に進行停止しやすいので呼ばない。
 
         if (stageFlowController == null)
         {

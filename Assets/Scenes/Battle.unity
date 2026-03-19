@@ -1590,7 +1590,7 @@ MonoBehaviour:
     currentGunGauge: 1
     maxGunGauge: 10
   levelAttackBonus: 0
-  defaultGunDefinition: {fileID: 11400000, guid: a7c8ae7ed9c74a2438bf1f11cb6f8a46, type: 2}
+  defaultGunDefinition: {fileID: 11400000, guid: 830c82f191be07744a7487b2f0739aca, type: 2}
 --- !u!4 &228695542
 Transform:
   m_ObjectHideFlags: 0
@@ -3535,7 +3535,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.59225935, y: 0.086645834}
   m_AnchorMax: {x: 0.83674085, y: 0.16239583}
-  m_AnchoredPosition: {x: 3.0720978, y: -3.8000488}
+  m_AnchoredPosition: {x: 3.0721436, y: -3.8000488}
   m_SizeDelta: {x: -6.144287, y: 11.068848}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!225 &583004234
@@ -8323,6 +8323,8 @@ MonoBehaviour:
   criticalStartScale: 0.72
   criticalPeakScale: 1.34
   criticalFinalScale: 1.06
+  playerHitWorldOffsetY: -0.95
+  playerHitLocalOffsetY: -0.9
   playerHitEntryDrop: 0.04
   playerHitRiseHeight: 0.82
   playerHitSideDrift: 0.12

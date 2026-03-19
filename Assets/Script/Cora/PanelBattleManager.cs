@@ -64,6 +64,9 @@ public class PanelBattleManager : MonoBehaviour
     [Header("商店コントローラー")]
     public ShopController shopController;
 
+    [Header("報酬ドロップコントローラー")]
+    public RewardDropController rewardDropController;
+
     [Header("ダメージ解決コントローラー")]
     public BattleDamageResolver battleDamageResolver;
 
@@ -1231,6 +1234,7 @@ public class PanelBattleManager : MonoBehaviour
         }
 
         InitializeShop();
+        InitializeRewardDrops();
 
         if (battleUIController != null)
         {
@@ -1266,6 +1270,28 @@ public class PanelBattleManager : MonoBehaviour
         if (encounterFlowController != null)
         {
             encounterFlowController.SetShopController(shopController);
+        }
+    }
+
+
+    private void InitializeRewardDrops()
+    {
+        if (rewardDropController == null)
+        {
+            rewardDropController = GetComponent<RewardDropController>();
+        }
+
+        if (rewardDropController == null)
+        {
+            rewardDropController = gameObject.AddComponent<RewardDropController>();
+        }
+
+        rewardDropController.Initialize(playerCombatController, battleUIController, panelBoardController, battleEventHub);
+        battleDamageResolver?.SetRewardDropController(rewardDropController, GetCurrentRewardBattleNumber);
+
+        if (encounterFlowController != null)
+        {
+            encounterFlowController.SetRewardDropController(rewardDropController);
         }
     }
 
