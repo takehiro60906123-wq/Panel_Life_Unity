@@ -11,13 +11,21 @@ public class BoardRewardDetailPanel : MonoBehaviour
     [SerializeField] private TMP_Text titleText;
     [SerializeField] private TMP_Text detailText;
 
+    private bool showRequestedBeforeAwake;
+
     private void Awake()
     {
-        HideImmediate();
+        // 長押し詳細も同じライフサイクル事故を避ける。
+        if (!showRequestedBeforeAwake)
+        {
+            HideImmediate();
+        }
     }
 
     public void Show(string title, string detail, Sprite icon, Color accentColor)
     {
+        showRequestedBeforeAwake = true;
+
         GameObject targetRoot = rootObject != null ? rootObject : gameObject;
         targetRoot.SetActive(true);
 
@@ -53,6 +61,8 @@ public class BoardRewardDetailPanel : MonoBehaviour
 
     public void Hide()
     {
+        showRequestedBeforeAwake = false;
+
         GameObject targetRoot = rootObject != null ? rootObject : gameObject;
 
         if (canvasGroup != null)

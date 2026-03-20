@@ -44,6 +44,34 @@ public class EnemyPresentationController : MonoBehaviour
     {
         if (unit == null) return;
 
+        PrepareEnemyForEntrance(unit, true);
+        unit.InitializeTurn();
+        PlayEntranceAnimation(unit);
+    }
+
+    public void PrepareEnemyForDeferredEntrance(BattleUnit unit)
+    {
+        if (unit == null) return;
+
+        unit.transform.DOKill();
+
+        SpriteRenderer[] renderers = unit.GetComponentsInChildren<SpriteRenderer>(true);
+        foreach (SpriteRenderer sr in renderers)
+        {
+            if (sr == null) continue;
+            sr.DOKill();
+        }
+
+        RestoreEnemyColors(unit);
+        SetEnemyAlpha(unit, 0f);
+        SetEnemyVisible(unit, false);
+        unit.transform.localScale = Vector3.one;
+    }
+
+    public void PrepareEnemyForEntrance(BattleUnit unit, bool showUI)
+    {
+        if (unit == null) return;
+
         unit.transform.DOKill();
 
         SpriteRenderer[] renderers = unit.GetComponentsInChildren<SpriteRenderer>(true);
@@ -54,11 +82,16 @@ public class EnemyPresentationController : MonoBehaviour
         }
 
         SetEnemyVisible(unit, true);
-        unit.SetUIActive(true);
+        unit.SetUIActive(showUI);
         RestoreEnemyColors(unit);
         SetEnemyAlpha(unit, 1f);
-        unit.InitializeTurn();
+    }
 
+    public void PlayCurrentEnemyEntrance(BattleUnit unit)
+    {
+        if (unit == null) return;
+
+        PrepareEnemyForEntrance(unit, true);
         PlayEntranceAnimation(unit);
     }
 

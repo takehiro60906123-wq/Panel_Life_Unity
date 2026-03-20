@@ -48,7 +48,7 @@ public class BattleItemData
                     itemType = BattleItemType.FieldBandage,
                     itemName = "野戦包帯",
                     useTarget = BattleItemUseTarget.Self,
-                    power = 6,
+                    power = 8,
                     durationTurns = 0
                 };
 
@@ -58,7 +58,7 @@ public class BattleItemData
                     itemType = BattleItemType.ShockCanister,
                     itemName = "衝撃筒",
                     useTarget = BattleItemUseTarget.Enemy,
-                    power = 3,
+                    power = 4,
                     durationTurns = 0
                 };
 
@@ -68,7 +68,7 @@ public class BattleItemData
                     itemType = BattleItemType.ActivationCell,
                     itemName = "起動セル",
                     useTarget = BattleItemUseTarget.Self,
-                    power = 3,
+                    power = 4,
                     durationTurns = 0
                 };
 

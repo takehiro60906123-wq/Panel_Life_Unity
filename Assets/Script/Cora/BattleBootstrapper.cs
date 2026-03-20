@@ -40,6 +40,8 @@ public class BattleBootstrapper : MonoBehaviour
         manager.battleDamageResolver = ResolveOrAdd(manager.battleDamageResolver);
         manager.gunCombatController = ResolveOrAdd(manager.gunCombatController);
         manager.rewardDropController = ResolveOrAdd(manager.rewardDropController);
+        manager.stageIntroController = ResolveOrAdd(manager.stageIntroController);
+        manager.battleItemIconDatabase = ResolveOrAdd(manager.battleItemIconDatabase);
     }
 
     public bool Initialize(PanelBattleManager manager)
@@ -210,6 +212,7 @@ public class BattleBootstrapper : MonoBehaviour
             () => manager.enemyPresentationController.RefreshUpcomingEnemyStandbyVisuals(
                 manager.stageFlowController != null ? manager.stageFlowController.GetUpcomingEnemies() : null),
             manager.enemyPresentationController.ActivateEnemyAsCurrent,
+            manager.enemyPresentationController.PrepareEnemyForDeferredEntrance,
             manager.enemyPresentationController.RevealWaitingEnemy,
             () => manager.enemyPresentationController.HideAllUpcomingEnemies(
                 manager.stageFlowController != null ? manager.stageFlowController.GetUpcomingEnemies() : null),
@@ -227,16 +230,17 @@ public class BattleBootstrapper : MonoBehaviour
             manager.BoardCols,
             manager.panelActionController.OnPanelClicked);
 
+        manager.panelBoardController.SetBattleItemIconDatabase(manager.battleItemIconDatabase);
+
         if (!boardInitialized)
         {
             return false;
         }
 
-        manager.SetBoardInteractable(true);
         manager.UpdateCoinUI();
         manager.UpdateEncounterUI();
         manager.panelBoardController.GenerateBoard();
-        manager.encounterFlowController.SetupStage();
+        manager.encounterFlowController.SetupStage(manager.ShouldPlayGameStartIntro);
         manager.PrepareItemPanelForCurrentBattle();
         return true;
     }

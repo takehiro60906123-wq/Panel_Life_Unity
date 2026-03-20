@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -24,6 +24,14 @@ public class RewardDropController : MonoBehaviour
     [Header("長押し詳細パネル")]
     [SerializeField] private BoardRewardDetailPanel rewardDetailPanel;
 
+    [Header("初回報酬ガイド")]
+    [SerializeField] private BoardRewardTutorialPanel rewardTutorialPanel;
+    [SerializeField] private bool showRewardUsageGuideOnFirstReward = true;
+    [TextArea(2, 4)]
+    [SerializeField] private string rewardGuideTitle = "回収品の扱い";
+    [TextArea(4, 8)]
+    [SerializeField] private string rewardGuideBody = "報酬は長押しで詳細を確認できます。\n攻撃アイテムは敵へドラッグして使用します。\n回復・弾薬アイテムはタップで使用します。";
+
     private PlayerCombatController playerCombatController;
     private BattleUIController battleUIController;
     private PanelBoardController panelBoardController;
@@ -34,6 +42,9 @@ public class RewardDropController : MonoBehaviour
 
     private bool rewardActive;
     private int activeBattleNumber;
+    private bool rewardTutorialVisible;
+
+    private const string RewardUsageGuideSeenPrefsKey = "board_reward_usage_guide_seen_v1";
 
     private class RewardOption
     {
@@ -47,12 +58,20 @@ public class RewardDropController : MonoBehaviour
         public string pickupText;
     }
 
+
+    private void Awake()
+    {
+        AutoResolvePanels();
+    }
+
     public void Initialize(
         PlayerCombatController playerCombatController,
         BattleUIController battleUIController,
         PanelBoardController panelBoardController,
         BattleEventHub battleEventHub)
     {
+        AutoResolvePanels();
+
         this.playerCombatController = playerCombatController;
         this.battleUIController = battleUIController;
         this.panelBoardController = panelBoardController;
@@ -65,6 +84,7 @@ public class RewardDropController : MonoBehaviour
         }
 
         rewardDetailPanel?.HideImmediate();
+        rewardTutorialPanel?.HideImmediate();
     }
 
     public IEnumerator TryPresentBoardRewardRoutine(int battleNumber)
@@ -110,7 +130,14 @@ public class RewardDropController : MonoBehaviour
         activeBattleNumber = battleNumber;
         rewardActive = true;
 
-        ShowPromptText(battleNumber);
+        if (ShouldShowRewardUsageGuide(battleNumber))
+        {
+            ShowRewardUsageGuide();
+        }
+        else
+        {
+            ShowPromptText(battleNumber);
+        }
     }
 
     private List<RewardOption> BuildOptionsForBattle(int battleNumber)
@@ -217,6 +244,11 @@ public class RewardDropController : MonoBehaviour
             return false;
         }
 
+        if (rewardTutorialVisible)
+        {
+            return true;
+        }
+
         BoardRewardPanelCell cell = panelBoardController.GetRewardPanelAt(row, col);
         if (cell == null)
         {
@@ -242,6 +274,7 @@ public class RewardDropController : MonoBehaviour
     private void HandleRewardLongPressStart(int row, int col)
     {
         if (!rewardActive || panelBoardController == null) return;
+        if (rewardTutorialVisible) return;
 
         BoardRewardPanelCell cell = panelBoardController.GetRewardPanelAt(row, col);
         if (cell == null) return;
@@ -294,9 +327,58 @@ public class RewardDropController : MonoBehaviour
         battleEventHub?.RaiseDamageTextRequested(prompt, pos, promptTextColor);
     }
 
+
+    private bool ShouldShowRewardUsageGuide(int battleNumber)
+    {
+        if (!showRewardUsageGuideOnFirstReward)
+        {
+            return false;
+        }
+
+        if (rewardTutorialPanel == null)
+        {
+            return false;
+        }
+
+        if (battleNumber != GuaranteedSwordBattleNumber)
+        {
+            return false;
+        }
+
+        return PlayerPrefs.GetInt(RewardUsageGuideSeenPrefsKey, 0) == 0;
+    }
+
+    private void ShowRewardUsageGuide()
+    {
+        if (rewardTutorialPanel == null)
+        {
+            ShowPromptText(activeBattleNumber);
+            return;
+        }
+
+        rewardTutorialVisible = true;
+        rewardTutorialPanel.Show(rewardGuideTitle, rewardGuideBody, OnConfirmRewardUsageGuide);
+    }
+
+    private void OnConfirmRewardUsageGuide()
+    {
+        PlayerPrefs.SetInt(RewardUsageGuideSeenPrefsKey, 1);
+        PlayerPrefs.Save();
+
+        HideRewardUsageGuide();
+        ShowPromptText(activeBattleNumber);
+    }
+
+    private void HideRewardUsageGuide()
+    {
+        rewardTutorialVisible = false;
+        rewardTutorialPanel?.Hide();
+    }
+
     private void ConsumeActiveRewardPanels()
     {
         HideRewardDetailPanel();
+        HideRewardUsageGuide();
         panelBoardController?.ClearRewardPanels(true);
         activeOptions.Clear();
         activeBattleNumber = 0;
@@ -366,6 +448,63 @@ public class RewardDropController : MonoBehaviour
         }
 
         return panelBoardController != null ? panelBoardController.GetDisplaySpriteForPanelType(PanelType.Ammo) : null;
+    }
+
+
+    private void AutoResolvePanels()
+    {
+        if (rewardDetailPanel == null)
+        {
+            rewardDetailPanel = FindSceneObjectIncludingInactive<BoardRewardDetailPanel>();
+        }
+
+        if (rewardTutorialPanel == null)
+        {
+            rewardTutorialPanel = FindSceneObjectIncludingInactive<BoardRewardTutorialPanel>();
+        }
+    }
+
+    private static T FindSceneObjectIncludingInactive<T>() where T : Component
+    {
+        T[] objects = Resources.FindObjectsOfTypeAll<T>();
+        if (objects == null || objects.Length == 0)
+        {
+            return null;
+        }
+
+        for (int i = 0; i < objects.Length; i++)
+        {
+            T candidate = objects[i];
+            if (candidate == null)
+            {
+                continue;
+            }
+
+            GameObject go = candidate.gameObject;
+            if (go == null)
+            {
+                continue;
+            }
+
+            if (!go.scene.IsValid())
+            {
+                continue;
+            }
+
+            if ((go.hideFlags & HideFlags.NotEditable) != 0)
+            {
+                continue;
+            }
+
+            if ((go.hideFlags & HideFlags.HideAndDontSave) != 0)
+            {
+                continue;
+            }
+
+            return candidate;
+        }
+
+        return null;
     }
 
     private enum WeaponRewardKind

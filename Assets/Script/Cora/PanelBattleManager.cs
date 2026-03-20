@@ -76,6 +76,18 @@ public class PanelBattleManager : MonoBehaviour
     [Header("初期化コントローラー")]
     public BattleBootstrapper battleBootstrapper;
 
+    [Header("ステージ入場演出コントローラー")]
+    public StageIntroController stageIntroController;
+
+    [Header("アイテムアイコンDB")]
+    public BattleItemIconDatabase battleItemIconDatabase;
+
+    [Header("ゲーム開始演出")]
+    [SerializeField] private bool playGameStartIntro = true;
+    public bool ShouldPlayGameStartIntro => playGameStartIntro
+        && stageIntroController != null
+        && stageIntroController.ShouldPlayOnGameStart;
+
     [Header("イベントハブ")]
     public BattleEventHub battleEventHub;
 
@@ -91,6 +103,10 @@ public class PanelBattleManager : MonoBehaviour
     [SerializeField] private PlayerCombatController playerCombatController;
     public PlayerCombatController PlayerCombatController => playerCombatController;
     public GunCombatController GunCombatController => gunCombatController;
+
+    [Header("プレイヤー強化演出")]
+    [SerializeField] private PlayerPowerupFeedbackPresenter playerPowerupFeedbackPresenter;
+    private bool powerupFeedbackEventsSubscribed;
 
     [Header("状態異常")]
     [SerializeField] private float paralysisSkipDelay = 0.6f;
@@ -161,6 +177,20 @@ public class PanelBattleManager : MonoBehaviour
         {
             battleInventoryController = gameObject.AddComponent<BattleInventoryController>();
         }
+    }
+
+    public BattleItemData CreateBattleItem(BattleItemType itemType)
+    {
+        if (battleItemIconDatabase != null)
+        {
+            BattleItemData itemWithIcon = battleItemIconDatabase.CreatePreset(itemType);
+            if (itemWithIcon != null)
+            {
+                return itemWithIcon;
+            }
+        }
+
+        return BattleItemData.CreatePreset(itemType);
     }
 
     private void EnsureDefaultItemDrops()
@@ -635,6 +665,7 @@ public class PanelBattleManager : MonoBehaviour
                     playerUnit.Heal(item.power);
                     Vector3 healPos = playerUnit.transform.position + Vector3.up * 1.5f;
                     SpawnDamageText($"+{item.power}", healPos, Color.green);
+                    playerPowerupFeedbackPresenter?.PlayItemUseFeedback(item.itemType);
                 }
                 break;
 
@@ -648,6 +679,7 @@ public class PanelBattleManager : MonoBehaviour
                 {
                     Vector3 cellPos = playerUnit.transform.position + Vector3.up * 1.5f;
                     SpawnDamageText($"GUN +{item.power}", cellPos, Color.cyan);
+                    playerPowerupFeedbackPresenter?.PlayItemUseFeedback(item.itemType);
                 }
                 break;
 
@@ -677,6 +709,7 @@ public class PanelBattleManager : MonoBehaviour
                 {
                     Vector3 oilPos = playerUnit.transform.position + Vector3.up * 1.5f;
                     SpawnDamageText($"攻撃UP {playerDamageBoostTurnsRemaining}T", oilPos, new Color(1f, 0.7f, 0.2f));
+                    playerPowerupFeedbackPresenter?.PlayItemUseFeedback(item.itemType);
                 }
                 break;
         }
@@ -692,7 +725,7 @@ public class PanelBattleManager : MonoBehaviour
         BattleItemType itemType = RollDroppedItemType();
         if (itemType == BattleItemType.None) return;
 
-        BattleItemData item = BattleItemData.CreatePreset(itemType);
+        BattleItemData item = CreateBattleItem(itemType);
         if (item == null) return;
 
         pendingDropFeedback = new PendingDropFeedback
@@ -1195,6 +1228,62 @@ public class PanelBattleManager : MonoBehaviour
         }
     }
 
+    private void EnsurePlayerPowerupFeedbackPresenter()
+    {
+        if (playerPowerupFeedbackPresenter != null)
+        {
+            return;
+        }
+
+        if (playerUnit != null)
+        {
+            playerPowerupFeedbackPresenter = playerUnit.GetComponent<PlayerPowerupFeedbackPresenter>();
+            if (playerPowerupFeedbackPresenter == null)
+            {
+                playerPowerupFeedbackPresenter = playerUnit.gameObject.AddComponent<PlayerPowerupFeedbackPresenter>();
+            }
+        }
+    }
+
+    private void SubscribePlayerPowerupFeedbackEvents()
+    {
+        if (powerupFeedbackEventsSubscribed)
+        {
+            return;
+        }
+
+        if (playerCombatController == null)
+        {
+            return;
+        }
+
+        playerCombatController.OnMeleeWeaponEquipped += HandleWeaponEquippedFeedback;
+        playerCombatController.OnGunEquipped += HandleGunEquippedFeedback;
+        powerupFeedbackEventsSubscribed = true;
+    }
+
+    private void UnsubscribePlayerPowerupFeedbackEvents()
+    {
+        if (!powerupFeedbackEventsSubscribed || playerCombatController == null)
+        {
+            return;
+        }
+
+        playerCombatController.OnMeleeWeaponEquipped -= HandleWeaponEquippedFeedback;
+        playerCombatController.OnGunEquipped -= HandleGunEquippedFeedback;
+        powerupFeedbackEventsSubscribed = false;
+    }
+
+    private void HandleWeaponEquippedFeedback(WeaponType weaponType)
+    {
+        playerPowerupFeedbackPresenter?.PlayWeaponEquipFeedback(weaponType);
+    }
+
+    private void HandleGunEquippedFeedback(GunType gunType)
+    {
+        playerPowerupFeedbackPresenter?.PlayGunEquipFeedback(gunType);
+    }
+
     void Awake()
     {
         EnsureBattleContext();
@@ -1212,6 +1301,8 @@ public class PanelBattleManager : MonoBehaviour
         }
 
         battleBootstrapper.EnsureDependencies(this);
+        EnsurePlayerPowerupFeedbackPresenter();
+        SubscribePlayerPowerupFeedbackEvents();
         SubscribeBattleEvents();
     }
 
@@ -1244,10 +1335,24 @@ public class PanelBattleManager : MonoBehaviour
 
         UpdateFloorUI();
         RefreshPlayerExpUI();
+
+        EnsurePlayerPowerupFeedbackPresenter();
+        SubscribePlayerPowerupFeedbackEvents();
+
+        if (ShouldPlayGameStartIntro && currentEncounter == EncounterType.Enemy)
+        {
+            stageIntroController.BeginGameStartIntro(this);
+        }
+        else
+        {
+            SetDungeonMist(true, true);
+            SetBoardInteractable(true);
+        }
     }
 
     private void OnDestroy()
     {
+        UnsubscribePlayerPowerupFeedbackEvents();
         UnsubscribeBattleEvents();
     }
 
@@ -1263,6 +1368,7 @@ public class PanelBattleManager : MonoBehaviour
             battleInventoryController,
             playerUnit,
             battleUIController,
+            battleItemIconDatabase,
             () => currentCoins,
             (amount) => AddCoins(amount));
 

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -22,6 +22,7 @@ public class ShopController : MonoBehaviour
     [SerializeField] private BattleUnit playerUnit;
     [SerializeField] private BattleUIController battleUIController;
     [SerializeField] private ShopUIController shopUIController;
+    [SerializeField] private BattleItemIconDatabase battleItemIconDatabase;
 
     private List<ShopItemData> catalog;
     private List<ShopItemData> currentOfferings = new List<ShopItemData>();
@@ -63,6 +64,7 @@ public class ShopController : MonoBehaviour
         BattleInventoryController battleInventoryController,
         BattleUnit playerUnit,
         BattleUIController battleUIController,
+        BattleItemIconDatabase battleItemIconDatabase,
         Func<int> getCoins,
         Action<int> addCoins)
     {
@@ -70,6 +72,7 @@ public class ShopController : MonoBehaviour
         this.battleInventoryController = battleInventoryController;
         this.playerUnit = playerUnit;
         this.battleUIController = battleUIController;
+        this.battleItemIconDatabase = battleItemIconDatabase;
         this.getCoins = getCoins;
         this.addCoins = addCoins;
     }
@@ -305,7 +308,10 @@ public class ShopController : MonoBehaviour
     {
         if (battleInventoryController == null) return;
 
-        BattleItemData battleItem = BattleItemData.CreatePreset(item.consumableType);
+        BattleItemData battleItem = battleItemIconDatabase != null
+            ? battleItemIconDatabase.CreatePreset(item.consumableType)
+            : BattleItemData.CreatePreset(item.consumableType);
+
         if (battleItem != null)
         {
             battleInventoryController.TryAddItem(battleItem);

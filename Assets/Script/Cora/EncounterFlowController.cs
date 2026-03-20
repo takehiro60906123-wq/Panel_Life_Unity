@@ -30,6 +30,7 @@ public class EncounterFlowController : MonoBehaviour
     private Action spawnNextEnemy;
     private Action refreshUpcomingEnemyStandbyVisuals;
     private Action<BattleUnit> activateEnemyAsCurrent;
+    private Action<BattleUnit> prepareEnemyForDeferredEntrance;
     private Action<BattleUnit> revealWaitingEnemy;
     private Action hideAllUpcomingEnemies;
     private Action<float, float> shiftUpcomingEnemies;
@@ -63,6 +64,7 @@ public class EncounterFlowController : MonoBehaviour
         Action spawnNextEnemy,
         Action refreshUpcomingEnemyStandbyVisuals,
         Action<BattleUnit> activateEnemyAsCurrent,
+        Action<BattleUnit> prepareEnemyForDeferredEntrance,
         Action<BattleUnit> revealWaitingEnemy,
         Action hideAllUpcomingEnemies,
         Action<float, float> shiftUpcomingEnemies,
@@ -89,6 +91,7 @@ public class EncounterFlowController : MonoBehaviour
         this.spawnNextEnemy = spawnNextEnemy;
         this.refreshUpcomingEnemyStandbyVisuals = refreshUpcomingEnemyStandbyVisuals;
         this.activateEnemyAsCurrent = activateEnemyAsCurrent;
+        this.prepareEnemyForDeferredEntrance = prepareEnemyForDeferredEntrance;
         this.revealWaitingEnemy = revealWaitingEnemy;
         this.hideAllUpcomingEnemies = hideAllUpcomingEnemies;
         this.shiftUpcomingEnemies = shiftUpcomingEnemies;
@@ -144,7 +147,7 @@ public class EncounterFlowController : MonoBehaviour
         battleEventHub?.RaisePlayerDefeatedRequested();
     }
 
-    public void SetupStage()
+    public void SetupStage(bool deferInitialEnemyEntrance = false)
     {
         if (stageFlowController == null)
         {
@@ -179,8 +182,16 @@ public class EncounterFlowController : MonoBehaviour
         BattleUnit enemyUnit = getEnemyUnit != null ? getEnemyUnit() : null;
         if (enemyUnit != null)
         {
-            activateEnemyAsCurrent?.Invoke(enemyUnit);
-            enemyUnit.InitializeTurn();
+            if (deferInitialEnemyEntrance)
+            {
+                prepareEnemyForDeferredEntrance?.Invoke(enemyUnit);
+                enemyUnit.InitializeTurn();
+            }
+            else
+            {
+                activateEnemyAsCurrent?.Invoke(enemyUnit);
+            }
+
             PublishEncounterState(EncounterType.Enemy, 0);
             RequestDungeonMist(true, false);
         }

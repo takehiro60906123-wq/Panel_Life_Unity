@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -28,6 +28,7 @@ public class PanelBoardController : MonoBehaviour
 
     [Header("アイテム付きパネル演出")]
     [SerializeField] private Color normalPanelTint = new Color(1f, 1f, 1f, 0f);
+    [SerializeField] private BattleItemIconDatabase battleItemIconDatabase;
     [SerializeField] private Color attachedItemPanelTint = new Color(1f, 0.82f, 0.15f, 1f);
 
     [Header("パネル消去演出")]
@@ -71,6 +72,39 @@ public class PanelBoardController : MonoBehaviour
     private List<PanelSetting> panelSettings;
     [Header("コインパネル設定")]
     [SerializeField] private bool excludeCoinPanelsFromRandomSpawn = true;
+
+    [Header("初期盤面パターン")]
+    [SerializeField] private bool useCuratedOpeningLayouts = true;
+    [SerializeField] private bool shuffleCuratedOpeningTypes = true;
+
+    [Header("入場時パネル落下")]
+    [SerializeField] private float introDropStartY = 280f;
+    [SerializeField] private float introDropRowOffset = 42f;
+    [SerializeField] private float introDropDuration = 0.34f;
+    [SerializeField] private float introDropFadeDuration = 0.14f;
+    [SerializeField] private float introDropRowStagger = 0.045f;
+    [SerializeField] private float introDropColumnStagger = 0.012f;
+    [SerializeField] private float introDropStartScale = 0.94f;
+    [SerializeField] private float introDropLandingScale = 1.08f;
+    [SerializeField] private float introDropFlashAlpha = 0.22f;
+    [SerializeField] private float introDropImpactLeadTime = 0.05f;
+    [SerializeField] private float introDropImpactShakeMultiplier = 1.16f;
+    [SerializeField] private float introDropImpactShakeDuration = 0.10f;
+    [SerializeField] private Ease introDropEase = Ease.OutBounce;
+
+    [Header("報酬パネル出現")]
+    [SerializeField] private float rewardRevealPreDelay = 0.08f;
+    [SerializeField] private float rewardRevealStagger = 0.09f;
+    [SerializeField] private float rewardRevealLift = 44f;
+    [SerializeField] private float rewardRevealDuration = 0.28f;
+    [SerializeField] private float rewardRevealFadeDuration = 0.16f;
+    [SerializeField] private float rewardRevealStartScale = 0.72f;
+    [SerializeField] private float rewardRevealOvershootScale = 1.14f;
+    [SerializeField] private float rewardRevealFlashAlpha = 0.30f;
+    [SerializeField] private Color rewardRevealFlashColor = new Color(1f, 0.90f, 0.48f, 1f);
+    [SerializeField] private float rewardRevealBoardShakeLeadTime = 0.06f;
+    [SerializeField] private float rewardRevealBoardShakeMultiplier = 1.22f;
+    [SerializeField] private float rewardRevealBoardShakeDuration = 0.11f;
 
     [Header("パネル微呼吸")]
     [SerializeField] private bool enableIdleBreathing = true;
@@ -125,6 +159,15 @@ public class PanelBoardController : MonoBehaviour
     [SerializeField] private Vector2 resonanceBadgeOffset = new Vector2(-10f, -10f);
     [SerializeField] private float resonanceBadgePulseScale = 1.12f;
     [SerializeField] private float resonanceBadgePulseDuration = 0.55f;
+
+    private static readonly string[] CuratedOpeningTemplates =
+    {
+        "224133|404113|400122|334422|310100|110133",
+        "322033|324011|114333|333122|112120|442100",
+        "422440|411400|314041|334001|224010|441110"
+    };
+
+    private bool boardPreparedForIntroDrop = false;
 
     private Action<int, int> onPanelClicked;
     private Func<int, int, bool> onSpecialPanelClicked;
@@ -208,6 +251,11 @@ public class PanelBoardController : MonoBehaviour
         onSpecialPanelClicked = handler;
     }
 
+    public void SetBattleItemIconDatabase(BattleItemIconDatabase database)
+    {
+        battleItemIconDatabase = database;
+    }
+
     public GameObject GetPanelObject(int row, int col)
     {
         if (!IsInRange(row, col) || panelObjects == null) return null;
@@ -218,6 +266,8 @@ public class PanelBoardController : MonoBehaviour
     {
         if (gridData == null || panelObjects == null) return;
 
+        PanelType[,] openingLayout = TryBuildCuratedOpeningLayout();
+
         for (int r = 0; r < rows; r++)
         {
             for (int c = 0; c < cols; c++)
@@ -227,11 +277,11 @@ public class PanelBoardController : MonoBehaviour
                 SetPanelBackgroundTransparent(newPanel);
                 StartPanelIdleBreath(newPanel);
 
-                PanelType randomType = GetRandomPanelType();
-                gridData[r, c] = randomType;
+                PanelType panelType = openingLayout != null ? openingLayout[r, c] : GetRandomPanelType();
+                gridData[r, c] = panelType;
                 panelObjects[r, c] = newPanel;
                 attachedItems[r, c] = null;
-                resonanceFlags[r, c] = ShouldSpawnResonanceForPanel(randomType);
+                resonanceFlags[r, c] = ShouldSpawnResonanceForPanel(panelType);
 
                 UpdatePanelVisual(r, c);
                 RefreshPanelHighlightVisual(r, c);
@@ -263,6 +313,183 @@ public class PanelBoardController : MonoBehaviour
         }
     }
 
+    public void PrepareBoardForIntroDrop()
+    {
+        if (panelObjects == null || gridData == null)
+        {
+            return;
+        }
+
+        boardPreparedForIntroDrop = true;
+
+        for (int r = 0; r < rows; r++)
+        {
+            for (int c = 0; c < cols; c++)
+            {
+                if (gridData[r, c] == PanelType.None) continue;
+
+                GameObject panelObj = panelObjects[r, c];
+                if (panelObj == null) continue;
+
+                Transform panelTransform = panelObj.transform;
+                panelTransform.DOKill();
+                panelTransform.localScale = Vector3.one * 0.94f;
+
+                Transform iconTransform = panelTransform.Find("IconImage");
+                if (iconTransform == null) continue;
+
+                iconTransform.DOKill();
+
+                Image img = iconTransform.GetComponent<Image>();
+                if (img != null)
+                {
+                    img.DOKill();
+                    Color color = img.color;
+                    color.a = 0f;
+                    img.color = color;
+                }
+
+                iconTransform.localScale = Vector3.one * introDropStartScale;
+                iconTransform.localRotation = Quaternion.identity;
+                iconTransform.localPosition = new Vector3(0f, ResolveIntroDropStartY(r), 0f);
+            }
+        }
+    }
+
+    public IEnumerator PlayIntroBoardDropRoutine()
+    {
+        if (panelObjects == null || gridData == null)
+        {
+            yield break;
+        }
+
+        if (!boardPreparedForIntroDrop)
+        {
+            yield break;
+        }
+
+        float longestTime = 0f;
+        float columnCenter = (cols - 1) * 0.5f;
+
+        for (int r = 0; r < rows; r++)
+        {
+            for (int c = 0; c < cols; c++)
+            {
+                if (gridData[r, c] == PanelType.None) continue;
+
+                GameObject panelObj = panelObjects[r, c];
+                if (panelObj == null) continue;
+
+                Transform panelTransform = panelObj.transform;
+                Transform iconTransform = panelTransform.Find("IconImage");
+                if (iconTransform == null) continue;
+
+                panelTransform.DOKill();
+                iconTransform.DOKill();
+
+                Image img = iconTransform.GetComponent<Image>();
+                if (img != null)
+                {
+                    img.DOKill();
+                }
+
+                float delay = (r * introDropRowStagger) + (Mathf.Abs(c - columnCenter) * introDropColumnStagger);
+                float settleTime = delay + introDropDuration;
+                if (settleTime > longestTime)
+                {
+                    longestTime = settleTime;
+                }
+
+                panelTransform.localScale = Vector3.one * 0.94f;
+                iconTransform.localPosition = new Vector3(0f, ResolveIntroDropStartY(r), 0f);
+                iconTransform.localScale = Vector3.one * introDropStartScale;
+                iconTransform.localRotation = Quaternion.identity;
+
+                iconTransform.DOLocalMoveY(0f, introDropDuration)
+                    .SetDelay(delay)
+                    .SetEase(introDropEase);
+
+                Sequence panelScaleSeq = DOTween.Sequence();
+                panelScaleSeq.SetLink(panelObj, LinkBehaviour.KillOnDestroy);
+                panelScaleSeq.SetDelay(delay);
+                panelScaleSeq.Append(panelTransform.DOScale(introDropLandingScale, introDropDuration * 0.56f).SetEase(Ease.OutQuad));
+                panelScaleSeq.Append(panelTransform.DOScale(1f, introDropDuration * 0.24f).SetEase(Ease.OutBack));
+                panelScaleSeq.OnComplete(() =>
+                {
+                    if (panelObj != null)
+                    {
+                        StartPanelIdleBreath(panelObj);
+                    }
+                });
+
+                Sequence iconScaleSeq = DOTween.Sequence();
+                iconScaleSeq.SetLink(panelObj, LinkBehaviour.KillOnDestroy);
+                iconScaleSeq.SetDelay(delay);
+                iconScaleSeq.Append(iconTransform.DOScale(1.06f, introDropDuration * 0.58f).SetEase(Ease.OutQuad));
+                iconScaleSeq.Append(iconTransform.DOScale(1f, introDropDuration * 0.20f).SetEase(Ease.OutSine));
+
+                if (img != null)
+                {
+                    Color targetColor = img.color;
+                    targetColor.a = 1f;
+                    img.color = new Color(targetColor.r, targetColor.g, targetColor.b, 0f);
+                    img.DOFade(targetColor.a, introDropFadeDuration)
+                        .SetDelay(delay)
+                        .SetEase(Ease.OutQuad);
+                }
+
+                Image flash = GetOrCreateTapFlashFx(panelTransform);
+                if (flash != null)
+                {
+                    flash.DOKill();
+                    flash.enabled = true;
+                    flash.gameObject.SetActive(true);
+                    flash.color = new Color(1f, 0.96f, 0.72f, 0f);
+                    flash.DOFade(introDropFlashAlpha, introDropDuration * 0.42f)
+                        .SetDelay(delay)
+                        .SetEase(Ease.OutQuad)
+                        .OnComplete(() =>
+                        {
+                            if (flash != null)
+                            {
+                                flash.DOFade(0f, introDropDuration * 0.26f)
+                                    .SetEase(Ease.OutSine)
+                                    .OnComplete(() =>
+                                    {
+                                        if (flash != null)
+                                        {
+                                            flash.enabled = false;
+                                        }
+                                    });
+                            }
+                        });
+                }
+            }
+        }
+
+        boardPreparedForIntroDrop = false;
+
+        if (longestTime > 0f)
+        {
+            float shakeTime = Mathf.Max(0f, longestTime - introDropImpactLeadTime);
+            if (shakeTime > 0f)
+            {
+                yield return new WaitForSeconds(shakeTime);
+            }
+
+            if (introDropImpactShakeDuration > 0f)
+            {
+                PlayImpactShake(introDropImpactShakeMultiplier, introDropImpactShakeDuration);
+            }
+
+            float remaining = Mathf.Max(0f, longestTime - shakeTime);
+            if (remaining > 0f)
+            {
+                yield return new WaitForSeconds(remaining + 0.02f);
+            }
+        }
+    }
+
     public PanelType GetPanelType(int row, int col)
     {
         if (!IsInRange(row, col)) return PanelType.None;
@@ -279,6 +506,165 @@ public class PanelBoardController : MonoBehaviour
     {
         if (!HasRewardPanelAt(row, col)) return null;
         return rewardPanels[row, col];
+    }
+
+    public IEnumerator PlayRewardRevealRoutine(List<BoardRewardPanelCell> rewards)
+    {
+        if (rewards == null || rewards.Count == 0)
+        {
+            yield break;
+        }
+
+        if (panelObjects == null || rewardPanels == null)
+        {
+            yield break;
+        }
+
+        List<BoardRewardPanelCell> orderedRewards = new List<BoardRewardPanelCell>(rewards);
+        Vector2 center = new Vector2((rows - 1) * 0.5f, (cols - 1) * 0.5f);
+        orderedRewards.Sort((a, b) =>
+        {
+            float da = Vector2.SqrMagnitude(new Vector2(a.row, a.col) - center);
+            float db = Vector2.SqrMagnitude(new Vector2(b.row, b.col) - center);
+            int cmp = da.CompareTo(db);
+            if (cmp != 0) return cmp;
+            cmp = a.col.CompareTo(b.col);
+            if (cmp != 0) return cmp;
+            return a.row.CompareTo(b.row);
+        });
+
+        float longestTime = 0f;
+
+        for (int i = 0; i < orderedRewards.Count; i++)
+        {
+            BoardRewardPanelCell reward = orderedRewards[i];
+            if (reward == null || !IsInRange(reward.row, reward.col))
+            {
+                continue;
+            }
+
+            GameObject panelObj = panelObjects[reward.row, reward.col];
+            if (panelObj == null)
+            {
+                continue;
+            }
+
+            Transform panelTransform = panelObj.transform;
+            Transform iconTransform = panelTransform.Find("IconImage");
+            Image img = iconTransform != null ? iconTransform.GetComponent<Image>() : null;
+
+            panelTransform.DOKill();
+            if (iconTransform != null)
+            {
+                iconTransform.DOKill();
+            }
+            if (img != null)
+            {
+                img.DOKill();
+            }
+
+            Vector3 basePos = panelTransform.localPosition;
+            panelTransform.localPosition = basePos + Vector3.up * rewardRevealLift;
+            panelTransform.localScale = Vector3.one * rewardRevealStartScale;
+
+            if (iconTransform != null)
+            {
+                iconTransform.localPosition = Vector3.zero;
+                iconTransform.localScale = Vector3.one * 0.86f;
+                iconTransform.localRotation = Quaternion.identity;
+            }
+
+            if (img != null)
+            {
+                Color color = img.color;
+                color.a = 0f;
+                img.color = color;
+            }
+
+            float delay = rewardRevealPreDelay + (i * rewardRevealStagger);
+            float settleTime = delay + rewardRevealDuration;
+            if (settleTime > longestTime)
+            {
+                longestTime = settleTime;
+            }
+
+            Sequence panelSeq = DOTween.Sequence();
+            panelSeq.SetLink(panelObj, LinkBehaviour.KillOnDestroy);
+            panelSeq.SetDelay(delay);
+            panelSeq.Append(panelTransform.DOLocalMove(basePos, rewardRevealDuration).SetEase(Ease.OutCubic));
+            panelSeq.Join(panelTransform.DOScale(rewardRevealOvershootScale, rewardRevealDuration * 0.64f).SetEase(Ease.OutQuad));
+            panelSeq.Append(panelTransform.DOScale(1f, rewardRevealDuration * 0.24f).SetEase(Ease.OutBack));
+            panelSeq.OnComplete(() =>
+            {
+                if (panelObj != null)
+                {
+                    StartPanelIdleBreath(panelObj);
+                }
+            });
+
+            if (iconTransform != null)
+            {
+                Sequence iconSeq = DOTween.Sequence();
+                iconSeq.SetLink(panelObj, LinkBehaviour.KillOnDestroy);
+                iconSeq.SetDelay(delay);
+                iconSeq.Append(iconTransform.DOScale(1.08f, rewardRevealDuration * 0.58f).SetEase(Ease.OutQuad));
+                iconSeq.Append(iconTransform.DOScale(1f, rewardRevealDuration * 0.18f).SetEase(Ease.OutSine));
+            }
+
+            if (img != null)
+            {
+                img.DOFade(1f, rewardRevealFadeDuration)
+                    .SetDelay(delay)
+                    .SetEase(Ease.OutQuad);
+            }
+
+            Image flash = GetOrCreateTapFlashFx(panelTransform);
+            if (flash != null)
+            {
+                flash.DOKill();
+                flash.enabled = true;
+                flash.gameObject.SetActive(true);
+                flash.color = new Color(rewardRevealFlashColor.r, rewardRevealFlashColor.g, rewardRevealFlashColor.b, 0f);
+                flash.DOFade(rewardRevealFlashAlpha, rewardRevealDuration * 0.42f)
+                    .SetDelay(delay)
+                    .SetEase(Ease.OutQuad)
+                    .OnComplete(() =>
+                    {
+                        if (flash != null)
+                        {
+                            flash.DOFade(0f, rewardRevealDuration * 0.22f)
+                                .SetEase(Ease.OutSine)
+                                .OnComplete(() =>
+                                {
+                                    if (flash != null)
+                                    {
+                                        flash.enabled = false;
+                                    }
+                                });
+                        }
+                    });
+            }
+        }
+
+        if (longestTime > 0f)
+        {
+            float shakeTime = Mathf.Max(0f, longestTime - rewardRevealBoardShakeLeadTime);
+            if (shakeTime > 0f)
+            {
+                yield return new WaitForSeconds(shakeTime);
+            }
+
+            if (rewardRevealBoardShakeDuration > 0f)
+            {
+                PlayImpactShake(rewardRevealBoardShakeMultiplier, rewardRevealBoardShakeDuration);
+            }
+
+            float remaining = Mathf.Max(0f, longestTime - shakeTime);
+            if (remaining > 0f)
+            {
+                yield return new WaitForSeconds(remaining + 0.02f);
+            }
+        }
     }
 
     public bool TryPlaceRewardPanels(List<BoardRewardPanelCell> rewards)
@@ -1156,6 +1542,20 @@ public class PanelBoardController : MonoBehaviour
         return cachedWhiteSprite;
     }
 
+    private BattleItemData CreatePresetWithIcon(BattleItemType itemType)
+    {
+        if (battleItemIconDatabase != null)
+        {
+            BattleItemData itemWithIcon = battleItemIconDatabase.CreatePreset(itemType);
+            if (itemWithIcon != null)
+            {
+                return itemWithIcon;
+            }
+        }
+
+        return BattleItemData.CreatePreset(itemType);
+    }
+
     private BattleItemData CreateAttachedItemForPanelType(PanelType panelType)
     {
         int roll = UnityEngine.Random.Range(0, 100);
@@ -1163,22 +1563,107 @@ public class PanelBoardController : MonoBehaviour
         switch (panelType)
         {
             case PanelType.Sword:
-                return BattleItemData.CreatePreset(roll < 65
-                    ? BattleItemType.AttackOil
-                    : BattleItemType.ShockCanister);
+                return CreatePresetWithIcon(roll < 60
+                    ? BattleItemType.ShockCanister
+                    : BattleItemType.ActivationCell);
 
             case PanelType.Heal:
-                return BattleItemData.CreatePreset(roll < 75
+                return CreatePresetWithIcon(roll < 75
                     ? BattleItemType.FieldBandage
                     : BattleItemType.ActivationCell);
 
             case PanelType.LvUp:
-                return BattleItemData.CreatePreset(roll < 55
-                    ? BattleItemType.AttackOil
-                    : BattleItemType.ActivationCell);
+                return CreatePresetWithIcon(roll < 50
+                    ? BattleItemType.ActivationCell
+                    : BattleItemType.ShockCanister);
         }
 
         return null;
+    }
+
+    private PanelType[,] TryBuildCuratedOpeningLayout()
+    {
+        if (!useCuratedOpeningLayouts)
+        {
+            return null;
+        }
+
+        if (rows != 6 || cols != 6)
+        {
+            return null;
+        }
+
+        string[] templates =
+        {
+            // 中央に役割ブロックをまとめ、周囲に帯を置く型。
+            "HHEEAA/HSSSAA/EHSSAE/AEHHAE/AAHHSE/EEHHSS",
+
+            // 縦レーン感を強めた型。役割が列で見える。
+            "HASEEH/HASEEH/SEAHHS/SEAHHS/EHSAAE/EHSAAE",
+
+            // 中央に剣と弾薬の塊、上下に回復とEXPの帯を置く型。
+            "HHEEHH/ASSSAE/ASSHAE/EAHHSE/EAASSE/HHEEHH",
+
+            // 左右に細い帯、中央に2x2塊を段で重ねる型。
+            "HEAASH/HEAASH/SSAHEE/SSAHEE/AASEHH/AASEHH",
+
+            // 盤面中央へ視線が集まるよう、中央2列を強く見せる型。
+            "HAEASH/HAEASH/ESSHAE/ESSHAE/AHEEAS/AHEEAS"
+        };
+
+        string picked = templates[UnityEngine.Random.Range(0, templates.Length)];
+        return BuildLayoutFromTemplate(picked);
+    }
+
+    private PanelType[,] BuildLayoutFromTemplate(string template)
+    {
+        if (string.IsNullOrEmpty(template))
+        {
+            return null;
+        }
+
+        string[] rowTokens = template.Split('/');
+        if (rowTokens.Length != rows)
+        {
+            Debug.LogWarning($"PanelBoardController: 初期盤面テンプレの行数が一致しません: {template}");
+            return null;
+        }
+
+        PanelType[,] layout = new PanelType[rows, cols];
+
+        for (int r = 0; r < rows; r++)
+        {
+            string rowToken = rowTokens[r];
+            if (string.IsNullOrEmpty(rowToken) || rowToken.Length != cols)
+            {
+                Debug.LogWarning($"PanelBoardController: 初期盤面テンプレの列数が一致しません: {template}");
+                return null;
+            }
+
+            for (int c = 0; c < cols; c++)
+            {
+                layout[r, c] = GetCuratedOpeningPanelType(rowToken[c]);
+            }
+        }
+
+        return layout;
+    }
+
+    private PanelType GetCuratedOpeningPanelType(char token)
+    {
+        switch (char.ToUpperInvariant(token))
+        {
+            case 'S': return PanelType.Sword;
+            case 'A': return PanelType.Ammo;
+            case 'H': return PanelType.Heal;
+            case 'E': return PanelType.LvUp;
+            default: return GetRandomPanelType();
+        }
+    }
+
+    private float ResolveIntroDropStartY(int row)
+    {
+        return introDropStartY + ((rows - 1 - row) * introDropRowOffset);
     }
 
     private PanelType GetRandomPanelType()

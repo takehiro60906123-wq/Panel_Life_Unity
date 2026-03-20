@@ -1,7 +1,10 @@
-using UnityEngine;
+﻿using UnityEngine;
 
 public class PlayerCombatController : MonoBehaviour
 {
+    public System.Action<WeaponType> OnMeleeWeaponEquipped;
+    public System.Action<GunType> OnGunEquipped;
+
     [Header("Loadout")]
     public PlayerCombatLoadout loadout;
 
@@ -207,6 +210,11 @@ public class PlayerCombatController : MonoBehaviour
         {
             loadout.currentGunGauge = Mathf.Clamp(loadout.currentGunGauge, 0, loadout.maxGunGauge);
         }
+
+        if (loadout.gun != null)
+        {
+            OnGunEquipped?.Invoke(loadout.gun.gunType);
+        }
     }
 
     public void EquipGunType(GunType gunType, bool refillGauge = false)
@@ -277,6 +285,8 @@ public class PlayerCombatController : MonoBehaviour
             maxLink = 4,
             baseAttack = 1
         };
+
+        OnMeleeWeaponEquipped?.Invoke(loadout.meleeWeapon.weaponType);
     }
 
     public void EquipGreatSword()
@@ -288,6 +298,8 @@ public class PlayerCombatController : MonoBehaviour
             maxLink = 5,
             baseAttack = 1
         };
+
+        OnMeleeWeaponEquipped?.Invoke(loadout.meleeWeapon.weaponType);
     }
 
     public static GunData CreatePrototypeGunData(GunType gunType)
