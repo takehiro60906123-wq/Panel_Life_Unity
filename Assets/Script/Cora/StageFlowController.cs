@@ -166,21 +166,25 @@ public class StageFlowController : MonoBehaviour
 
         int roll = forceEnemy ? 0 : Random.Range(0, 100);
 
-        if (forceEnemy || roll < 65)
+        // Enemy 88%
+        if (forceEnemy || roll < 88)
         {
             return new NextEncounterPlan(false, EncounterType.Enemy, 0);
         }
 
-        if (roll < 82)
+        // Empty 4%
+        if (roll < 92)
         {
             return new NextEncounterPlan(false, EncounterType.Empty, 3);
         }
 
-        if (roll < 95)
+        // Treasure 6%
+        if (roll < 98)
         {
             return new NextEncounterPlan(false, EncounterType.Treasure, 1);
         }
 
+        // Shop 2%
         return new NextEncounterPlan(false, EncounterType.Shop, 1);
     }
 

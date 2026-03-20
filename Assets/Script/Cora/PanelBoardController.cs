@@ -48,23 +48,23 @@ public class PanelBoardController : MonoBehaviour
     [SerializeField] private float chainPreviewJumpY = 10f;
     [SerializeField] private float chainPreviewFlashAlpha = 0.28f;
     [SerializeField] private float chainPreviewStagger = 0.015f;
-[Header("剣パネル演出")]
-[SerializeField] private Color swordAccentColor = new Color(1f, 0.82f, 0.35f, 1f);
+    [Header("剣パネル演出")]
+    [SerializeField] private Color swordAccentColor = new Color(1f, 0.82f, 0.35f, 1f);
 
-[SerializeField] private float swordTapScaleX = 1.16f;
-[SerializeField] private float swordTapScaleY = 0.92f;
-[SerializeField] private float swordTapRotateZ = -10f;
+    [SerializeField] private float swordTapScaleX = 1.16f;
+    [SerializeField] private float swordTapScaleY = 0.92f;
+    [SerializeField] private float swordTapRotateZ = -10f;
 
-[SerializeField] private float swordPreviewScaleX = 1.18f;
-[SerializeField] private float swordPreviewScaleY = 0.90f;
-[SerializeField] private float swordPreviewShiftX = 8f;
+    [SerializeField] private float swordPreviewScaleX = 1.18f;
+    [SerializeField] private float swordPreviewScaleY = 0.90f;
+    [SerializeField] private float swordPreviewShiftX = 8f;
 
-[SerializeField] private float swordPreClearScaleX = 1.20f;
-[SerializeField] private float swordPreClearScaleY = 0.86f;
-[SerializeField] private float swordPreClearShiftX = 14f;
-[SerializeField] private float swordPreClearRotateZ = 14f;
-[SerializeField] private float swordPreClearDuration = 0.05f;
-[SerializeField] private float swordPreClearFlashAlpha = 0.45f;
+    [SerializeField] private float swordPreClearScaleX = 1.20f;
+    [SerializeField] private float swordPreClearScaleY = 0.86f;
+    [SerializeField] private float swordPreClearShiftX = 14f;
+    [SerializeField] private float swordPreClearRotateZ = 14f;
+    [SerializeField] private float swordPreClearDuration = 0.05f;
+    [SerializeField] private float swordPreClearFlashAlpha = 0.45f;
     private static Sprite cachedWhiteSprite;
     private GameObject panelPrefab;
     private Transform boardParent;
@@ -74,7 +74,7 @@ public class PanelBoardController : MonoBehaviour
 
     [Header("パネル微呼吸")]
     [SerializeField] private bool enableIdleBreathing = true;
-    [SerializeField] [Range(1f, 1.05f)] private float idleBreathScaleMax = 1.02f;
+    [SerializeField][Range(1f, 1.05f)] private float idleBreathScaleMax = 1.02f;
     [SerializeField] private float idleBreathHalfDurationMin = 1.2f;
     [SerializeField] private float idleBreathHalfDurationMax = 1.6f;
     [SerializeField] private float idleBreathStartDelayMax = 1.2f;
@@ -582,6 +582,14 @@ public class PanelBoardController : MonoBehaviour
 
         if (!IsInRange(startRow, startCol)) return result;
         if (HasRewardPanelAt(startRow, startCol)) return result;
+
+        // 腐敗パネルは連結させず、常に1枚ずつしか除去できない。
+        if (targetType == PanelType.Corrupt)
+        {
+            result.selected.Add(new Vector2Int(startRow, startCol));
+            result.totalConnected = 1;
+            return result;
+        }
 
         int maxLink = GetCurrentMaxLink();
 
@@ -1367,6 +1375,7 @@ public class PanelBoardController : MonoBehaviour
         {
             for (int c = 0; c < cols; c++)
             {
+                if (HasRewardPanelAt(r, c)) continue;
                 if (gridData[r, c] == type) continue;
                 candidates.Add(new Vector2Int(r, c));
             }
@@ -1580,6 +1589,9 @@ public class PanelBoardController : MonoBehaviour
 
             case PanelType.LvUp:
                 return new Color(0.75f, 0.55f, 1f, 1f);
+
+            case PanelType.Corrupt:
+                return new Color(0.48f, 0.92f, 0.62f, 1f);
 
             default:
                 return Color.white;

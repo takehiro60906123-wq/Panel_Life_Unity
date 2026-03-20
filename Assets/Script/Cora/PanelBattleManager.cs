@@ -5,7 +5,7 @@ using UnityEngine.UI;
 using DG.Tweening;
 using TMPro;
 
-public enum PanelType { Sword, Ammo, Coin, Heal, LvUp, Chick, Diamond, Monster, None }
+public enum PanelType { Sword = 0, Ammo = 1, Coin = 2, Heal = 3, LvUp = 4, Chick = 5, Diamond = 6, Monster = 7, None = 8, Corrupt = 9 }
 
 public enum EncounterType
 {
@@ -1523,6 +1523,8 @@ public class PanelBattleManager : MonoBehaviour
                 return healEnergyColor;
             case PanelType.LvUp:
                 return levelUpEnergyColor;
+            case PanelType.Corrupt:
+                return new Color(0.38f, 0.82f, 0.52f, 1f);
             default:
                 return Color.white;
         }

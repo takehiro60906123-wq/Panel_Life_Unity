@@ -106,15 +106,27 @@ public static class EnemyDataGenerator
     },
     new TierDef
     {
+        startBattle = 5, name = "剣イベント前後（軽め）",
+        enemyIds = new[] { 4, 8, 11, 14 },
+        weights  = new[] { 10, 10, 8, 10 }
+    },
+    new TierDef
+    {
+        startBattle = 6, name = "序盤後半",
+        enemyIds = new[] { 1, 3, 4, 8, 10, 11, 12, 14 },
+        weights  = new[] { 10, 8, 10, 8, 10, 8, 8, 8 }
+    },
+    new TierDef
+    {
         startBattle = 8, name = "中盤",
         enemyIds = new[] { 2, 5, 9, 15, 17, 19, 25, 27, 13 },
         weights  = new[] { 10, 10, 8, 8, 10, 8, 10, 8, 6 }
     },
     new TierDef
     {
-        startBattle = 10, name = "中ボス1",
-        enemyIds = new[] { 21, 5, 13, 26 },
-        weights  = new[] { 22, 24, 24, 30 }
+        startBattle = 10, name = "中ボス1（固定）",
+        enemyIds = new[] { 13 },
+        weights  = new[] { 100 }
     },
     new TierDef
     {
@@ -124,15 +136,21 @@ public static class EnemyDataGenerator
     },
     new TierDef
     {
+        startBattle = 15, name = "大剣イベント前後（軽め）",
+        enemyIds = new[] { 9, 17, 19 },
+        weights  = new[] { 10, 10, 8 }
+    },
+    new TierDef
+    {
         startBattle = 16, name = "終盤",
         enemyIds = new[] { 6, 7, 16, 18, 20, 22, 23, 24, 28, 29 },
         weights  = new[] { 8, 6, 8, 6, 8, 6, 8, 6, 8, 8 }
     },
     new TierDef
     {
-        startBattle = 20, name = "中ボス2",
-        enemyIds = new[] { 31, 30, 22, 7 },
-        weights  = new[] { 24, 24, 28, 24 }
+        startBattle = 20, name = "中ボス2（固定）",
+        enemyIds = new[] { 31 },
+        weights  = new[] { 100 }
     },
     new TierDef
     {
@@ -142,9 +160,15 @@ public static class EnemyDataGenerator
     },
     new TierDef
     {
-        startBattle = 24, name = "最終",
-        enemyIds = new[] { 32, 33, 31, 30, 6 },
-        weights  = new[] { 12, 14, 8, 8, 6 }
+        startBattle = 24, name = "最終前哨",
+        enemyIds = new[] { 32, 31, 30, 6 },
+        weights  = new[] { 14, 10, 10, 6 }
+    },
+    new TierDef
+    {
+        startBattle = 25, name = "最終ボス（固定）",
+        enemyIds = new[] { 33 },
+        weights  = new[] { 100 }
     },
 };
 

@@ -123,7 +123,7 @@ public class BattleBootstrapper : MonoBehaviour
             {
                 if (manager.panelBoardController != null)
                 {
-                    manager.panelBoardController.ForceSetRandomPanels(PanelType.LvUp, count);
+                    manager.panelBoardController.ForceSetRandomPanels(PanelType.Corrupt, count);
                 }
             };
         }

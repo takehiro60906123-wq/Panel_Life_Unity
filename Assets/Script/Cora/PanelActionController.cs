@@ -476,6 +476,10 @@ public class PanelActionController : MonoBehaviour
                 yield return StartCoroutine(PlayExpCollect(chainCount));
                 break;
 
+            case PanelType.Corrupt:
+                yield return StartCoroutine(PlayCorruptPanelClear(chainCount));
+                break;
+
             default:
                 yield return StartCoroutine(FinishTurn());
                 break;
@@ -698,6 +702,21 @@ public class PanelActionController : MonoBehaviour
         }
 
         yield return new WaitForSeconds(0.14f);
+        yield return StartCoroutine(FinishTurn());
+    }
+
+    private IEnumerator PlayCorruptPanelClear(int chainCount)
+    {
+        int cleared = Mathf.Max(0, chainCount);
+
+        Vector3 textPos = playerUnit != null
+            ? playerUnit.transform.position + Vector3.up * 1.8f
+            : Vector3.zero;
+
+        string text = cleared > 1 ? $"腐敗除去 x{cleared}" : "腐敗除去";
+        battleEventHub?.RaiseDamageTextRequested(text, textPos, new Color(0.62f, 0.95f, 0.72f, 1f));
+
+        yield return new WaitForSeconds(0.12f);
         yield return StartCoroutine(FinishTurn());
     }
 

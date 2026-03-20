@@ -5,9 +5,10 @@ public class PlayerCombatController : MonoBehaviour
     [Header("Loadout")]
     public PlayerCombatLoadout loadout;
 
-    [Header("ߐڃx␳")]
+    [Header("レベル補正")]
     [SerializeField] private int levelAttackBonus = 0;
 
+    [Header("初期銃（提出版はピストル固定。未設定でもピストルを装備）")]
     [SerializeField] private GunDefinition defaultGunDefinition;
 
     private void Awake()
@@ -27,44 +28,31 @@ public class PlayerCombatController : MonoBehaviour
             loadout.meleeWeapon = new WeaponData
             {
                 weaponType = WeaponType.None,
-                weaponName = "f",
+                weaponName = "素手",
                 maxLink = 3,
                 baseAttack = 1
             };
         }
 
-        // Default Gun Definition ΍ŗDŎg
-        if (defaultGunDefinition != null)
-        {
-            loadout.gun = defaultGunDefinition.ToGunData();
-        }
-        else if (loadout.gun == null)
-        {
-            // ی: `ݒȂVbgK𒼎w
-            loadout.gun = new GunData
-            {
-                gunType = GunType.Shotgun,
-                gunName = "VbgK",
-                gaugeCost = 5,
-                shotCount = 3,
-                damagePerShot = 1,
-                useAllGauge = false,
-                minGaugeToFire = 5,
-                shotInterval = 0.02f,
-                finishDelay = 0.24f
-            };
-        }
+        loadout.gun = BuildInitialGunData();
 
-        // Q[Wő傪ݒȂŒ␳
         if (loadout.maxGunGauge <= 0)
         {
             loadout.maxGunGauge = 10;
         }
 
-        // ݃Q[W͔͈͓ɕ␳
         loadout.currentGunGauge = Mathf.Clamp(loadout.currentGunGauge, 0, loadout.maxGunGauge);
-
         NormalizeEquippedGunData();
+    }
+
+    private GunData BuildInitialGunData()
+    {
+        if (defaultGunDefinition != null && defaultGunDefinition.gunType == GunType.Pistol)
+        {
+            return defaultGunDefinition.ToGunData();
+        }
+
+        return CreatePrototypeGunData(GunType.Pistol);
     }
 
     public int GetMaxLink()
@@ -180,7 +168,7 @@ public class PlayerCombatController : MonoBehaviour
     public string GetWeaponName()
     {
         if (loadout == null || loadout.meleeWeapon == null)
-            return "f";
+            return "素手";
 
         return loadout.meleeWeapon.weaponName;
     }
@@ -188,7 +176,7 @@ public class PlayerCombatController : MonoBehaviour
     public string GetGunName()
     {
         if (loadout == null || loadout.gun == null)
-            return "Ȃ";
+            return "なし";
 
         return loadout.gun.gunName;
     }
@@ -199,6 +187,31 @@ public class PlayerCombatController : MonoBehaviour
 
         NormalizeEquippedGunData();
         return loadout.gun;
+    }
+
+    public void EquipGun(GunData gunData, bool refillGauge = false)
+    {
+        if (loadout == null)
+        {
+            loadout = new PlayerCombatLoadout();
+        }
+
+        loadout.gun = CloneGunData(gunData);
+        NormalizeEquippedGunData();
+
+        if (refillGauge)
+        {
+            loadout.currentGunGauge = loadout.maxGunGauge;
+        }
+        else
+        {
+            loadout.currentGunGauge = Mathf.Clamp(loadout.currentGunGauge, 0, loadout.maxGunGauge);
+        }
+    }
+
+    public void EquipGunType(GunType gunType, bool refillGauge = false)
+    {
+        EquipGun(CreatePrototypeGunData(gunType), refillGauge);
     }
 
     private void NormalizeEquippedGunData()
@@ -215,6 +228,8 @@ public class PlayerCombatController : MonoBehaviour
                 gun.shotCount = 2;
                 gun.damagePerShot = 2;
                 if (gun.scalingRate <= 0f) gun.scalingRate = 0.15f;
+                if (gun.shotInterval <= 0f) gun.shotInterval = 0.08f;
+                if (gun.finishDelay <= 0f) gun.finishDelay = 0.22f;
                 break;
 
             case GunType.Rifle:
@@ -224,14 +239,31 @@ public class PlayerCombatController : MonoBehaviour
                 gun.shotCount = 1;
                 gun.damagePerShot = 5;
                 if (gun.scalingRate <= 0f) gun.scalingRate = 0.5f;
+                if (gun.shotInterval <= 0f) gun.shotInterval = 0.08f;
+                if (gun.finishDelay <= 0f) gun.finishDelay = 0.24f;
                 break;
 
             case GunType.Shotgun:
+                gun.gunName = string.IsNullOrEmpty(gun.gunName) ? "ショットガン" : gun.gunName;
+                gun.gaugeCost = 5;
+                gun.minGaugeToFire = 5;
+                gun.shotCount = 3;
+                gun.damagePerShot = 1;
                 if (gun.scalingRate <= 0f) gun.scalingRate = 0.2f;
+                if (gun.shotInterval <= 0f) gun.shotInterval = 0.05f;
+                if (gun.finishDelay <= 0f) gun.finishDelay = 0.26f;
                 break;
 
             case GunType.MachineGun:
+                gun.gunName = string.IsNullOrEmpty(gun.gunName) ? "マシンガン" : gun.gunName;
+                gun.gaugeCost = 0;
+                gun.minGaugeToFire = 3;
+                gun.shotCount = 1;
+                gun.damagePerShot = 1;
+                gun.useAllGauge = true;
                 if (gun.scalingRate <= 0f) gun.scalingRate = 0.1f;
+                if (gun.shotInterval <= 0f) gun.shotInterval = 0.04f;
+                if (gun.finishDelay <= 0f) gun.finishDelay = 0.28f;
                 break;
         }
     }
@@ -241,7 +273,7 @@ public class PlayerCombatController : MonoBehaviour
         loadout.meleeWeapon = new WeaponData
         {
             weaponType = WeaponType.Sword,
-            weaponName = "",
+            weaponName = "剣",
             maxLink = 4,
             baseAttack = 1
         };
@@ -252,9 +284,93 @@ public class PlayerCombatController : MonoBehaviour
         loadout.meleeWeapon = new WeaponData
         {
             weaponType = WeaponType.GreatSword,
-            weaponName = "匕",
+            weaponName = "大剣",
             maxLink = 5,
             baseAttack = 1
+        };
+    }
+
+    public static GunData CreatePrototypeGunData(GunType gunType)
+    {
+        switch (gunType)
+        {
+            case GunType.Pistol:
+                return new GunData
+                {
+                    gunType = GunType.Pistol,
+                    gunName = "ピストル",
+                    gaugeCost = 2,
+                    shotCount = 2,
+                    damagePerShot = 2,
+                    scalingRate = 0.15f,
+                    useAllGauge = false,
+                    minGaugeToFire = 2,
+                    shotInterval = 0.08f,
+                    finishDelay = 0.22f,
+                };
+            case GunType.MachineGun:
+                return new GunData
+                {
+                    gunType = GunType.MachineGun,
+                    gunName = "マシンガン",
+                    gaugeCost = 0,
+                    shotCount = 1,
+                    damagePerShot = 1,
+                    scalingRate = 0.1f,
+                    useAllGauge = true,
+                    minGaugeToFire = 3,
+                    shotInterval = 0.04f,
+                    finishDelay = 0.28f,
+                };
+            case GunType.Shotgun:
+                return new GunData
+                {
+                    gunType = GunType.Shotgun,
+                    gunName = "ショットガン",
+                    gaugeCost = 5,
+                    shotCount = 3,
+                    damagePerShot = 1,
+                    scalingRate = 0.2f,
+                    useAllGauge = false,
+                    minGaugeToFire = 5,
+                    shotInterval = 0.05f,
+                    finishDelay = 0.26f,
+                };
+            case GunType.Rifle:
+                return new GunData
+                {
+                    gunType = GunType.Rifle,
+                    gunName = "ライフル",
+                    gaugeCost = 4,
+                    shotCount = 1,
+                    damagePerShot = 5,
+                    scalingRate = 0.5f,
+                    useAllGauge = false,
+                    minGaugeToFire = 4,
+                    shotInterval = 0.08f,
+                    finishDelay = 0.24f,
+                };
+            default:
+                return null;
+        }
+    }
+
+    private static GunData CloneGunData(GunData source)
+    {
+        if (source == null) return null;
+
+        return new GunData
+        {
+            gunType = source.gunType,
+            gunName = source.gunName,
+            gaugeCost = source.gaugeCost,
+            shotCount = source.shotCount,
+            damagePerShot = source.damagePerShot,
+            scalingRate = source.scalingRate,
+            useAllGauge = source.useAllGauge,
+            minGaugeToFire = source.minGaugeToFire,
+            shotInterval = source.shotInterval,
+            finishDelay = source.finishDelay,
         };
     }
 }
