@@ -12,6 +12,11 @@ public class BattleUnit : MonoBehaviour
     public int maxHP = 15;
     [SerializeField] private int currentHP;
 
+    [Header("外殻")]
+    [Tooltip("外殻の最大HP。0なら外殻なし")]
+    public int maxShellHp = 0;
+    [SerializeField] private int currentShellHp;
+
     [Header("報酬（敵専用）")]
     public int expYield = 2;
     public int coinYield = 3;
@@ -34,6 +39,8 @@ public class BattleUnit : MonoBehaviour
     [Header("UI連携")]
     public Slider hpSlider;
     public TextMeshProUGUI hpText;
+    public Slider shellSlider;
+    public TextMeshProUGUI shellText;
 
     [Header("アニメーター")]
     public Animator animator;
@@ -52,6 +59,9 @@ public class BattleUnit : MonoBehaviour
 
     public StatusEffectHolder StatusEffects => statusEffects;
     public int CurrentHP => currentHP;
+    public int CurrentShellHp => currentShellHp;
+    public int MaxShellHp => maxShellHp;
+    public bool HasActiveShell => currentShellHp > 0;
 
     public bool IsReadyToAttack()
     {
@@ -71,6 +81,7 @@ public class BattleUnit : MonoBehaviour
         }
 
         currentHP = Mathf.Clamp(currentHP, 0, maxHP);
+        currentShellHp = Mathf.Clamp(currentShellHp <= 0 ? maxShellHp : currentShellHp, 0, Mathf.Max(0, maxShellHp));
 
         progression = GetComponent<PlayerProgression>();
         turnState = GetComponent<EnemyTurnState>();
@@ -91,7 +102,7 @@ public class BattleUnit : MonoBehaviour
 
         progression.Initialize(level, currentExp);
         turnState.Configure(attackInterval, currentCooldown);
-        view.BindLegacyReferences(hpSlider, hpText, levelText, turnText, animator);
+        view.BindLegacyReferences(hpSlider, hpText, levelText, turnText, shellSlider, shellText, animator);
 
         statusIconPresenter.Initialize(this, statusEffects);
         statusIconPresenter.SetVisible(hpSlider == null || hpSlider.gameObject.activeSelf);
@@ -145,7 +156,7 @@ public class BattleUnit : MonoBehaviour
 
     public void UpdateUI()
     {
-        view.RefreshHP(currentHP, maxHP);
+        view.RefreshHP(currentHP, maxHP, currentShellHp, maxShellHp);
         view.RefreshLevel(level);
     }
 
@@ -160,6 +171,7 @@ public class BattleUnit : MonoBehaviour
     public void Respawn()
     {
         currentHP = maxHP;
+        currentShellHp = maxShellHp;
         view.PlayIdle();
         RefreshAll();
     }
@@ -281,6 +293,12 @@ public class BattleUnit : MonoBehaviour
         currentHP = Mathf.Max(1, Mathf.RoundToInt(currentHP * hpMultiplier));
         currentHP = Mathf.Clamp(currentHP, 0, maxHP);
 
+        if (maxShellHp > 0)
+        {
+            maxShellHp = Mathf.Max(1, Mathf.RoundToInt(maxShellHp * hpMultiplier));
+            currentShellHp = Mathf.Clamp(Mathf.RoundToInt(currentShellHp * hpMultiplier), 0, maxShellHp);
+        }
+
         attackPower = Mathf.Max(0, attackPower + attackBonus);
         expYield = Mathf.Max(0, expYield + rewardBonus);
         coinYield = Mathf.Max(0, coinYield + rewardBonus);
@@ -322,6 +340,46 @@ public class BattleUnit : MonoBehaviour
 
         RefreshAll();
         return result;
+    }
+
+    public void SetMaxShell(int value, bool refillCurrent)
+    {
+        maxShellHp = Mathf.Max(0, value);
+
+        if (refillCurrent)
+        {
+            currentShellHp = maxShellHp;
+        }
+        else
+        {
+            currentShellHp = Mathf.Clamp(currentShellHp, 0, maxShellHp);
+        }
+
+        RefreshAll();
+    }
+
+    public int ApplyShellDamage(int incomingDamage, out int absorbedDamage, out bool shellBrokenThisHit)
+    {
+        absorbedDamage = 0;
+        shellBrokenThisHit = false;
+
+        if (incomingDamage <= 0 || currentShellHp <= 0)
+        {
+            return incomingDamage;
+        }
+
+        absorbedDamage = Mathf.Min(currentShellHp, incomingDamage);
+        currentShellHp -= absorbedDamage;
+        int remainingDamage = incomingDamage - absorbedDamage;
+
+        if (absorbedDamage > 0 && currentShellHp <= 0)
+        {
+            currentShellHp = 0;
+            shellBrokenThisHit = true;
+        }
+
+        RefreshAll();
+        return remainingDamage;
     }
 
     private void RefreshAll()

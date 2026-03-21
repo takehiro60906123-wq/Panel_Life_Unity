@@ -8,7 +8,17 @@ public class BattleUnitView : MonoBehaviour
     private TextMeshProUGUI hpText;
     private TextMeshProUGUI levelText;
     private TextMeshProUGUI turnText;
+    private Slider shellSlider;
+    private TextMeshProUGUI shellText;
     private Animator animator;
+
+    [Header("Shell UI")]
+    [SerializeField] private bool autoCreateShellBarIfMissing = true;
+    [SerializeField] private Color autoShellFillColor = new Color(0.72f, 0.82f, 0.92f, 0.95f);
+    [SerializeField] private Color autoShellBackgroundColor = new Color(0.18f, 0.23f, 0.30f, 0.55f);
+
+    private RectTransform autoShellRoot;
+    private Image autoShellFillImage;
 
     [Header("Turn Hint UI")]
     [SerializeField] private Image turnIndicatorImage;
@@ -34,12 +44,16 @@ public class BattleUnitView : MonoBehaviour
         TextMeshProUGUI hp,
         TextMeshProUGUI level,
         TextMeshProUGUI turn,
+        Slider shell,
+        TextMeshProUGUI shellValueText,
         Animator anim)
     {
         hpSlider = slider;
         hpText = hp;
         levelText = level;
         turnText = turn;
+        shellSlider = shell;
+        shellText = shellValueText;
         animator = anim;
 
         if (tweenPresenter == null)
@@ -59,6 +73,7 @@ public class BattleUnitView : MonoBehaviour
 
         tweenPresenter?.EnsureSetup();
         CacheTurnIndicatorReferences();
+        EnsureShellUI();
         RefreshTurnHintFromCurrentState(force: true);
     }
 
@@ -77,7 +92,7 @@ public class BattleUnitView : MonoBehaviour
         RefreshTurnHintFromCurrentState();
     }
 
-    public void RefreshHP(int currentHP, int maxHP)
+    public void RefreshHP(int currentHP, int maxHP, int currentShellHp, int maxShellHp)
     {
         if (hpSlider != null)
         {
@@ -88,6 +103,108 @@ public class BattleUnitView : MonoBehaviour
         if (hpText != null)
         {
             hpText.text = $"{currentHP} / {maxHP}";
+        }
+
+        RefreshShell(currentShellHp, maxShellHp);
+    }
+
+    private void EnsureShellUI()
+    {
+        if (shellSlider != null || autoShellRoot != null || !autoCreateShellBarIfMissing || hpSlider == null)
+        {
+            return;
+        }
+
+        RectTransform hpRect = hpSlider.GetComponent<RectTransform>();
+        if (hpRect == null)
+        {
+            return;
+        }
+
+        Transform existing = hpRect.Find("AutoShellBar");
+        if (existing != null)
+        {
+            autoShellRoot = existing as RectTransform;
+            if (autoShellRoot != null)
+            {
+                Transform fill = autoShellRoot.Find("Fill");
+                if (fill != null)
+                {
+                    autoShellFillImage = fill.GetComponent<Image>();
+                }
+            }
+            return;
+        }
+
+        GameObject rootObj = new GameObject("AutoShellBar", typeof(RectTransform), typeof(Image));
+        autoShellRoot = rootObj.GetComponent<RectTransform>();
+        autoShellRoot.SetParent(hpRect, false);
+        autoShellRoot.anchorMin = new Vector2(0f, 0f);
+        autoShellRoot.anchorMax = new Vector2(1f, 0f);
+        autoShellRoot.pivot = new Vector2(0.5f, 1f);
+        autoShellRoot.anchoredPosition = new Vector2(0f, -1.5f);
+        autoShellRoot.sizeDelta = new Vector2(0f, Mathf.Max(4f, hpRect.rect.height * 0.28f));
+
+        Image bg = rootObj.GetComponent<Image>();
+        bg.color = autoShellBackgroundColor;
+        bg.raycastTarget = false;
+
+        GameObject fillObj = new GameObject("Fill", typeof(RectTransform), typeof(Image));
+        RectTransform fillRect = fillObj.GetComponent<RectTransform>();
+        fillRect.SetParent(autoShellRoot, false);
+        fillRect.anchorMin = new Vector2(0f, 0f);
+        fillRect.anchorMax = new Vector2(1f, 1f);
+        fillRect.offsetMin = Vector2.zero;
+        fillRect.offsetMax = Vector2.zero;
+
+        autoShellFillImage = fillObj.GetComponent<Image>();
+        autoShellFillImage.color = autoShellFillColor;
+        autoShellFillImage.raycastTarget = false;
+        autoShellRoot.gameObject.SetActive(false);
+    }
+
+    private void RefreshShell(int currentShellHp, int maxShellHp)
+    {
+        bool hasShell = maxShellHp > 0 && currentShellHp > 0;
+
+        if (shellSlider != null)
+        {
+            shellSlider.gameObject.SetActive(hasShell);
+            if (hasShell)
+            {
+                shellSlider.maxValue = maxShellHp;
+                shellSlider.value = currentShellHp;
+            }
+        }
+
+        if (shellText != null)
+        {
+            shellText.gameObject.SetActive(hasShell);
+            if (hasShell)
+            {
+                shellText.text = currentShellHp.ToString();
+            }
+        }
+
+        EnsureShellUI();
+        if (autoShellRoot != null)
+        {
+            autoShellRoot.gameObject.SetActive(hasShell);
+            if (hasShell && autoShellFillImage != null)
+            {
+                RectTransform hpRect = hpSlider != null ? hpSlider.GetComponent<RectTransform>() : null;
+                if (hpRect != null)
+                {
+                    autoShellRoot.sizeDelta = new Vector2(0f, Mathf.Max(4f, hpRect.rect.height * 0.28f));
+                }
+
+                float ratio = Mathf.Clamp01((float)currentShellHp / Mathf.Max(1, maxShellHp));
+                RectTransform fillRect = autoShellFillImage.rectTransform;
+                fillRect.anchorMin = new Vector2(0f, 0f);
+                fillRect.anchorMax = new Vector2(ratio, 1f);
+                fillRect.offsetMin = Vector2.zero;
+                fillRect.offsetMax = Vector2.zero;
+            }
         }
     }
 
@@ -426,6 +543,13 @@ public class BattleUnitView : MonoBehaviour
     {
         if (hpSlider != null) hpSlider.gameObject.SetActive(isActive);
         if (hpText != null) hpText.gameObject.SetActive(isActive);
+        if (shellSlider != null) shellSlider.gameObject.SetActive(isActive && battleUnit != null && battleUnit.MaxShellHp > 0 && battleUnit.CurrentShellHp > 0);
+        if (shellText != null) shellText.gameObject.SetActive(isActive && battleUnit != null && battleUnit.MaxShellHp > 0 && battleUnit.CurrentShellHp > 0);
+        if (autoShellRoot != null)
+        {
+            bool shouldShowAutoShell = isActive && battleUnit != null && battleUnit.MaxShellHp > 0 && battleUnit.CurrentShellHp > 0;
+            autoShellRoot.gameObject.SetActive(shouldShowAutoShell);
+        }
         if (levelText != null) levelText.gameObject.SetActive(isActive);
         if (turnText != null) turnText.gameObject.SetActive(isActive);
     }

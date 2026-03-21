@@ -73,6 +73,9 @@ public class PanelBoardController : MonoBehaviour
     [Header("コインパネル設定")]
     [SerializeField] private bool excludeCoinPanelsFromRandomSpawn = true;
 
+    [Header("腐敗パネル設定")]
+    [SerializeField] private int maxCorruptPanelsOnBoard = 8;
+
     [Header("初期盤面パターン")]
     [SerializeField] private bool useCuratedOpeningLayouts = true;
     [SerializeField] private bool shuffleCuratedOpeningTypes = true;
@@ -956,6 +959,75 @@ public class PanelBoardController : MonoBehaviour
         }
 
         return 0;
+    }
+
+    public List<Vector2Int> CollectAdjacentCorruptPanels(List<Vector2Int> sourcePanels, PanelType sourceType)
+    {
+        List<Vector2Int> result = new List<Vector2Int>();
+
+        if (sourcePanels == null || sourcePanels.Count == 0)
+        {
+            return result;
+        }
+
+        if (sourceType == PanelType.Corrupt || sourceType == PanelType.None)
+        {
+            return result;
+        }
+
+        HashSet<Vector2Int> sourceSet = new HashSet<Vector2Int>(sourcePanels);
+        HashSet<Vector2Int> corruptSet = new HashSet<Vector2Int>();
+
+        Vector2Int[] directions =
+        {
+            Vector2Int.up,
+            Vector2Int.down,
+            Vector2Int.left,
+            Vector2Int.right
+        };
+
+        foreach (Vector2Int pos in sourcePanels)
+        {
+            foreach (Vector2Int dir in directions)
+            {
+                int nr = pos.x + dir.x;
+                int nc = pos.y + dir.y;
+
+                if (!IsInRange(nr, nc)) continue;
+                if (HasRewardPanelAt(nr, nc)) continue;
+
+                Vector2Int next = new Vector2Int(nr, nc);
+                if (sourceSet.Contains(next)) continue;
+
+                if (gridData[nr, nc] == PanelType.Corrupt)
+                {
+                    corruptSet.Add(next);
+                }
+            }
+        }
+
+        result.AddRange(corruptSet);
+        return result;
+    }
+
+    private int CountPanelsOfType(PanelType targetType)
+    {
+        if (gridData == null) return 0;
+
+        int count = 0;
+        for (int r = 0; r < rows; r++)
+        {
+            for (int c = 0; c < cols; c++)
+            {
+                if (HasRewardPanelAt(r, c)) continue;
+                if (gridData[r, c] == targetType)
+                {
+                    count++;
+                }
+            }
+        }
+
+        return count;
     }
 
     public ChainResult FindChain(int startRow, int startCol, PanelType targetType)
@@ -1854,6 +1926,21 @@ public class PanelBoardController : MonoBehaviour
     public int ForceSetRandomPanels(PanelType type, int count)
     {
         if (gridData == null || panelObjects == null) return 0;
+
+        count = Mathf.Max(0, count);
+        if (count <= 0) return 0;
+
+        if (type == PanelType.Corrupt)
+        {
+            int activeCorrupt = CountPanelsOfType(PanelType.Corrupt);
+            int remainingCapacity = Mathf.Max(0, maxCorruptPanelsOnBoard - activeCorrupt);
+            count = Mathf.Min(count, remainingCapacity);
+
+            if (count <= 0)
+            {
+                return 0;
+            }
+        }
 
         List<Vector2Int> candidates = new List<Vector2Int>();
         for (int r = 0; r < rows; r++)

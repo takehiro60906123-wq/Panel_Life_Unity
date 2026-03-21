@@ -94,10 +94,18 @@ public class PanelActionController : MonoBehaviour
         battleEventHub?.RaiseBoardInteractableRequested(false);
 
         PanelBoardController.ChainResult chainResult = panelBoardController.FindChain(row, col, clickedType);
-        List<Vector2Int> chain = chainResult.selected;
+        List<Vector2Int> chain = chainResult.selected != null
+            ? new List<Vector2Int>(chainResult.selected)
+            : new List<Vector2Int>();
 
         // 本来のパネル数（攻撃回数・ゲージ加算に使う）
         int primaryCount = chain.Count;
+
+        List<Vector2Int> adjacentCorruptPanels = panelBoardController.CollectAdjacentCorruptPanels(chain, clickedType);
+        if (adjacentCorruptPanels != null && adjacentCorruptPanels.Count > 0)
+        {
+            chain.AddRange(adjacentCorruptPanels);
+        }
 
         int resonanceBonus = 0;
         int overflow = 0;

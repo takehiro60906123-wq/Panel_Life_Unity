@@ -684,6 +684,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   maxHP: 15
   currentHP: 0
+  maxShellHp: 0
+  currentShellHp: 0
   expYield: 6
   coinYield: 4
   attackPower: 4
@@ -696,6 +698,8 @@ MonoBehaviour:
   levelText: {fileID: 0}
   hpSlider: {fileID: 7166529566945923798}
   hpText: {fileID: 2662779214851339163}
+  shellSlider: {fileID: 0}
+  shellText: {fileID: 0}
   animator: {fileID: 6502370619077297387}
   attackInterval: 2
   currentCooldown: 0
@@ -742,6 +746,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5cda538ef23feed40944c3871789774b, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  autoCreateShellBarIfMissing: 1
+  autoShellFillColor: {r: 0.72, g: 0.82, b: 0.92, a: 0.95}
+  autoShellBackgroundColor: {r: 0.18, g: 0.23, b: 0.3, a: 0.55}
   turnIndicatorImage: {fileID: 0}
   autoFindTurnIndicatorIfMissing: 1
 --- !u!114 &6128809191173956901

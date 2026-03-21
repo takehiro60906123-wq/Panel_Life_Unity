@@ -4,6 +4,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using DG.Tweening;
 using TMPro;
+using UnityEngine.SceneManagement;
 
 public enum PanelType { Sword = 0, Ammo = 1, Coin = 2, Heal = 3, LvUp = 4, Chick = 5, Diamond = 6, Monster = 7, None = 8, Corrupt = 9 }
 
@@ -143,6 +144,20 @@ public class PanelBattleManager : MonoBehaviour
     [SerializeField] private float defeatSequenceAfterRewardDelay = 0.10f;
 
     [SerializeField] private PlayerProgression playerProgression;
+
+    [Header("Home帰還設定")]
+    [SerializeField] private string homeSceneName = "Home";
+    [SerializeField] private bool returnToHomeOnGameOver = true;
+    [SerializeField] private bool returnToHomeOnStageClear = true;
+    [SerializeField] private float resultMessageHoldDuration = 1.0f;
+    [SerializeField] private float resultTextFadeDuration = 0.18f;
+    [SerializeField] private float resultFadeDuration = 0.45f;
+    [SerializeField] private Color stageClearResultTextColor = new Color(1f, 0.95f, 0.78f, 1f);
+    [SerializeField] private Color gameOverResultTextColor = new Color(1f, 0.42f, 0.42f, 1f);
+    [SerializeField] private TMP_Text resultMessageText;
+    [SerializeField] private CanvasGroup resultMessageCanvasGroup;
+    [SerializeField] private Image resultFadeOverlay;
+    private bool resultReturnSequenceRunning;
 
 
     private struct PendingDropFeedback
@@ -1773,14 +1788,245 @@ public class PanelBattleManager : MonoBehaviour
 
     public void OnStageClear()
     {
-        Debug.Log("ステージクリア！リザルトへ");
+        Debug.Log("ステージクリア！Homeへ戻ります。");
         SetBoardInteractable(false);
+
+        if (returnToHomeOnStageClear && !resultReturnSequenceRunning)
+        {
+            StartCoroutine(ReturnToHomeWithResultRoutine("探索完了", stageClearResultTextColor));
+        }
     }
 
     public void OnPlayerDefeated()
     {
         Debug.Log("ゲームオーバー");
         SetBoardInteractable(false);
+
+        if (returnToHomeOnGameOver && !resultReturnSequenceRunning)
+        {
+            StartCoroutine(ReturnToHomeWithResultRoutine("GAME OVER", gameOverResultTextColor));
+        }
+    }
+
+
+    private IEnumerator ReturnToHomeWithResultRoutine(string message, Color messageColor)
+    {
+        if (resultReturnSequenceRunning)
+        {
+            yield break;
+        }
+
+        resultReturnSequenceRunning = true;
+        SetBoardInteractable(false);
+        EnsureResultOverlayUI();
+
+        if (resultMessageText != null)
+        {
+            Color c = messageColor;
+            c.a = 1f;
+            resultMessageText.text = message;
+            resultMessageText.color = c;
+            resultMessageText.gameObject.SetActive(true);
+        }
+
+        if (resultMessageCanvasGroup != null)
+        {
+            resultMessageCanvasGroup.alpha = 0f;
+            resultMessageCanvasGroup.interactable = false;
+            resultMessageCanvasGroup.blocksRaycasts = false;
+        }
+
+        if (resultFadeOverlay != null)
+        {
+            Color fadeColor = resultFadeOverlay.color;
+            fadeColor.a = 0f;
+            resultFadeOverlay.color = fadeColor;
+            resultFadeOverlay.raycastTarget = true;
+        }
+
+        float elapsed = 0f;
+        while (elapsed < resultTextFadeDuration)
+        {
+            elapsed += Time.deltaTime;
+            float t = Mathf.Clamp01(elapsed / Mathf.Max(0.01f, resultTextFadeDuration));
+            if (resultMessageCanvasGroup != null)
+            {
+                resultMessageCanvasGroup.alpha = t;
+            }
+            yield return null;
+        }
+
+        if (resultMessageCanvasGroup != null)
+        {
+            resultMessageCanvasGroup.alpha = 1f;
+        }
+
+        yield return new WaitForSeconds(Mathf.Max(0f, resultMessageHoldDuration));
+
+        elapsed = 0f;
+        while (elapsed < resultFadeDuration)
+        {
+            elapsed += Time.deltaTime;
+            float t = Mathf.Clamp01(elapsed / Mathf.Max(0.01f, resultFadeDuration));
+
+            if (resultFadeOverlay != null)
+            {
+                Color fadeColor = resultFadeOverlay.color;
+                fadeColor.a = t;
+                resultFadeOverlay.color = fadeColor;
+            }
+
+            if (resultMessageCanvasGroup != null)
+            {
+                resultMessageCanvasGroup.alpha = 1f - (t * 0.35f);
+            }
+
+            yield return null;
+        }
+
+        SceneManager.LoadScene(homeSceneName);
+    }
+
+    private void EnsureResultOverlayUI()
+    {
+        Canvas parentCanvas = ResolveBattleCanvas();
+        if (parentCanvas == null)
+        {
+            return;
+        }
+
+        Transform overlayRoot = parentCanvas.transform.Find("BattleResultOverlay");
+        if (overlayRoot == null)
+        {
+            GameObject overlayRootObject = new GameObject("BattleResultOverlay", typeof(RectTransform));
+            overlayRoot = overlayRootObject.transform;
+            overlayRoot.SetParent(parentCanvas.transform, false);
+
+            RectTransform rootRect = overlayRoot.GetComponent<RectTransform>();
+            rootRect.anchorMin = Vector2.zero;
+            rootRect.anchorMax = Vector2.one;
+            rootRect.offsetMin = Vector2.zero;
+            rootRect.offsetMax = Vector2.zero;
+        }
+
+        if (resultFadeOverlay == null)
+        {
+            Transform fadeTransform = overlayRoot.Find("FadeOverlay");
+            if (fadeTransform == null)
+            {
+                GameObject fadeObject = new GameObject("FadeOverlay", typeof(RectTransform), typeof(Image));
+                fadeTransform = fadeObject.transform;
+                fadeTransform.SetParent(overlayRoot, false);
+
+                RectTransform fadeRect = fadeObject.GetComponent<RectTransform>();
+                fadeRect.anchorMin = Vector2.zero;
+                fadeRect.anchorMax = Vector2.one;
+                fadeRect.offsetMin = Vector2.zero;
+                fadeRect.offsetMax = Vector2.zero;
+            }
+
+            resultFadeOverlay = fadeTransform.GetComponent<Image>();
+            if (resultFadeOverlay == null)
+            {
+                resultFadeOverlay = fadeTransform.gameObject.AddComponent<Image>();
+            }
+
+            resultFadeOverlay.color = new Color(0f, 0f, 0f, 0f);
+            resultFadeOverlay.raycastTarget = true;
+        }
+
+        if (resultMessageText == null || resultMessageCanvasGroup == null)
+        {
+            Transform textTransform = overlayRoot.Find("ResultMessage");
+            if (textTransform == null)
+            {
+                GameObject textObject = new GameObject("ResultMessage", typeof(RectTransform), typeof(CanvasGroup), typeof(TextMeshProUGUI));
+                textTransform = textObject.transform;
+                textTransform.SetParent(overlayRoot, false);
+
+                RectTransform textRect = textObject.GetComponent<RectTransform>();
+                textRect.anchorMin = new Vector2(0.5f, 0.5f);
+                textRect.anchorMax = new Vector2(0.5f, 0.5f);
+                textRect.pivot = new Vector2(0.5f, 0.5f);
+                textRect.sizeDelta = new Vector2(1280f, 240f);
+                textRect.anchoredPosition = new Vector2(0f, 60f);
+            }
+
+            if (resultMessageCanvasGroup == null)
+            {
+                resultMessageCanvasGroup = textTransform.GetComponent<CanvasGroup>();
+                if (resultMessageCanvasGroup == null)
+                {
+                    resultMessageCanvasGroup = textTransform.gameObject.AddComponent<CanvasGroup>();
+                }
+            }
+
+            if (resultMessageText == null)
+            {
+                TextMeshProUGUI createdText = textTransform.GetComponent<TextMeshProUGUI>();
+                if (createdText == null)
+                {
+                    createdText = textTransform.gameObject.AddComponent<TextMeshProUGUI>();
+                }
+
+                TMP_Text templateText = ResolveResultTextTemplate();
+                if (templateText != null)
+                {
+                    createdText.font = templateText.font;
+                    createdText.fontSharedMaterial = templateText.fontSharedMaterial;
+                }
+
+                createdText.alignment = TextAlignmentOptions.Center;
+                createdText.fontSize = 72f;
+                createdText.enableWordWrapping = false;
+                createdText.text = string.Empty;
+                createdText.color = Color.white;
+                resultMessageText = createdText;
+            }
+        }
+
+        if (resultMessageCanvasGroup != null)
+        {
+            resultMessageCanvasGroup.alpha = 0f;
+            resultMessageCanvasGroup.interactable = false;
+            resultMessageCanvasGroup.blocksRaycasts = false;
+        }
+    }
+
+    private Canvas ResolveBattleCanvas()
+    {
+        if (battleUIController != null)
+        {
+            Canvas uiCanvas = battleUIController.GetComponentInParent<Canvas>();
+            if (uiCanvas != null)
+            {
+                return uiCanvas.rootCanvas != null ? uiCanvas.rootCanvas : uiCanvas;
+            }
+        }
+
+        if (boardParent != null)
+        {
+            Canvas boardCanvas = boardParent.GetComponentInParent<Canvas>();
+            if (boardCanvas != null)
+            {
+                return boardCanvas.rootCanvas != null ? boardCanvas.rootCanvas : boardCanvas;
+            }
+        }
+
+        return FindObjectOfType<Canvas>();
+    }
+
+    private TMP_Text ResolveResultTextTemplate()
+    {
+        if (battleUIController == null)
+        {
+            return null;
+        }
+
+        if (battleUIController.floorText != null) return battleUIController.floorText;
+        if (battleUIController.encounterLabelText != null) return battleUIController.encounterLabelText;
+        if (battleUIController.coinText != null) return battleUIController.coinText;
+        return null;
     }
 
     public void RefreshPlayerExpUI()

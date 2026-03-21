@@ -1,4 +1,4 @@
-#if UNITY_EDITOR
+﻿#if UNITY_EDITOR
 using UnityEngine;
 using UnityEditor;
 using System.Collections.Generic;
@@ -24,6 +24,7 @@ public static class EnemyDataGenerator
         public int hpPerLevel;
         public int healPerLevel;
         public int expPerLevel;
+        public int shellHp;
     }
 
     // =========================================================
@@ -63,7 +64,7 @@ public static class EnemyDataGenerator
 
     // === G. 幽体系 ===
     new EnemyDef { id=12, name="幽体蟲",   type=EnemyType.Floating, pattern=EnemyAttackPattern.Normal,       hp=8,  atk=3, interval=2, exp=4,  coin=2,  appearBattle=6,  hpPerLevel=3, healPerLevel=1, expPerLevel=1 },
-    new EnemyDef { id=13, name="雷光水母", type=EnemyType.Floating, pattern=EnemyAttackPattern.PanelCorrupt, hp=17, atk=4, interval=3, exp=8,  coin=5,  appearBattle=14, hpPerLevel=4, healPerLevel=1, expPerLevel=2 },
+    new EnemyDef { id=13, name="雷光水母", type=EnemyType.Floating, pattern=EnemyAttackPattern.PanelCorrupt, hp=22, atk=4, interval=3, exp=8,  coin=5,  appearBattle=14, hpPerLevel=4, healPerLevel=1, expPerLevel=2, shellHp=8 },
 
     // === H. 甲虫系 ===
     new EnemyDef { id=14, name="甲蟲",     type=EnemyType.Normal,   pattern=EnemyAttackPattern.Normal,       hp=9,  atk=3, interval=2, exp=4,  coin=2,  appearBattle=5,  hpPerLevel=3, healPerLevel=1, expPerLevel=1 },
@@ -83,9 +84,9 @@ public static class EnemyDataGenerator
     // === K. 丸獣〜王蟲系 ===
     new EnemyDef { id=27, name="巨苔獣",   type=EnemyType.Normal,   pattern=EnemyAttackPattern.SelfBuff,     hp=16, atk=3, interval=2, exp=6,  coin=4,  appearBattle=8,  hpPerLevel=4, healPerLevel=3, expPerLevel=2 },
     new EnemyDef { id=28, name="眼球蟲",   type=EnemyType.Ranged,   pattern=EnemyAttackPattern.Normal,       hp=13, atk=5, interval=3, exp=9,  coin=6,  appearBattle=15, hpPerLevel=4, healPerLevel=1, expPerLevel=2 },
-    new EnemyDef { id=31, name="暗殻獣",   type=EnemyType.Armored,  pattern=EnemyAttackPattern.HeavyHit,     hp=32, atk=7, interval=3, exp=12, coin=7,  appearBattle=22, hpPerLevel=6, healPerLevel=2, expPerLevel=3 },
+    new EnemyDef { id=31, name="暗殻獣",   type=EnemyType.Armored,  pattern=EnemyAttackPattern.HeavyHit,     hp=42, atk=7, interval=3, exp=12, coin=7,  appearBattle=22, hpPerLevel=6, healPerLevel=2, expPerLevel=3, shellHp=12 },
     new EnemyDef { id=32, name="赤眼獣",   type=EnemyType.Rushing,  pattern=EnemyAttackPattern.MultiHit,     hp=21, atk=6, interval=1, exp=13, coin=8,  appearBattle=24, hpPerLevel=5, healPerLevel=2, expPerLevel=4 },
-    new EnemyDef { id=33, name="朽王蟲",   type=EnemyType.Normal,   pattern=EnemyAttackPattern.PanelCorrupt, hp=38, atk=7, interval=3, exp=18, coin=10, appearBattle=25, hpPerLevel=7, healPerLevel=3, expPerLevel=4 },
+    new EnemyDef { id=33, name="朽王蟲",   type=EnemyType.Normal,   pattern=EnemyAttackPattern.PanelCorrupt, hp=54, atk=7, interval=3, exp=18, coin=10, appearBattle=25, hpPerLevel=7, healPerLevel=3, expPerLevel=4, shellHp=18 },
 };
 
     private struct TierDef
@@ -199,6 +200,7 @@ public static class EnemyDataGenerator
             data.baseHP = def.hp; data.attackPower = def.atk;
             data.attackInterval = def.interval; data.expYield = def.exp;
             data.coinYield = def.coin;
+            data.baseShellHp = def.shellHp;
             data.hpPerLevel = def.hpPerLevel; data.healPerLevel = def.healPerLevel;
             data.expPerLevel = def.expPerLevel;
 
@@ -214,6 +216,7 @@ public static class EnemyDataGenerator
             unit.maxHP = def.hp; unit.attackPower = def.atk;
             unit.attackInterval = def.interval; unit.expYield = def.exp;
             unit.coinYield = def.coin;
+            unit.maxShellHp = def.shellHp;
             unit.enemyType = def.type; unit.attackPattern = def.pattern;
             EditorUtility.SetDirty(unit.gameObject);
             appliedCount++;

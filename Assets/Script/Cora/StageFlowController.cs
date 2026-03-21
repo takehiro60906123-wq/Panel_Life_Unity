@@ -41,6 +41,18 @@ public class StageFlowController : MonoBehaviour
     public int DefeatedEnemyCount => defeatedEnemyCount;
     public int TotalBattles => maxFloors;
 
+    public int ConfiguredFinalBattleNumber => maxFloors;
+
+    public bool HasConfiguredFinalBattleBeenCleared()
+    {
+        return maxFloors > 0 && defeatedEnemyCount >= maxFloors;
+    }
+
+    public bool WillCurrentEnemyDefeatClearConfiguredFinalBattle()
+    {
+        return maxFloors > 0 && (defeatedEnemyCount + 1) >= maxFloors;
+    }
+
     /// <summary>
     /// ݂̐퓬ԍi1n܂jBTier ɎgpB
     /// </summary>

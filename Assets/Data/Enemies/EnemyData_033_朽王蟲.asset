@@ -16,8 +16,9 @@ MonoBehaviour:
   enemyName: "\u673D\u738B\u87F2"
   enemyType: 0
   attackPattern: 3
-  baseHP: 38
+  baseHP: 54
   attackPower: 7
+  baseShellHp: 18
   attackInterval: 3
   expYield: 18
   coinYield: 10

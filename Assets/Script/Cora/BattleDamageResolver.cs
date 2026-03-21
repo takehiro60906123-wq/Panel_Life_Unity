@@ -38,6 +38,10 @@ public class BattleDamageResolver : MonoBehaviour
     [SerializeField] private float postDefeatRespawnDelay = 0.05f;
     [SerializeField] private float damageTextDelay = 0.04f;
 
+    [Header("外殻表示")]
+    [SerializeField] private Color shellDamageTextColor = new Color(0.72f, 0.87f, 1f, 1f);
+    [SerializeField] private Color shellBreakTextColor = new Color(0.95f, 0.96f, 1f, 1f);
+
     // --- 銃ダメージフラグ：銃攻撃前にtrueにセットされる ---
     private bool nextDamageIsGun;
     private bool nextDamageUseHeavyReaction;
@@ -222,6 +226,13 @@ public class BattleDamageResolver : MonoBehaviour
             }
         }
 
+        int shellAbsorbedDamage = 0;
+        bool shellBrokenThisHit = false;
+        if (finalDamage > 0 && enemyUnit.HasActiveShell)
+        {
+            finalDamage = enemyUnit.ApplyShellDamage(finalDamage, out shellAbsorbedDamage, out shellBrokenThisHit);
+        }
+
         enemyUnit.TakeDamage(finalDamage, useHeavyReaction);
 
         TryApplyQueuedSuccessfulEnemyHitStatusEffect(enemyUnit);
@@ -260,6 +271,24 @@ public class BattleDamageResolver : MonoBehaviour
         }
 
         StartCoroutine(ShowDamageTextDelayed(text, enemyPos + Vector3.up * damageTextHeight, textColor, damageTextDelay));
+
+        if (shellAbsorbedDamage > 0)
+        {
+            StartCoroutine(ShowDamageTextDelayed(
+                $"外殻 -{shellAbsorbedDamage}",
+                enemyPos + Vector3.up * (damageTextHeight + 0.42f),
+                shellDamageTextColor,
+                damageTextDelay));
+        }
+
+        if (shellBrokenThisHit)
+        {
+            StartCoroutine(ShowDamageTextDelayed(
+                "外殻破壊",
+                enemyPos + Vector3.up * (damageTextHeight + 0.84f),
+                shellBreakTextColor,
+                damageTextDelay + 0.03f));
+        }
 
         // --- 腐食テキスト（ダメージ数値の少し上に表示） ---
         if (corrosionBonus > 0)

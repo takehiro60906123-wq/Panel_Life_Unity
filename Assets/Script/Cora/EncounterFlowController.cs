@@ -258,7 +258,8 @@ public class EncounterFlowController : MonoBehaviour
         {
             setIsEnemySpawning?.Invoke(false);
 
-            if (stageFlowController != null && stageFlowController.IsStageComplete())
+            if (stageFlowController != null
+                && (stageFlowController.IsStageComplete() || stageFlowController.HasConfiguredFinalBattleBeenCleared()))
             {
                 RequestStageClear();
             }
@@ -488,6 +489,15 @@ public class EncounterFlowController : MonoBehaviour
             setIsEnemySpawning?.Invoke(false);
             RequestBoardInteractable(false);
             Debug.LogError("StageFlowController が取得できません。");
+            yield break;
+        }
+
+        if (stageFlowController.WillCurrentEnemyDefeatClearConfiguredFinalBattle())
+        {
+            PublishEncounterState(EncounterType.Enemy, 0);
+            setIsEnemySpawning?.Invoke(false);
+            RequestBoardInteractable(false);
+            RequestStageClear();
             yield break;
         }
 

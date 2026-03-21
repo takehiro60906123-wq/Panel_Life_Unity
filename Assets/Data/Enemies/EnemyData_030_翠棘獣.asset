@@ -18,6 +18,7 @@ MonoBehaviour:
   attackPattern: 1
   baseHP: 32
   attackPower: 7
+  baseShellHp: 0
   attackInterval: 3
   expYield: 12
   coinYield: 7
