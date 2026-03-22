@@ -39,6 +39,17 @@ public class BattleUnitView : MonoBehaviour
     private bool lastHintDanger;
     private bool hintInitialized;
 
+
+    public void BindLegacyReferences(
+        Slider slider,
+        TextMeshProUGUI hp,
+        TextMeshProUGUI level,
+        TextMeshProUGUI turn,
+        Animator anim)
+    {
+        BindLegacyReferences(slider, hp, level, turn, null, null, anim);
+    }
+
     public void BindLegacyReferences(
         Slider slider,
         TextMeshProUGUI hp,
@@ -90,6 +101,14 @@ public class BattleUnitView : MonoBehaviour
     private void Update()
     {
         RefreshTurnHintFromCurrentState();
+    }
+
+
+    public void RefreshHP(int currentHP, int maxHP)
+    {
+        int currentShell = battleUnit != null ? battleUnit.CurrentShellHp : 0;
+        int maxShell = battleUnit != null ? battleUnit.MaxShellHp : 0;
+        RefreshHP(currentHP, maxHP, currentShell, maxShell);
     }
 
     public void RefreshHP(int currentHP, int maxHP, int currentShellHp, int maxShellHp)

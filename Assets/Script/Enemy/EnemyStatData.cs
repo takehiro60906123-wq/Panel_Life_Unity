@@ -27,12 +27,14 @@ public class EnemyStatData : ScriptableObject
     public int baseHP = 5;
     public int attackPower = 1;
 
-    [Header("外殻")]
-    [Tooltip("敵の外殻HP。0なら外殻なし")]
-    public int baseShellHp = 0;
-
     [Tooltip("攻撃間隔（ターン数）。1 = 毎ターン攻撃")]
     public int attackInterval = 2;
+
+    [Tooltip("敵出現直後の初回行動までの猶予。-1 なら attackInterval と同じ")]
+    public int initialAttackCooldown = -1;
+
+    [Tooltip("外殻の最大HP。0なら外殻なし")]
+    public int baseShellHp = 0;
 
     [Tooltip("撃破時の経験値")]
     public int expYield = 2;
@@ -63,9 +65,10 @@ public class EnemyStatData : ScriptableObject
         if (unit == null) return;
 
         unit.maxHP = baseHP;
-        unit.SetMaxShell(baseShellHp, true);
         unit.attackPower = attackPower;
         unit.attackInterval = attackInterval;
+        unit.initialAttackCooldown = initialAttackCooldown;
+        unit.SetMaxShell(baseShellHp, true);
         unit.expYield = expYield;
         unit.coinYield = coinYield;
         unit.enemyType = enemyType;

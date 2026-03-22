@@ -47,6 +47,8 @@ public class BattleUnit : MonoBehaviour
 
     [Header("行動ターン（敵専用 / 互換用）")]
     public int attackInterval = 1;
+    [Tooltip("敵出現直後の初回行動までの猶予。-1 の時は attackInterval と同じ")]
+    public int initialAttackCooldown = -1;
     [HideInInspector] public int currentCooldown;
     public TextMeshProUGUI turnText;
 
@@ -114,7 +116,7 @@ public class BattleUnit : MonoBehaviour
     public void InitializeTurn()
     {
         turnState.SetAttackInterval(attackInterval);
-        turnState.InitializeTurn();
+        turnState.InitializeTurn(initialAttackCooldown);
         SyncFromComponents();
         UpdateTurnUI();
     }

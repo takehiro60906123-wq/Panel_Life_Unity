@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using UnityEngine;
 
 public class StageFlowController : MonoBehaviour
@@ -52,6 +52,7 @@ public class StageFlowController : MonoBehaviour
     {
         return maxFloors > 0 && (defeatedEnemyCount + 1) >= maxFloors;
     }
+
 
     /// <summary>
     /// ݂̐퓬ԍi1n܂jBTier ɎgpB
@@ -200,6 +201,105 @@ public class StageFlowController : MonoBehaviour
         return new NextEncounterPlan(false, EncounterType.Shop, 1);
     }
 
+    public Dictionary<EnemyType, float> GetProjectedEnemyTypeWeights(int lookAheadBattles = 4)
+    {
+        Dictionary<EnemyType, float> result = new Dictionary<EnemyType, float>();
+
+        int clampedLookAhead = Mathf.Max(1, lookAheadBattles);
+        int startBattle = Mathf.Max(1, defeatedEnemyCount + 1);
+        int endBattle = enableEndlessAfterFinalFloor
+            ? startBattle + clampedLookAhead - 1
+            : Mathf.Min(maxFloors, startBattle + clampedLookAhead - 1);
+
+        bool hasStageConfig = stageConfig != null && stageConfig.tiers != null && stageConfig.tiers.Count > 0;
+        if (hasStageConfig)
+        {
+            for (int battleNumber = startBattle; battleNumber <= endBattle; battleNumber++)
+            {
+                StageTier activeTier = GetActiveTierForBattle(battleNumber);
+                if (activeTier == null || activeTier.entries == null || activeTier.entries.Count == 0)
+                {
+                    continue;
+                }
+
+                int totalWeight = 0;
+                for (int i = 0; i < activeTier.entries.Count; i++)
+                {
+                    StageTierEntry entry = activeTier.entries[i];
+                    if (entry == null || entry.enemyPrefab == null) continue;
+                    totalWeight += Mathf.Max(0, entry.weight);
+                }
+
+                if (totalWeight <= 0)
+                {
+                    continue;
+                }
+
+                for (int i = 0; i < activeTier.entries.Count; i++)
+                {
+                    StageTierEntry entry = activeTier.entries[i];
+                    if (entry == null || entry.enemyPrefab == null) continue;
+
+                    float normalizedWeight = Mathf.Max(0, entry.weight) / (float)totalWeight;
+                    AddEnemyTypeWeight(result, entry.enemyPrefab.enemyType, normalizedWeight);
+                }
+            }
+
+            if (result.Count > 0)
+            {
+                return result;
+            }
+        }
+
+        if (enemyPrefabs != null && enemyPrefabs.Count > 0)
+        {
+            float normalizedWeight = 1f / enemyPrefabs.Count;
+            for (int i = 0; i < enemyPrefabs.Count; i++)
+            {
+                BattleUnit prefab = enemyPrefabs[i];
+                if (prefab == null) continue;
+                AddEnemyTypeWeight(result, prefab.enemyType, normalizedWeight);
+            }
+        }
+
+        return result;
+    }
+
+    private StageTier GetActiveTierForBattle(int battleNumber)
+    {
+        if (stageConfig == null || stageConfig.tiers == null || stageConfig.tiers.Count == 0)
+        {
+            return null;
+        }
+
+        StageTier activeTier = stageConfig.tiers[0];
+        for (int i = 0; i < stageConfig.tiers.Count; i++)
+        {
+            StageTier tier = stageConfig.tiers[i];
+            if (tier != null && battleNumber >= tier.startBattle)
+            {
+                activeTier = tier;
+            }
+        }
+
+        return activeTier;
+    }
+
+    private static void AddEnemyTypeWeight(Dictionary<EnemyType, float> target, EnemyType enemyType, float amount)
+    {
+        if (amount <= 0f)
+        {
+            return;
+        }
+
+        if (!target.ContainsKey(enemyType))
+        {
+            target[enemyType] = 0f;
+        }
+
+        target[enemyType] += amount;
+    }
+
     private bool IsStageClear()
     {
         return upcomingEnemies.Count == 0 && spawnedEnemyCount >= maxFloors;
@@ -276,11 +376,19 @@ public class StageFlowController : MonoBehaviour
         return null;
     }
 
+    public void RegisterEnemyDefeated()
+    {
+        if (!enableEndlessAfterFinalFloor)
+        {
+            defeatedEnemyCount = Mathf.Clamp(defeatedEnemyCount + 1, 0, Mathf.Max(0, maxFloors));
+            return;
+        }
+
+        defeatedEnemyCount = Mathf.Max(0, defeatedEnemyCount + 1);
+    }
+
     public BattleUnit TakeNextEnemyOrSpawn(Vector3 anchorPosition)
     {
-        // ܓ|GԂAKw1i߂
-        defeatedEnemyCount++;
-
         if (upcomingEnemies.Count == 0 && (enableEndlessAfterFinalFloor || spawnedEnemyCount < maxFloors))
         {
             SpawnNextEnemyAfter(anchorPosition);

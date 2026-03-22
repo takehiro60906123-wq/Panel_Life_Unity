@@ -64,25 +64,17 @@ MonoBehaviour:
     - enemyPrefab: {fileID: 815545621324712208, guid: 5bb8270af5d866c4c95a385e676eaa1b, type: 3}
       weight: 8
   - startBattle: 8
-    tierName: "\u4E2D\u76E4"
+    tierName: "\u4E2D\u76E4\u524D\u534A\uFF08\u6BB5\u5DEE\u7DE9\u548C\uFF09"
     entries:
     - enemyPrefab: {fileID: 815545621324712208, guid: 2136326ecb6b02e4d8e72b6e35c2971c, type: 3}
       weight: 10
     - enemyPrefab: {fileID: 815545621324712208, guid: 625819f124c3cf748bd90c754a725c03, type: 3}
-      weight: 10
+      weight: 8
     - enemyPrefab: {fileID: 815545621324712208, guid: b1364573dd10174418931bd4376d5f2f, type: 3}
       weight: 8
-    - enemyPrefab: {fileID: 815545621324712208, guid: d2809b4ebfe06654da71f962efc75129, type: 3}
-      weight: 8
-    - enemyPrefab: {fileID: 815545621324712208, guid: 6851525c046a72f4c9750ee79a24d50c, type: 3}
-      weight: 10
-    - enemyPrefab: {fileID: 815545621324712208, guid: 4cffd0b5e40847d478582db5bdfe26e1, type: 3}
-      weight: 8
     - enemyPrefab: {fileID: 815545621324712208, guid: 36f66232a4576a546851d172bacd04bd, type: 3}
-      weight: 10
+      weight: 12
     - enemyPrefab: {fileID: 815545621324712208, guid: 4080ad072301a034982e80f2064df02c, type: 3}
-      weight: 8
-    - enemyPrefab: {fileID: 815545621324712208, guid: 111c6728499a7bc478c144f3847eced1, type: 3}
       weight: 6
   - startBattle: 10
     tierName: "\u4E2D\u30DC\u30B91\uFF08\u56FA\u5B9A\uFF09"
@@ -90,29 +82,67 @@ MonoBehaviour:
     - enemyPrefab: {fileID: 815545621324712208, guid: 111c6728499a7bc478c144f3847eced1, type: 3}
       weight: 100
   - startBattle: 11
-    tierName: "\u4E2D\u76E4\u5F8C\u534A"
+    tierName: "\u4E2D\u76E4\u518D\u7DE8\uFF08\u88C5\u7532\u5BC4\u308A\uFF09"
     entries:
     - enemyPrefab: {fileID: 815545621324712208, guid: 2136326ecb6b02e4d8e72b6e35c2971c, type: 3}
       weight: 8
     - enemyPrefab: {fileID: 815545621324712208, guid: 625819f124c3cf748bd90c754a725c03, type: 3}
-      weight: 10
+      weight: 8
     - enemyPrefab: {fileID: 815545621324712208, guid: b1364573dd10174418931bd4376d5f2f, type: 3}
       weight: 8
-    - enemyPrefab: {fileID: 815545621324712208, guid: d2809b4ebfe06654da71f962efc75129, type: 3}
-      weight: 8
     - enemyPrefab: {fileID: 815545621324712208, guid: 6851525c046a72f4c9750ee79a24d50c, type: 3}
-      weight: 10
-    - enemyPrefab: {fileID: 815545621324712208, guid: 4cffd0b5e40847d478582db5bdfe26e1, type: 3}
       weight: 8
+    - enemyPrefab: {fileID: 815545621324712208, guid: 4cffd0b5e40847d478582db5bdfe26e1, type: 3}
+      weight: 6
     - enemyPrefab: {fileID: 815545621324712208, guid: 3ed9fe2cea851c640b684e9ec8d5afe1, type: 3}
       weight: 6
     - enemyPrefab: {fileID: 815545621324712208, guid: 36f66232a4576a546851d172bacd04bd, type: 3}
       weight: 10
     - enemyPrefab: {fileID: 815545621324712208, guid: 0d8df741fa487c34081274d6551f0192, type: 3}
-      weight: 10
-    - enemyPrefab: {fileID: 815545621324712208, guid: 4080ad072301a034982e80f2064df02c, type: 3}
       weight: 8
-    - enemyPrefab: {fileID: 815545621324712208, guid: 111c6728499a7bc478c144f3847eced1, type: 3}
+    - enemyPrefab: {fileID: 815545621324712208, guid: 4080ad072301a034982e80f2064df02c, type: 3}
+      weight: 6
+  - startBattle: 12
+    tierName: "\u4E2D\u76E4\u5727\u529B\u4E0A\u6607\uFF08\u7A81\u6483\u5C0E\u5165\uFF09"
+    entries:
+    - enemyPrefab: {fileID: 815545621324712208, guid: 2136326ecb6b02e4d8e72b6e35c2971c, type: 3}
+      weight: 8
+    - enemyPrefab: {fileID: 815545621324712208, guid: b1364573dd10174418931bd4376d5f2f, type: 3}
+      weight: 8
+    - enemyPrefab: {fileID: 815545621324712208, guid: d2809b4ebfe06654da71f962efc75129, type: 3}
+      weight: 8
+    - enemyPrefab: {fileID: 815545621324712208, guid: 4cffd0b5e40847d478582db5bdfe26e1, type: 3}
+      weight: 6
+    - enemyPrefab: {fileID: 815545621324712208, guid: 3ed9fe2cea851c640b684e9ec8d5afe1, type: 3}
+      weight: 6
+    - enemyPrefab: {fileID: 815545621324712208, guid: 36f66232a4576a546851d172bacd04bd, type: 3}
+      weight: 10
+    - enemyPrefab: {fileID: 815545621324712208, guid: 0d8df741fa487c34081274d6551f0192, type: 3}
+      weight: 8
+    - enemyPrefab: {fileID: 815545621324712208, guid: 4080ad072301a034982e80f2064df02c, type: 3}
+      weight: 6
+  - startBattle: 14
+    tierName: "\u4E2D\u76E4\u5F8C\u534A\uFF08\u6DF7\u6210\uFF09"
+    entries:
+    - enemyPrefab: {fileID: 815545621324712208, guid: 2136326ecb6b02e4d8e72b6e35c2971c, type: 3}
+      weight: 8
+    - enemyPrefab: {fileID: 815545621324712208, guid: 625819f124c3cf748bd90c754a725c03, type: 3}
+      weight: 6
+    - enemyPrefab: {fileID: 815545621324712208, guid: b1364573dd10174418931bd4376d5f2f, type: 3}
+      weight: 8
+    - enemyPrefab: {fileID: 815545621324712208, guid: d2809b4ebfe06654da71f962efc75129, type: 3}
+      weight: 6
+    - enemyPrefab: {fileID: 815545621324712208, guid: 6851525c046a72f4c9750ee79a24d50c, type: 3}
+      weight: 6
+    - enemyPrefab: {fileID: 815545621324712208, guid: 4cffd0b5e40847d478582db5bdfe26e1, type: 3}
+      weight: 6
+    - enemyPrefab: {fileID: 815545621324712208, guid: 3ed9fe2cea851c640b684e9ec8d5afe1, type: 3}
+      weight: 6
+    - enemyPrefab: {fileID: 815545621324712208, guid: 36f66232a4576a546851d172bacd04bd, type: 3}
+      weight: 10
+    - enemyPrefab: {fileID: 815545621324712208, guid: 0d8df741fa487c34081274d6551f0192, type: 3}
+      weight: 8
+    - enemyPrefab: {fileID: 815545621324712208, guid: 4080ad072301a034982e80f2064df02c, type: 3}
       weight: 6
   - startBattle: 15
     tierName: "\u5927\u5263\u30A4\u30D9\u30F3\u30C8\u524D\u5F8C\uFF08\u8EFD\u3081\uFF09"

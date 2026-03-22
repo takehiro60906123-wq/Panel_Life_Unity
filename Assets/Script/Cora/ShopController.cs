@@ -3,20 +3,20 @@ using System.Collections.Generic;
 using UnityEngine;
 
 // ============================================
-// ¤“XƒRƒ“ƒgƒ[ƒ‰[
-// •i‘µ‚¦¶¬Ew“üˆ—E‘•”õ•ÏX‚ğŠÇ—‚·‚éB
+// XRg[[
+// iEwEÏXÇ—B
 //
-// PanelBattleManager ‚©‚çQÆ‚µA
-// EncounterFlowController ‚ª¤“X•”‰®‚É“ü‚Á‚½‚Æ‚«‚É
-// OpenShop() ‚ğŒÄ‚ÔB
+// PanelBattleManager QÆ‚A
+// EncounterFlowController XÉ“Æ‚
+// OpenShop() Ä‚ÔB
 // ============================================
 public class ShopController : MonoBehaviour
 {
-    [Header("¤“Xİ’è")]
-    [Tooltip("ˆê“x‚É’Â—ñ‚·‚é¤•i”")]
+    [Header("Xİ’")]
+    [Tooltip("xÉ’Â—ñ‚·‚é¤i")]
     [SerializeField] private int offeringCount = 3;
 
-    [Header("˜AŒg")]
+    [Header("Ag")]
     [SerializeField] private PlayerCombatController playerCombatController;
     [SerializeField] private BattleInventoryController battleInventoryController;
     [SerializeField] private BattleUnit playerUnit;
@@ -24,14 +24,20 @@ public class ShopController : MonoBehaviour
     [SerializeField] private ShopUIController shopUIController;
     [SerializeField] private BattleItemIconDatabase battleItemIconDatabase;
 
+    [Header("æ¬¡å¸¯ã«å¯„ã›ã‚‹éŠƒå€™è£œ")]
+    [SerializeField, Min(1)] private int projectedBattleLookAhead = 4;
+    [SerializeField] private bool guaranteeOneFutureBiasedGunSlot = true;
+
+    private StageFlowController stageFlowController;
+
     private List<ShopItemData> catalog;
     private List<ShopItemData> currentOfferings = new List<ShopItemData>();
 
-    // ƒRƒCƒ“QÆ—pƒR[ƒ‹ƒoƒbƒNiPanelBattleManager ‚©‚çİ’èj
+    // RCQÆ—pR[obNiPanelBattleManager İ’j
     private Func<int> getCoins;
     private Action<int> addCoins;
 
-    // ¤“XI—¹ƒR[ƒ‹ƒoƒbƒN
+    // XIR[obN
     private Action onShopClosed;
 
     [SerializeField] private GunDefinition pistolDefinition;
@@ -57,7 +63,7 @@ public class ShopController : MonoBehaviour
     }
 
     // ============================================
-    // ‰Šú‰»iPanelBattleManager / Bootstrapper ‚©‚çŒÄ‚Ôj
+    // iPanelBattleManager / Bootstrapper Ä‚Ôj
     // ============================================
     public void Initialize(
         PlayerCombatController playerCombatController,
@@ -77,8 +83,13 @@ public class ShopController : MonoBehaviour
         this.addCoins = addCoins;
     }
 
+    public void SetStageFlowController(StageFlowController controller)
+    {
+        stageFlowController = controller;
+    }
+
     // ============================================
-    // ¤“X‚ğŠJ‚­
+    // XJ
     // ============================================
     public void OpenShop(Action onClosed)
     {
@@ -92,7 +103,7 @@ public class ShopController : MonoBehaviour
     }
 
     // ============================================
-    // ¤“X‚ğ•Â‚¶‚éiUI‚Ìu—§‚¿‹‚évƒ{ƒ^ƒ“‚©‚çŒÄ‚Î‚ê‚éj
+    // XÂ‚iUIÌuv{^Ä‚Î‚j
     // ============================================
     public void CloseShop()
     {
@@ -106,7 +117,7 @@ public class ShopController : MonoBehaviour
     }
 
     // ============================================
-    // •i‘µ‚¦‚ğƒ‰ƒ“ƒ_ƒ€¶¬
+    // i_
     // ============================================
     private void GenerateOfferings()
     {
@@ -114,30 +125,196 @@ public class ShopController : MonoBehaviour
 
         if (catalog == null || catalog.Count == 0) return;
 
-        // ƒJƒ^ƒƒO‚ğƒVƒƒƒbƒtƒ‹‚µ‚Äæ“ª‚©‚çæ‚é
-        List<ShopItemData> shuffled = new List<ShopItemData>(catalog);
-        for (int i = shuffled.Count - 1; i > 0; i--)
+        List<ShopItemData> eligible = BuildEligibleOfferings();
+        if (eligible.Count == 0)
         {
-            int j = UnityEngine.Random.Range(0, i + 1);
-            ShopItemData temp = shuffled[i];
-            shuffled[i] = shuffled[j];
-            shuffled[j] = temp;
+            return;
         }
 
-        // w“ü‰Â”\‚ÈŒó•â‚ğƒtƒBƒ‹ƒ^iŠù‚É‚Á‚Ä‚¢‚é•Ší/e‚ÍœŠOj
-        foreach (ShopItemData item in shuffled)
+        ShopItemData guidedGun = null;
+        if (guaranteeOneFutureBiasedGunSlot)
         {
-            if (currentOfferings.Count >= offeringCount) break;
-            if (ShouldExcludeFromOffering(item)) continue;
+            guidedGun = TryPickFutureBiasedGunOffering(eligible);
+            if (guidedGun != null)
+            {
+                currentOfferings.Add(guidedGun);
+                eligible.Remove(guidedGun);
+            }
+        }
 
-            currentOfferings.Add(item);
+        ShuffleItems(eligible);
+        for (int i = 0; i < eligible.Count && currentOfferings.Count < offeringCount; i++)
+        {
+            currentOfferings.Add(eligible[i]);
+        }
+
+        ShuffleItems(currentOfferings);
+    }
+
+    private List<ShopItemData> BuildEligibleOfferings()
+    {
+        List<ShopItemData> eligible = new List<ShopItemData>();
+        if (catalog == null)
+        {
+            return eligible;
+        }
+
+        List<ShopItemData> shuffled = new List<ShopItemData>(catalog);
+        ShuffleItems(shuffled);
+
+        for (int i = 0; i < shuffled.Count; i++)
+        {
+            ShopItemData item = shuffled[i];
+            if (ShouldExcludeFromOffering(item)) continue;
+            eligible.Add(item);
+        }
+
+        return eligible;
+    }
+
+    private ShopItemData TryPickFutureBiasedGunOffering(List<ShopItemData> eligible)
+    {
+        if (eligible == null || eligible.Count == 0) return null;
+        if (stageFlowController == null) return null;
+
+        Dictionary<EnemyType, float> projectedEnemyTypes = stageFlowController.GetProjectedEnemyTypeWeights(projectedBattleLookAhead);
+        if (projectedEnemyTypes == null || projectedEnemyTypes.Count == 0)
+        {
+            return null;
+        }
+
+        List<ShopItemData> gunCandidates = new List<ShopItemData>();
+        List<float> weights = new List<float>();
+
+        for (int i = 0; i < eligible.Count; i++)
+        {
+            ShopItemData item = eligible[i];
+            if (item == null || item.category != ShopItemCategory.Gun)
+            {
+                continue;
+            }
+
+            float affinity = GetProjectedGunAffinityScore(item.gunType, projectedEnemyTypes);
+            float weight = 1f + Mathf.Max(0f, affinity);
+            gunCandidates.Add(item);
+            weights.Add(weight);
+        }
+
+        if (gunCandidates.Count == 0)
+        {
+            return null;
+        }
+
+        float totalWeight = 0f;
+        for (int i = 0; i < weights.Count; i++)
+        {
+            totalWeight += weights[i];
+        }
+
+        if (totalWeight <= 0f)
+        {
+            return gunCandidates[UnityEngine.Random.Range(0, gunCandidates.Count)];
+        }
+
+        float roll = UnityEngine.Random.value * totalWeight;
+        float cumulative = 0f;
+        for (int i = 0; i < gunCandidates.Count; i++)
+        {
+            cumulative += weights[i];
+            if (roll <= cumulative)
+            {
+                return gunCandidates[i];
+            }
+        }
+
+        return gunCandidates[gunCandidates.Count - 1];
+    }
+
+    private float GetProjectedGunAffinityScore(GunType gunType, Dictionary<EnemyType, float> projectedEnemyTypes)
+    {
+        float score = 0f;
+        foreach (KeyValuePair<EnemyType, float> pair in projectedEnemyTypes)
+        {
+            score += pair.Value * GetGunAffinityAgainstEnemyType(gunType, pair.Key);
+        }
+
+        return score;
+    }
+
+    private float GetGunAffinityAgainstEnemyType(GunType gunType, EnemyType enemyType)
+    {
+        switch (enemyType)
+        {
+            case EnemyType.Armored:
+                switch (gunType)
+                {
+                    case GunType.Rifle: return 3.0f;
+                    case GunType.Shotgun: return 2.2f;
+                    case GunType.MachineGun: return 0.6f;
+                    case GunType.Pistol: return 0.8f;
+                }
+                break;
+
+            case EnemyType.Rushing:
+                switch (gunType)
+                {
+                    case GunType.Shotgun: return 3.0f;
+                    case GunType.Pistol: return 2.2f;
+                    case GunType.MachineGun: return 1.2f;
+                    case GunType.Rifle: return 1.0f;
+                }
+                break;
+
+            case EnemyType.Ranged:
+                switch (gunType)
+                {
+                    case GunType.Rifle: return 2.4f;
+                    case GunType.Pistol: return 2.0f;
+                    case GunType.MachineGun: return 1.0f;
+                    case GunType.Shotgun: return 0.8f;
+                }
+                break;
+
+            case EnemyType.Floating:
+                switch (gunType)
+                {
+                    case GunType.Rifle: return 3.0f;
+                    case GunType.Pistol: return 1.6f;
+                    case GunType.MachineGun: return 1.0f;
+                    case GunType.Shotgun: return 0.7f;
+                }
+                break;
+
+            case EnemyType.Normal:
+            default:
+                switch (gunType)
+                {
+                    case GunType.MachineGun: return 1.4f;
+                    case GunType.Pistol: return 1.2f;
+                    case GunType.Shotgun: return 1.0f;
+                    case GunType.Rifle: return 1.0f;
+                }
+                break;
+        }
+
+        return 1f;
+    }
+
+    private static void ShuffleItems<T>(List<T> items)
+    {
+        if (items == null) return;
+
+        for (int i = items.Count - 1; i > 0; i--)
+        {
+            int j = UnityEngine.Random.Range(0, i + 1);
+            T temp = items[i];
+            items[i] = items[j];
+            items[j] = temp;
         }
     }
 
-    // ============================================
-    // Šù‚É‘•”õ’†‚Ì•Ší/e‚Í’Â—ñ‚µ‚È‚¢
-    // ============================================
     private bool ShouldExcludeFromOffering(ShopItemData item)
+
     {
         if (item == null) return true;
         if (playerCombatController == null) return false;
@@ -160,7 +337,7 @@ public class ShopController : MonoBehaviour
             }
         }
 
-        // HP‘S‰õ‚È‚ç‰ñ•œŒn‚ğœŠO
+        // HPSÈ‚ñ•œŒnO
         if (item.category == ShopItemCategory.HealHP)
         {
             if (playerUnit != null && playerUnit.CurrentHP >= playerUnit.maxHP)
@@ -169,7 +346,7 @@ public class ShopController : MonoBehaviour
             }
         }
 
-        // ƒCƒ“ƒxƒ“ƒgƒŠ–”t‚È‚çÁ–Õ•i‚ğœŠO
+        // CxgtÈ‚Õ•iO
         if (item.category == ShopItemCategory.Consumable)
         {
             if (battleInventoryController != null && battleInventoryController.FreeSlots <= 0)
@@ -182,7 +359,7 @@ public class ShopController : MonoBehaviour
     }
 
     // ============================================
-    // w“ü‰Â”\‚©‚Ç‚¤‚©‚Ì”»’è
+    // wÂ”\Ç‚Ì”
     // ============================================
     public bool CanPurchase(int offeringIndex)
     {
@@ -194,7 +371,7 @@ public class ShopController : MonoBehaviour
         int coins = getCoins != null ? getCoins() : 0;
         if (coins < item.cost) return false;
 
-        // Á–Õ•i‚Ìê‡AƒCƒ“ƒxƒ“ƒgƒŠ‚É‹ó‚«‚ª‚ ‚é‚©
+        // Õ•iÌê‡ACxgÉ‹ó‚«‚é‚©
         if (item.category == ShopItemCategory.Consumable)
         {
             if (battleInventoryController == null || battleInventoryController.FreeSlots <= 0)
@@ -203,7 +380,7 @@ public class ShopController : MonoBehaviour
             }
         }
 
-        // HP‰ñ•œ‚Ìê‡A‘S‰õ‚Å‚È‚¢‚©
+        // HPñ•œ‚Ìê‡ASÅ‚È‚
         if (item.category == ShopItemCategory.HealHP)
         {
             if (playerUnit == null) return false;
@@ -214,7 +391,7 @@ public class ShopController : MonoBehaviour
     }
 
     // ============================================
-    // w“üÀs
+    // ws
     // ============================================
     public bool TryPurchase(int offeringIndex)
     {
@@ -222,16 +399,16 @@ public class ShopController : MonoBehaviour
 
         ShopItemData item = currentOfferings[offeringIndex];
 
-        // ƒRƒCƒ“Á”ï
+        // RC
         addCoins?.Invoke(-item.cost);
 
-        // Œø‰Ê“K—p
+        // Ê“Kp
         ApplyPurchase(item);
 
-        // w“üÏ‚İ‚Ì¤•i‚ğ’Â—ñ‚©‚çœ‹iSOLD OUTj
+        // wÏ‚İ‚ÌiÂ—ñ‚©‚çœiSOLD OUTj
         currentOfferings[offeringIndex] = null;
 
-        // UI XV
+        // UI XV
         if (shopUIController != null)
         {
             shopUIController.RefreshShop(currentOfferings, this);
@@ -247,7 +424,7 @@ public class ShopController : MonoBehaviour
     }
 
     // ============================================
-    // w“üŒø‰Ê‚Ì“K—p
+    // wÊ‚Ì“Kp
     // ============================================
     private void ApplyPurchase(ShopItemData item)
     {
@@ -332,8 +509,8 @@ public class ShopController : MonoBehaviour
     }
 
     // ============================================
-    // GunData ¶¬iì—pƒn[ƒhƒR[ƒhj
-    // «—ˆ‚Í ScriptableObject / GunDataCatalog ‚ÉˆÚs
+    // GunData ipn[hR[hj
+    //  ScriptableObject / GunDataCatalog ÉˆÚs
     // ============================================
     private GunData CreateGunData(GunType gunType)
     {
@@ -343,7 +520,7 @@ public class ShopController : MonoBehaviour
                 return new GunData
                 {
                     gunType = GunType.Pistol,
-                    gunName = "ƒsƒXƒgƒ‹",
+                    gunName = "sXg",
                     gaugeCost = 3,
                     shotCount = 2,
                     damagePerShot = 2,
@@ -355,7 +532,7 @@ public class ShopController : MonoBehaviour
                 return new GunData
                 {
                     gunType = GunType.MachineGun,
-                    gunName = "ƒ}ƒVƒ“ƒKƒ“",
+                    gunName = "}VK",
                     gaugeCost = 0,
                     shotCount = 1,
                     damagePerShot = 1,
@@ -367,7 +544,7 @@ public class ShopController : MonoBehaviour
                 return new GunData
                 {
                     gunType = GunType.Shotgun,
-                    gunName = "ƒVƒ‡ƒbƒgƒKƒ“",
+                    gunName = "VbgK",
                     gaugeCost = 5,
                     shotCount = 3,
                     damagePerShot = 2,
@@ -379,7 +556,7 @@ public class ShopController : MonoBehaviour
                 return new GunData
                 {
                     gunType = GunType.Rifle,
-                    gunName = "ƒ‰ƒCƒtƒ‹",
+                    gunName = "Ct",
                     gaugeCost = 4,
                     shotCount = 1,
                     damagePerShot = 6,
@@ -392,7 +569,7 @@ public class ShopController : MonoBehaviour
     }
 
     // ============================================
-    // ŠO•”ƒAƒNƒZƒX
+    // OANZX
     // ============================================
     public IReadOnlyList<ShopItemData> CurrentOfferings => currentOfferings;
     public int GetCurrentCoins() => getCoins != null ? getCoins() : 0;

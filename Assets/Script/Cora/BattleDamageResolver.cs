@@ -420,13 +420,19 @@ public class BattleDamageResolver : MonoBehaviour
     {
         if (defeatedEnemy == null) yield break;
 
-        setIsEnemyDefeatedThisTurn?.Invoke(true);
-        battleEventHub?.RaiseEnemyDefeated(defeatedEnemy);
-
         if (panelBattleManager == null)
         {
             panelBattleManager = GetComponent<PanelBattleManager>();
         }
+
+        StageFlowController stageFlowController = panelBattleManager != null
+            ? panelBattleManager.stageFlowController
+            : GetComponent<StageFlowController>();
+
+        stageFlowController?.RegisterEnemyDefeated();
+
+        setIsEnemyDefeatedThisTurn?.Invoke(true);
+        battleEventHub?.RaiseEnemyDefeated(defeatedEnemy);
 
         if (panelBattleManager != null)
         {

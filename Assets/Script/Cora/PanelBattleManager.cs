@@ -52,6 +52,7 @@ public class PanelBattleManager : MonoBehaviour
 
     [Header("ステージ進行コントローラー")]
     public StageFlowController stageFlowController;
+    [SerializeField] private BattleBackgroundThemeController battleBackgroundThemeController;
 
     [Header("ターン進行コントローラー")]
     public BattleTurnController battleTurnController;
@@ -158,6 +159,19 @@ public class PanelBattleManager : MonoBehaviour
     [SerializeField] private CanvasGroup resultMessageCanvasGroup;
     [SerializeField] private Image resultFadeOverlay;
     private bool resultReturnSequenceRunning;
+
+    [Header("背景テーマ切替演出")]
+    [SerializeField] private bool enableThemeChangeFadeTransition = true;
+    [SerializeField] private float themeChangePlayerExitDuration = 0.22f;
+    [SerializeField] private float themeChangePlayerEntryDuration = 0.26f;
+    [SerializeField] private float themeChangeFadeOutDuration = 0.12f;
+    [SerializeField] private float themeChangeFadeHoldDuration = 0.02f;
+    [SerializeField] private float themeChangeFadeInDuration = 0.12f;
+    [SerializeField, Range(1.02f, 1.4f)] private float themeChangeExitViewportX = 1.12f;
+    [SerializeField, Range(-0.4f, -0.02f)] private float themeChangeEntryViewportX = -0.12f;
+    [SerializeField, Range(0f, 1f)] private float themeChangePlayerViewportY = 0.24f;
+    [SerializeField, Range(0f, 1f)] private float themeChangePlayerEntryViewportY = 0.15f;
+    [SerializeField] private Image themeChangeFadeOverlay;
 
 
     private struct PendingDropFeedback
@@ -896,21 +910,65 @@ public class PanelBattleManager : MonoBehaviour
     // PanelBattleManager に追加
     public void UpdateFloorUI()
     {
-        if (battleUIController == null || stageFlowController == null) return;
+        if (stageFlowController == null) return;
 
-        int totalFloors = stageFlowController.TotalBattles;
+        int totalFloors = Mathf.Max(1, stageFlowController.TotalBattles);
+        int currentFloor = GetDisplayFloorNumber();
 
-        int currentFloor;
-        if (enemyUnit != null)
+        if (battleUIController != null)
         {
-            currentFloor = Mathf.Clamp(stageFlowController.DefeatedEnemyCount + 1, 1, totalFloors);
-        }
-        else
-        {
-            currentFloor = Mathf.Clamp(stageFlowController.DefeatedEnemyCount, 1, totalFloors);
+            battleUIController.SetFloorText(currentFloor, totalFloors);
         }
 
-        battleUIController.SetFloorText(currentFloor, totalFloors);
+        ApplyCurrentBackgroundTheme(currentFloor);
+    }
+
+    private int GetDisplayFloorNumber()
+    {
+        if (stageFlowController == null)
+        {
+            return 1;
+        }
+
+        int totalFloors = Mathf.Max(1, stageFlowController.TotalBattles);
+        bool hasLivingEnemy = enemyUnit != null && !enemyUnit.IsDead();
+
+        int floor = hasLivingEnemy
+            ? stageFlowController.DefeatedEnemyCount + 1
+            : Mathf.Max(1, stageFlowController.DefeatedEnemyCount);
+
+        return Mathf.Clamp(floor, 1, totalFloors);
+    }
+
+    private void ApplyCurrentBackgroundTheme(int currentFloor)
+    {
+        if (battleBackgroundThemeController == null)
+        {
+            return;
+        }
+
+        battleBackgroundThemeController.ApplyTheme(currentFloor);
+    }
+
+    private bool ShouldPlayThemeChangeFadeOnTravel(out int targetFloor)
+    {
+        targetFloor = 1;
+
+        if (!enableThemeChangeFadeTransition || stageFlowController == null || battleBackgroundThemeController == null)
+        {
+            return false;
+        }
+
+        int totalFloors = Mathf.Max(1, stageFlowController.TotalBattles);
+        int defeatedCount = Mathf.Max(0, stageFlowController.DefeatedEnemyCount);
+
+        bool enteringEnemyEncounter = currentEncounter == EncounterType.Enemy;
+        int rawTargetFloor = enteringEnemyEncounter
+            ? defeatedCount + 1
+            : Mathf.Max(1, defeatedCount);
+
+        targetFloor = Mathf.Clamp(rawTargetFloor, 1, totalFloors);
+        return battleBackgroundThemeController.WouldThemeChange(targetFloor);
     }
 
     private bool TryGetValidEnemyTarget(out BattleUnit target)
@@ -940,7 +998,10 @@ public class PanelBattleManager : MonoBehaviour
                 battleContext.CurrentEnemy = value;
             }
 
-            UpdateFloorUI();
+            if (value != null && !value.IsDead())
+            {
+                UpdateFloorUI();
+            }
         }
     }
 
@@ -1387,6 +1448,8 @@ public class PanelBattleManager : MonoBehaviour
             () => currentCoins,
             (amount) => AddCoins(amount));
 
+        shopController.SetStageFlowController(stageFlowController);
+
         // EncounterFlowController に商店コントローラーを渡す
         if (encounterFlowController != null)
         {
@@ -1483,7 +1546,13 @@ public class PanelBattleManager : MonoBehaviour
         }
 
         int total = stageFlowController.TotalBattles > 0 ? stageFlowController.TotalBattles : maxFloors;
-        return Mathf.Clamp(stageFlowController.DefeatedEnemyCount + 1, 1, Mathf.Max(1, total));
+        bool hasLivingEnemy = enemyUnit != null && !enemyUnit.IsDead();
+
+        int battleNumber = hasLivingEnemy
+            ? stageFlowController.DefeatedEnemyCount + 1
+            : Mathf.Max(1, stageFlowController.DefeatedEnemyCount);
+
+        return Mathf.Clamp(battleNumber, 1, Mathf.Max(1, total));
     }
 
     public int GetBattleCoinBonusForCurrentEncounter()
@@ -1579,6 +1648,13 @@ public class PanelBattleManager : MonoBehaviour
             playerAnim.PlayRun();
         }
 
+        int targetFloor;
+        if (ShouldPlayThemeChangeFadeOnTravel(out targetFloor))
+        {
+            yield return StartCoroutine(TravelForwardWithThemeChangeFade(playerAnim, targetFloor));
+            yield break;
+        }
+
         if (roomTravelController != null)
         {
             yield return roomTravelController.TravelForward(playerUnit.transform, waitOffset);
@@ -1614,6 +1690,147 @@ public class PanelBattleManager : MonoBehaviour
         {
             playerAnim.PlayIdle();
         }
+    }
+
+    private IEnumerator TravelForwardWithThemeChangeFade(PlayerAnimationPresenter playerAnim, int targetFloor)
+    {
+        if (playerUnit == null)
+        {
+            ApplyCurrentBackgroundTheme(targetFloor);
+            yield break;
+        }
+
+        EnsureThemeChangeFadeOverlay();
+
+        playerUnit.transform.DOKill(false);
+
+        Camera mainCam = Camera.main;
+        if (mainCam != null)
+        {
+            mainCam.transform.DOKill(false);
+        }
+
+        Vector3 playerStartPos = playerUnit.transform.position;
+        Vector3 cameraStartPos = mainCam != null ? mainCam.transform.position : Vector3.zero;
+
+        Vector3 exitTargetPos = ResolvePlayerHorizontalExitPosition(mainCam, themeChangeExitViewportX, playerStartPos);
+        Tween exitTween = playerUnit.transform
+            .DOMove(exitTargetPos, Mathf.Max(0.01f, themeChangePlayerExitDuration))
+            .SetEase(Ease.InCubic);
+
+        yield return exitTween.WaitForCompletion();
+
+        yield return StartCoroutine(FadeThemeChangeOverlayTo(1f, themeChangeFadeOutDuration));
+
+        if (mainCam != null)
+        {
+            mainCam.transform.position = cameraStartPos + waitOffset;
+        }
+
+        ApplyCurrentBackgroundTheme(targetFloor);
+
+        Vector3 playerTargetPos = playerStartPos + waitOffset;
+        Vector3 playerEntryPos = ResolvePlayerHorizontalExitPosition(mainCam, themeChangeEntryViewportX, playerTargetPos);
+        playerUnit.transform.position = playerEntryPos;
+
+        if (themeChangeFadeHoldDuration > 0f)
+        {
+            yield return new WaitForSeconds(themeChangeFadeHoldDuration);
+        }
+
+        if (playerAnim != null)
+        {
+            playerAnim.PlayRun();
+        }
+
+        Tween entryTween = playerUnit.transform
+            .DOMove(playerTargetPos, Mathf.Max(0.01f, themeChangePlayerEntryDuration))
+            .SetEase(Ease.OutCubic);
+
+        yield return StartCoroutine(FadeThemeChangeOverlayTo(0f, themeChangeFadeInDuration));
+
+        if (entryTween != null)
+        {
+            yield return entryTween.WaitForCompletion();
+        }
+
+        if (playerAnim != null)
+        {
+            playerAnim.PlayIdle();
+        }
+    }
+
+    private Vector3 ResolvePlayerHorizontalExitPosition(Camera cam, float viewportX, Vector3 currentWorldPosition)
+    {
+        Vector3 viewportPoint = cam != null ? cam.WorldToViewportPoint(currentWorldPosition) : Vector3.zero;
+        float preservedViewportY = cam != null ? Mathf.Clamp01(viewportPoint.y) : 0.5f;
+        return ResolvePlayerViewportPosition(cam, viewportX, preservedViewportY, currentWorldPosition);
+    }
+
+    private Vector3 ResolvePlayerViewportPosition(Camera cam, float viewportX, float viewportY, Vector3 fallbackWorldPosition)
+    {
+        if (cam == null)
+        {
+            float direction = viewportX >= 0.5f ? 1f : -1f;
+            float distance = Mathf.Max(Mathf.Abs(waitOffset.x), 3.5f);
+            return fallbackWorldPosition + Vector3.right * distance * direction;
+        }
+
+        if (cam.orthographic)
+        {
+            Vector3 worldPoint = cam.ViewportToWorldPoint(new Vector3(
+                viewportX,
+                viewportY,
+                Mathf.Abs(fallbackWorldPosition.z - cam.transform.position.z)));
+
+            worldPoint.z = fallbackWorldPosition.z;
+            return worldPoint;
+        }
+
+        Plane playerPlane = new Plane(Vector3.forward, new Vector3(0f, 0f, fallbackWorldPosition.z));
+        Ray ray = cam.ViewportPointToRay(new Vector3(viewportX, viewportY, 0f));
+
+        if (playerPlane.Raycast(ray, out float distanceToPlane))
+        {
+            return ray.GetPoint(distanceToPlane);
+        }
+
+        float fallbackDirection = viewportX >= 0.5f ? 1f : -1f;
+        float fallbackDistance = Mathf.Max(Mathf.Abs(waitOffset.x), 3.5f);
+        return fallbackWorldPosition + Vector3.right * fallbackDistance * fallbackDirection;
+    }
+
+    private IEnumerator FadeThemeChangeOverlayTo(float targetAlpha, float duration)
+    {
+        EnsureThemeChangeFadeOverlay();
+
+        if (themeChangeFadeOverlay == null)
+        {
+            yield break;
+        }
+
+        Color color = themeChangeFadeOverlay.color;
+        float startAlpha = color.a;
+
+        if (duration <= 0f)
+        {
+            color.a = targetAlpha;
+            themeChangeFadeOverlay.color = color;
+            yield break;
+        }
+
+        float elapsed = 0f;
+        while (elapsed < duration)
+        {
+            elapsed += Time.deltaTime;
+            float t = Mathf.Clamp01(elapsed / duration);
+            color.a = Mathf.Lerp(startAlpha, targetAlpha, t);
+            themeChangeFadeOverlay.color = color;
+            yield return null;
+        }
+
+        color.a = targetAlpha;
+        themeChangeFadeOverlay.color = color;
     }
 
     public void SpawnEnergyOrb(PanelType panelType, Vector3 startPos, Vector3 target, float duration, float delay)
@@ -2014,6 +2231,47 @@ public class PanelBattleManager : MonoBehaviour
         }
 
         return FindObjectOfType<Canvas>();
+    }
+
+    private void EnsureThemeChangeFadeOverlay()
+    {
+        if (themeChangeFadeOverlay != null)
+        {
+            Color overlayColor = themeChangeFadeOverlay.color;
+            overlayColor.a = Mathf.Clamp01(overlayColor.a);
+            themeChangeFadeOverlay.color = overlayColor;
+            themeChangeFadeOverlay.raycastTarget = false;
+            return;
+        }
+
+        Canvas parentCanvas = ResolveBattleCanvas();
+        if (parentCanvas == null)
+        {
+            return;
+        }
+
+        Transform overlayTransform = parentCanvas.transform.Find("ThemeChangeFadeOverlay");
+        if (overlayTransform == null)
+        {
+            GameObject overlayObject = new GameObject("ThemeChangeFadeOverlay", typeof(RectTransform), typeof(Image));
+            overlayTransform = overlayObject.transform;
+            overlayTransform.SetParent(parentCanvas.transform, false);
+
+            RectTransform overlayRect = overlayObject.GetComponent<RectTransform>();
+            overlayRect.anchorMin = Vector2.zero;
+            overlayRect.anchorMax = Vector2.one;
+            overlayRect.offsetMin = Vector2.zero;
+            overlayRect.offsetMax = Vector2.zero;
+        }
+
+        themeChangeFadeOverlay = overlayTransform.GetComponent<Image>();
+        if (themeChangeFadeOverlay == null)
+        {
+            themeChangeFadeOverlay = overlayTransform.gameObject.AddComponent<Image>();
+        }
+
+        themeChangeFadeOverlay.color = new Color(0f, 0f, 0f, 0f);
+        themeChangeFadeOverlay.raycastTarget = false;
     }
 
     private TMP_Text ResolveResultTextTemplate()

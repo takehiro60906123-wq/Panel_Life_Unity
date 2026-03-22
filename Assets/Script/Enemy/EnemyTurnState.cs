@@ -19,9 +19,11 @@ public class EnemyTurnState : MonoBehaviour
         attackInterval = Mathf.Max(1, value);
     }
 
-    public void InitializeTurn()
+    public void InitializeTurn(int initialCooldownOverride = -1)
     {
-        currentCooldown = attackInterval;
+        currentCooldown = initialCooldownOverride >= 0
+            ? Mathf.Max(0, initialCooldownOverride)
+            : attackInterval;
     }
 
     public void TickDown()

@@ -10,6 +10,12 @@ public class PlayerProgression : MonoBehaviour
     [SerializeField]
     private int[] expTable = { 0, 8, 18, 32, 50, 72, 98, 128, 162, 200 };
 
+    [Header("繝ｬ繝吶Ν繧｢繝�繝苓ｪｿ謨ｴ")]
+    [SerializeField, Range(0.85f, 1.10f)] private float expRequirementScale = 0.96f;
+    [SerializeField] private int levelUpMaxHpGain = 2;
+    [SerializeField] private int levelUpHealFlat = 2;
+    [SerializeField, Range(0f, 0.25f)] private float levelUpHealPercentOfMaxHp = 0.08f;
+
     public int Level => level;
     public int CurrentExp => currentExp;
 
@@ -35,25 +41,30 @@ public class PlayerProgression : MonoBehaviour
         currentExp += amount;
         bool leveledUp = false;
 
-        while (level < expTable.Length && currentExp >= expTable[level])
+        while (level < expTable.Length && currentExp >= GetScaledRequiredExp(level))
         {
             level++;
 
-            // シレン寄り: HP+2、現HPも+2
+            // V: HP+2AHP+2
             if (unit != null)
             {
-                unit.IncreaseMaxHP(2, false);
-                unit.Heal(2);
+                unit.IncreaseMaxHP(levelUpMaxHpGain, false);
+
+                int healAmount = Mathf.Max(
+                    levelUpHealFlat,
+                    Mathf.CeilToInt(unit.maxHP * levelUpHealPercentOfMaxHp));
+
+                unit.Heal(healAmount);
             }
 
-            // 2レベルごとに近接攻撃+1
-            // Lv1-2: 2ダメ, Lv3-4: 3ダメ, Lv5-6: 4ダメ...
+            // 2xﾆに近接攻+1
+            // Lv1-2: 2_, Lv3-4: 3_, Lv5-6: 4_...
             if (level % 2 == 1)
             {
                 playerCombatController?.AddLevelAttackBonus(1);
             }
 
-            Debug.Log($"レベル{level}になった。最大HP+2、HP+2");
+            Debug.Log($"x{level}ﾉな�Bﾅ践P+2AHP+2");
             leveledUp = true;
         }
         Debug.Log($"[PlayerProgression] after currentExp={currentExp}  level={level}  progress={GetExpProgress01()}");
@@ -68,12 +79,23 @@ public class PlayerProgression : MonoBehaviour
         if (level >= expTable.Length)
             return 1f;
 
-        int prevRequired = level <= 1 ? 0 : expTable[level - 1];
-        int nextRequired = expTable[level];
+        int prevRequired = level <= 1 ? 0 : GetScaledRequiredExp(level - 1);
+        int nextRequired = GetScaledRequiredExp(level);
 
         int range = nextRequired - prevRequired;
         if (range <= 0) return 1f;
 
         return Mathf.Clamp01((currentExp - prevRequired) / (float)range);
+    }
+
+    private int GetScaledRequiredExp(int tableIndex)
+    {
+        if (expTable == null || expTable.Length == 0)
+            return 0;
+
+        tableIndex = Mathf.Clamp(tableIndex, 0, expTable.Length - 1);
+
+        int raw = expTable[tableIndex];
+        return Mathf.Max(0, Mathf.RoundToInt(raw * expRequirementScale));
     }
 }

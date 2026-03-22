@@ -492,7 +492,7 @@ public class EncounterFlowController : MonoBehaviour
             yield break;
         }
 
-        if (stageFlowController.WillCurrentEnemyDefeatClearConfiguredFinalBattle())
+        if (stageFlowController.HasConfiguredFinalBattleBeenCleared())
         {
             PublishEncounterState(EncounterType.Enemy, 0);
             setIsEnemySpawning?.Invoke(false);

@@ -2,26 +2,66 @@ using UnityEngine;
 
 public class InfiniteBackground : MonoBehaviour
 {
-    [Header("背景画像の横の長さ")]
-    // ★計算済みのピッタリの数値を最初から入れておきます
-    public float backgroundWidth = 25.728f;
+    [Header("Loop Width")]
+    [SerializeField] private float backgroundWidth = 25.728f;
 
     private Transform cameraTransform;
+    private Vector3 initialLocalPosition;
+    private bool initialized;
 
-    void Start()
+    public float BackgroundWidth => backgroundWidth;
+
+    private void Awake()
     {
-        // メインカメラを取得
-        cameraTransform = Camera.main.transform;
+        CacheInitialState();
     }
 
-    void Update()
+    private void OnEnable()
     {
-        // カメラがこの背景グループよりも「画像の横幅分」右に進んだら
+        CacheInitialState();
+    }
+
+    private void Start()
+    {
+        if (Camera.main != null)
+        {
+            cameraTransform = Camera.main.transform;
+        }
+    }
+
+    private void CacheInitialState()
+    {
+        initialLocalPosition = transform.localPosition;
+        initialized = true;
+    }
+
+    private void Update()
+    {
+        if (cameraTransform == null)
+        {
+            if (Camera.main != null)
+            {
+                cameraTransform = Camera.main.transform;
+            }
+            else
+            {
+                return;
+            }
+        }
+
         if (cameraTransform.position.x - transform.position.x >= backgroundWidth)
         {
-            // この背景グループを、右側にワープさせて使い回す！
-            // ※背景2枚でループさせるので、移動距離は backgroundWidth * 2 になります
-            transform.position += new Vector3(backgroundWidth * 2, 0, 0);
+            transform.localPosition += new Vector3(backgroundWidth * 2f, 0f, 0f);
         }
+    }
+
+    public void ResetToInitialPosition()
+    {
+        if (!initialized)
+        {
+            CacheInitialState();
+        }
+
+        transform.localPosition = initialLocalPosition;
     }
 }

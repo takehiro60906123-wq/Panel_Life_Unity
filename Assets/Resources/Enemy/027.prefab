@@ -668,7 +668,7 @@ MonoBehaviour:
   shellSlider: {fileID: 0}
   shellText: {fileID: 0}
   animator: {fileID: 4040017128895663345}
-  attackInterval: 2
+  attackInterval: 3
   currentCooldown: 0
   turnText: {fileID: 6957822152843867208}
 --- !u!114 &2791046625075093319

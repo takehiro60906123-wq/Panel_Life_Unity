@@ -16,7 +16,7 @@ MonoBehaviour:
   enemyName: "\u6697\u6BBB\u7363"
   enemyType: 2
   attackPattern: 1
-  baseHP: 42
+  baseHP: 32
   attackPower: 7
   baseShellHp: 12
   attackInterval: 3
