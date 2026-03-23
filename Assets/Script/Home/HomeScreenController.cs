@@ -1,4 +1,4 @@
-using System.Collections;
+﻿using System.Collections;
 using TMPro;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -33,12 +33,18 @@ public class HomeScreenController : MonoBehaviour
     [Header("Sound")]
     [SerializeField] private AudioSource seSource;
     [SerializeField] private AudioClip uiDecideSe;
+    [SerializeField] private FootstepLoopPlayer footstepLoopPlayer;
 
     private bool isSequenceStarted = false;
     private bool isOpening = true;
 
     private void Awake()
     {
+        if (footstepLoopPlayer == null && playerRoot != null)
+        {
+            footstepLoopPlayer = playerRoot.GetComponentInChildren<FootstepLoopPlayer>(true);
+        }
+
         if (commentText != null)
         {
             commentText.text = "行くか";
@@ -63,6 +69,11 @@ public class HomeScreenController : MonoBehaviour
     private void Start()
     {
         StartCoroutine(HomeFadeInRoutine());
+    }
+
+    private void OnDisable()
+    {
+        footstepLoopPlayer?.EndLoop();
     }
 
     private void Update()
@@ -138,6 +149,7 @@ public class HomeScreenController : MonoBehaviour
 
         FaceTowardExit();
         PlayRunDirect();
+        footstepLoopPlayer?.BeginLoop();
 
         yield return StartCoroutine(RunToExitRoutine());
         yield return StartCoroutine(FadeOutRoutine());
@@ -212,6 +224,7 @@ public class HomeScreenController : MonoBehaviour
         }
 
         playerRoot.position = exitPoint.position;
+        footstepLoopPlayer?.EndLoop();
     }
 
     private IEnumerator FadeOutRoutine()

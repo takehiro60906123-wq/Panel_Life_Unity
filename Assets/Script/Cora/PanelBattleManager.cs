@@ -980,6 +980,22 @@ public class PanelBattleManager : MonoBehaviour
     }
 
 
+    private FootstepLoopPlayer GetPlayerFootstepLoopPlayer()
+    {
+        if (playerUnit == null) return null;
+        return playerUnit.GetComponentInChildren<FootstepLoopPlayer>(true);
+    }
+
+    private void BeginPlayerFootstepLoop()
+    {
+        GetPlayerFootstepLoopPlayer()?.BeginLoop();
+    }
+
+    private void EndPlayerFootstepLoop()
+    {
+        GetPlayerFootstepLoopPlayer()?.EndLoop();
+    }
+
     private PlayerAnimationPresenter GetPlayerAnimationPresenter()
     {
         if (playerUnit == null) return null;
@@ -1657,7 +1673,9 @@ public class PanelBattleManager : MonoBehaviour
 
         if (roomTravelController != null)
         {
+            BeginPlayerFootstepLoop();
             yield return roomTravelController.TravelForward(playerUnit.transform, waitOffset);
+            EndPlayerFootstepLoop();
 
             if (playerAnim != null)
             {
@@ -1672,6 +1690,8 @@ public class PanelBattleManager : MonoBehaviour
             yield break;
         }
 
+        BeginPlayerFootstepLoop();
+
         playerUnit.transform
             .DOMove(playerUnit.transform.position + waitOffset, roomTravelDuration)
             .SetEase(roomTravelEase);
@@ -1685,6 +1705,7 @@ public class PanelBattleManager : MonoBehaviour
         }
 
         yield return new WaitForSeconds(roomTravelDuration);
+        EndPlayerFootstepLoop();
 
         if (playerAnim != null)
         {
@@ -1714,11 +1735,14 @@ public class PanelBattleManager : MonoBehaviour
         Vector3 cameraStartPos = mainCam != null ? mainCam.transform.position : Vector3.zero;
 
         Vector3 exitTargetPos = ResolvePlayerHorizontalExitPosition(mainCam, themeChangeExitViewportX, playerStartPos);
+        BeginPlayerFootstepLoop();
+
         Tween exitTween = playerUnit.transform
             .DOMove(exitTargetPos, Mathf.Max(0.01f, themeChangePlayerExitDuration))
             .SetEase(Ease.InCubic);
 
         yield return exitTween.WaitForCompletion();
+        EndPlayerFootstepLoop();
 
         yield return StartCoroutine(FadeThemeChangeOverlayTo(1f, themeChangeFadeOutDuration));
 
@@ -1743,6 +1767,8 @@ public class PanelBattleManager : MonoBehaviour
             playerAnim.PlayRun();
         }
 
+        BeginPlayerFootstepLoop();
+
         Tween entryTween = playerUnit.transform
             .DOMove(playerTargetPos, Mathf.Max(0.01f, themeChangePlayerEntryDuration))
             .SetEase(Ease.OutCubic);
@@ -1753,6 +1779,8 @@ public class PanelBattleManager : MonoBehaviour
         {
             yield return entryTween.WaitForCompletion();
         }
+
+        EndPlayerFootstepLoop();
 
         if (playerAnim != null)
         {
