@@ -279,6 +279,8 @@ public class GunCombatController : MonoBehaviour
 
         PlayGunShotVisual(gun, target);
 
+        ScreenShakeController.TryGunImpact(gun.gunType);
+
         if (ShouldEjectShell(gun, shotIndex) && battleUIController != null)
         {
             battleUIController.PlayGunShellEject(gun.gunType, ResolveShellDelay(gun));

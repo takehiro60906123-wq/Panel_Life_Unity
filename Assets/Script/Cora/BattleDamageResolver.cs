@@ -458,6 +458,9 @@ public class BattleDamageResolver : MonoBehaviour
 
         panelBattleManager?.panelBoardController?.PlayDefeatCelebration();
 
+        bool isDangerEnemy = defeatedEnemy != null && defeatedEnemy.IsDangerEnemy();
+        ScreenShakeController.Instance?.EnemyDefeatImpact(isDangerEnemy);
+
         int gainedCoins = panelBattleManager != null
             ? panelBattleManager.CalculateEnemyCoinReward(defeatedEnemy)
             : 0;

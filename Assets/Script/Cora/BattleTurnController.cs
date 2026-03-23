@@ -263,6 +263,7 @@ public class BattleTurnController : MonoBehaviour
 
                 battleSfxController?.PlayPlayerHit();
                 if (playerUnit != null) playerUnit.TakeDamage(finalDamage);
+                ScreenShakeController.TryShake(ShakePreset.PlayerHit);
 
                 if (playerUnit != null && playerUnit.StatusEffects != null)
                 {
@@ -305,6 +306,7 @@ public class BattleTurnController : MonoBehaviour
 
                         battleSfxController?.PlayPlayerHit();
                         playerUnit.TakeDamage(finalDmg2);
+                        ScreenShakeController.TryShake(ShakePreset.PlayerHit);
 
                         if (playerUnit.StatusEffects != null)
                         {

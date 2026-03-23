@@ -3364,6 +3364,7 @@ GameObject:
   - component: {fileID: 519420032}
   - component: {fileID: 519420031}
   - component: {fileID: 519420029}
+  - component: {fileID: 519420033}
   m_Layer: 0
   m_Name: Main Camera
   m_TagString: MainCamera
@@ -3445,6 +3446,44 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &519420033
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 519420028}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 39db5fbdafca12642afe3e54b38312f2, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  targetCamera: {fileID: 519420031}
+  flashOverlay: {fileID: 0}
+  lightIntensity: 0.04
+  lightDuration: 0.08
+  lightVibrato: 14
+  mediumIntensity: 0.08
+  mediumDuration: 0.1
+  mediumVibrato: 18
+  heavyIntensity: 0.14
+  heavyDuration: 0.13
+  heavyVibrato: 22
+  bossIntensity: 0.22
+  bossDuration: 0.2
+  bossVibrato: 26
+  pistolShakeIntensity: 0.05
+  pistolShakeDuration: 0.07
+  mgShakeIntensity: 0.03
+  mgShakeDuration: 0.04
+  sgShakeIntensity: 0.16
+  sgShakeDuration: 0.12
+  rifleShakeIntensity: 0.1
+  rifleShakeDuration: 0.09
+  defaultHitStopDuration: 0.045
+  hitStopTimeScale: 0.02
+  defaultFlashAlpha: 0.35
+  defaultFlashFadeDuration: 0.12
 --- !u!1 &520507563
 GameObject:
   m_ObjectHideFlags: 0

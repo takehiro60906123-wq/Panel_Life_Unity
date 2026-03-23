@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -1155,6 +1155,17 @@ public class PanelBoardController : MonoBehaviour
                         if (img != null) img.sprite = null;
                         iconTransform.localScale = Vector3.one;
                     });
+            }
+        }
+
+        if (chain.Count >= bigChainThreshold)
+        {
+            ScreenShakeController.TryShake(
+                chain.Count >= maxChainThreshold ? ShakePreset.Medium : ShakePreset.Light);
+
+            if (chain.Count >= maxChainThreshold)
+            {
+                ScreenShakeController.TryHitStop(0.035f);
             }
         }
     }
@@ -2648,6 +2659,14 @@ public class PanelBoardController : MonoBehaviour
                 ? boardShakeIntensity * 1.5f
                 : boardShakeIntensity;
             boardParent.DOShakePosition(0.15f, intensity, 20, 90f, false, true);
+
+            ScreenShakeController.TryShake(
+                chainSize >= maxChainThreshold ? ShakePreset.Medium : ShakePreset.Light);
+
+            if (chainSize >= maxChainThreshold)
+            {
+                ScreenShakeController.TryHitStop(0.035f);
+            }
         }
 
         DropAndFillPanels();

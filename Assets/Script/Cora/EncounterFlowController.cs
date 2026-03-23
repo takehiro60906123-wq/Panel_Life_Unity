@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections;
 using UnityEngine;
 
@@ -337,6 +337,7 @@ public class EncounterFlowController : MonoBehaviour
                 if (playerUnit != null)
                 {
                     playerUnit.TakeDamage(damage);
+                    ScreenShakeController.TryShake(ShakePreset.PlayerHit);
 
                     // === 状態異常: プレイヤー被弾解除（フォールバック） ===
                     if (playerUnit.StatusEffects != null)
