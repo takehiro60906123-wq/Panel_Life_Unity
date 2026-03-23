@@ -36,6 +36,10 @@ public class TitleScreenController : MonoBehaviour
     [SerializeField] private float fadeDuration = 0.5f;
     [SerializeField] private float blackHoldDuration = 0.12f;
 
+    [Header("Sound")]
+    [SerializeField] private AudioSource seSource;
+    [SerializeField] private AudioClip uiDecideSe;
+
     private bool isTransitioning = false;
     private bool canBlinkTapText = false;
     private Vector2 tapBaseAnchoredPosition;
@@ -165,6 +169,11 @@ public class TitleScreenController : MonoBehaviour
     {
         isTransitioning = true;
         canBlinkTapText = false;
+
+        if (seSource != null && uiDecideSe != null)
+        {
+            seSource.PlayOneShot(uiDecideSe);
+        }
 
         if (tapToStartText != null)
         {

@@ -6060,6 +6060,170 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 976709176}
   m_CullTransparentMesh: 1
+--- !u!1 &991910045
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 991910048}
+  - component: {fileID: 991910047}
+  - component: {fileID: 991910046}
+  m_Layer: 0
+  m_Name: BattleSfxController
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!82 &991910046
+AudioSource:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 991910045}
+  m_Enabled: 1
+  serializedVersion: 4
+  OutputAudioMixerGroup: {fileID: 0}
+  m_audioClip: {fileID: 0}
+  m_PlayOnAwake: 1
+  m_Volume: 1
+  m_Pitch: 1
+  Loop: 0
+  Mute: 0
+  Spatialize: 0
+  SpatializePostEffects: 0
+  Priority: 128
+  DopplerLevel: 1
+  MinDistance: 1
+  MaxDistance: 500
+  Pan2D: 0
+  rolloffMode: 0
+  BypassEffects: 0
+  BypassListenerEffects: 0
+  BypassReverbZones: 0
+  rolloffCustomCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    - serializedVersion: 3
+      time: 1
+      value: 0
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  panLevelCustomCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 0
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  spreadCustomCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 0
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  reverbZoneMixCustomCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+--- !u!114 &991910047
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 991910045}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 009434b934fd62d4c99960d73436afa8, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  seSource: {fileID: 991910046}
+  battleEventHub: {fileID: 0}
+  masterVolume: 1
+  uiDecide: {fileID: 8300000, guid: 184c585661160544fb743caf9df30487, type: 3}
+  uiCancel: {fileID: 8300000, guid: dbb17906a7b8bff4eba2b2d93376f350, type: 3}
+  uiGaugeError: {fileID: 8300000, guid: dae1400c81f8af04891abafcd5585d55, type: 3}
+  boardPanelTap: {fileID: 8300000, guid: 07a7824fbac4e874bac88a98a55647f1, type: 3}
+  boardPanelClear: {fileID: 8300000, guid: 091f6379a4cea7746bae15ad423d18e5, type: 3}
+  battleTurnShift: {fileID: 8300000, guid: 630db30841fb1ee4fb77f17a62f0ceb9, type: 3}
+  battleMeleeHit: {fileID: 8300000, guid: 58dd4f53e776cb8448818cdc6b8124db, type: 3}
+  battleEnemyHit: {fileID: 8300000, guid: 57837243d1147e341b9fa921d33edaa5, type: 3}
+  battleEnemyDown: {fileID: 8300000, guid: 307ca353ad59b1842ad947f7d5b5fab3, type: 3}
+  battlePlayerHit: {fileID: 8300000, guid: f8ae50e0e223e83449b91cd2a37aed09, type: 3}
+  gunPistolFire: {fileID: 8300000, guid: 964bc486dcd315749b5739e9693cd4b4, type: 3}
+  gunMgFire: {fileID: 8300000, guid: 5aec007591e74b44ba67425b722a4c79, type: 3}
+  gunShotgunFire: {fileID: 8300000, guid: 2547d890135ba5446bc65e10a0cecc45, type: 3}
+  gunRifleFire: {fileID: 8300000, guid: 4533efda1c761fc448b550c89e15d0c6, type: 3}
+  rewardCoin: {fileID: 8300000, guid: 8a688ddec330f6a4fb220cdfe1384c0b, type: 3}
+  rewardExp: {fileID: 8300000, guid: 9a28a662f249e9845987b27877c3282a, type: 3}
+  rewardLevelUp: {fileID: 8300000, guid: 1ddea46d55a4e73438f4b58be78a4414, type: 3}
+  bossAppear: {fileID: 8300000, guid: edfbba838c7e90445ac3e79bfe1d25bf, type: 3}
+  resultVictory: {fileID: 8300000, guid: 711c80fd7f00081448b850f66bed269c, type: 3}
+  resultGameOver: {fileID: 8300000, guid: 82caa74777f78c242aff89fb4c1ea93c, type: 3}
+--- !u!4 &991910048
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 991910045}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &998976412
 GameObject:
   m_ObjectHideFlags: 0
@@ -14356,3 +14520,4 @@ SceneRoots:
   - {fileID: 228695542}
   - {fileID: 237115895}
   - {fileID: 2071098051}
+  - {fileID: 991910048}

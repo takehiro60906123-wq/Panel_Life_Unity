@@ -36,6 +36,10 @@ public class EnemyStatData : ScriptableObject
     [Tooltip("外殻の最大HP。0なら外殻なし")]
     public int baseShellHp = 0;
 
+    [Header("ボス: 毎ターン自動汚染")]
+    [Tooltip("0なら無効。毎ターン強制で配置する腐敗パネル数")]
+    public int passiveCorruptPerTurn = 0;
+
     [Tooltip("撃破時の経験値")]
     public int expYield = 2;
 
@@ -69,6 +73,7 @@ public class EnemyStatData : ScriptableObject
         unit.attackInterval = attackInterval;
         unit.initialAttackCooldown = initialAttackCooldown;
         unit.SetMaxShell(baseShellHp, true);
+        unit.passiveCorruptPerTurn = passiveCorruptPerTurn;
         unit.expYield = expYield;
         unit.coinYield = coinYield;
         unit.enemyType = enemyType;

@@ -30,6 +30,10 @@ public class HomeScreenController : MonoBehaviour
     [SerializeField] private float fadeDuration = 0.5f;
     [SerializeField] private float homeFadeInDuration = 0.6f;
 
+    [Header("Sound")]
+    [SerializeField] private AudioSource seSource;
+    [SerializeField] private AudioClip uiDecideSe;
+
     private bool isSequenceStarted = false;
     private bool isOpening = true;
 
@@ -118,6 +122,11 @@ public class HomeScreenController : MonoBehaviour
     {
         isSequenceStarted = true;
 
+        if (seSource != null && uiDecideSe != null)
+        {
+            seSource.PlayOneShot(uiDecideSe);
+        }
+
         if (tapToStartText != null)
         {
             tapToStartText.gameObject.SetActive(false);
@@ -150,11 +159,7 @@ public class HomeScreenController : MonoBehaviour
             return;
         }
 
-        // 元絵が「右向き」ならこれ
         playerSpriteRenderer.flipX = deltaX < 0f;
-
-        // もし逆向きになるなら、こっちに変える
-        // playerSpriteRenderer.flipX = deltaX > 0f;
     }
 
     private void PlayRunDirect()

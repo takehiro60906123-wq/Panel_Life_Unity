@@ -13,7 +13,7 @@ public class PlayerProgression : MonoBehaviour
     [Header("レベルアップ調整")]
     [SerializeField, Range(0.85f, 1.10f)] private float expRequirementScale = 0.96f;
     [SerializeField] private int levelUpMaxHpGain = 2;
-    [SerializeField] private int levelUpHealFlat = 2;
+    [SerializeField] private int levelUpHealFlat = 4;
     [SerializeField, Range(0f, 0.25f)] private float levelUpHealPercentOfMaxHp = 0.08f;
 
     public int Level => level;
@@ -21,6 +21,12 @@ public class PlayerProgression : MonoBehaviour
 
     private void Awake()
     {
+        // 旧デフォルト値を使っている既存シーンの自動移行
+        if (levelUpHealFlat == 2)
+        {
+            levelUpHealFlat = 4;
+        }
+
         if (playerCombatController == null)
         {
             playerCombatController = FindObjectOfType<PlayerCombatController>();

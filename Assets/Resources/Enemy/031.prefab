@@ -559,10 +559,12 @@ MonoBehaviour:
   currentShellHp: 0
   expYield: 12
   coinYield: 7
-  attackPower: 7
+  attackPower: 8
   enemyType: 2
   attackPattern: 1
+  passiveCorruptPerTurn: 2
   isChargingHeavyHit: 0
+  isPhase2: 0
   enemyLevel: 0
   level: 1
   currentExp: 10
@@ -573,6 +575,7 @@ MonoBehaviour:
   shellText: {fileID: 0}
   animator: {fileID: 4999506185363599071}
   attackInterval: 3
+  initialAttackCooldown: 2
   currentCooldown: 0
   turnText: {fileID: 6957822152843867208}
 --- !u!114 &2791046625075093319
@@ -591,6 +594,10 @@ MonoBehaviour:
   currentExp: 0
   playerCombatController: {fileID: 0}
   expTable: 000000000a0000001e0000003c0000006400000096000000dc0000002c01000090010000f4010000
+  expRequirementScale: 0.96
+  levelUpMaxHpGain: 2
+  levelUpHealFlat: 4
+  levelUpHealPercentOfMaxHp: 0.08
 --- !u!114 &4826477532343885244
 MonoBehaviour:
   m_ObjectHideFlags: 0

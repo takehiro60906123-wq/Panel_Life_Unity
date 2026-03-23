@@ -25,7 +25,10 @@ public class BattleUnit : MonoBehaviour
     public int attackPower = 1;
     public EnemyType enemyType = EnemyType.Normal;
     public EnemyAttackPattern attackPattern = EnemyAttackPattern.Normal;
+    [Tooltip("0なら無効。敵ターン開始時に強制で配置する腐敗パネル数")]
+    public int passiveCorruptPerTurn = 0;
     [HideInInspector] public bool isChargingHeavyHit;
+    [HideInInspector] public bool isPhase2;
 
     [Header("モンスターパネル強化")]
     [Tooltip("モンスターパネルで何段階強化されたか")]
@@ -115,6 +118,8 @@ public class BattleUnit : MonoBehaviour
 
     public void InitializeTurn()
     {
+        isChargingHeavyHit = false;
+        isPhase2 = false;
         turnState.SetAttackInterval(attackInterval);
         turnState.InitializeTurn(initialAttackCooldown);
         SyncFromComponents();
@@ -174,6 +179,8 @@ public class BattleUnit : MonoBehaviour
     {
         currentHP = maxHP;
         currentShellHp = maxShellHp;
+        isChargingHeavyHit = false;
+        isPhase2 = false;
         view.PlayIdle();
         RefreshAll();
     }

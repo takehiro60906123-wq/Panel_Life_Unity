@@ -90,6 +90,7 @@ public class GunCombatController : MonoBehaviour
     private Func<int, int> applyPlayerDamageModifiers;
     private Func<IEnumerator> endPlayerTurnRoutineFactory;
     private Material gunTracerMaterial;
+    private BattleSfxController battleSfxController;
 
     public void Initialize(
         PlayerCombatController playerCombatController,
@@ -117,6 +118,7 @@ public class GunCombatController : MonoBehaviour
         this.getIsPlayerTurn = getIsPlayerTurn;
         this.applyPlayerDamageModifiers = applyPlayerDamageModifiers;
         this.endPlayerTurnRoutineFactory = endPlayerTurnRoutineFactory;
+        battleSfxController = FindObjectOfType<BattleSfxController>();
     }
 
     public void FireEquippedGun()
@@ -288,6 +290,7 @@ public class GunCombatController : MonoBehaviour
             battleDamageResolver.SetNextDamageUseHeavyReaction(gun.gunType == GunType.Shotgun);
         }
 
+        battleSfxController?.PlayGunFire(gun.gunType);
         battleEventHub?.RaiseEnemyDamageRequested(damage);
     }
 
@@ -475,7 +478,6 @@ public class GunCombatController : MonoBehaviour
         {
             TryDelayEnemyTurnByShotgun(target);
         }
-
     }
 
     private void TryDelayEnemyTurnByShotgun(BattleUnit target)

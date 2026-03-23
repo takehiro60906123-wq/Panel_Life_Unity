@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections;
 using UnityEngine;
 
@@ -42,14 +42,12 @@ public class BattleDamageResolver : MonoBehaviour
     [SerializeField] private Color shellDamageTextColor = new Color(0.72f, 0.87f, 1f, 1f);
     [SerializeField] private Color shellBreakTextColor = new Color(0.95f, 0.96f, 1f, 1f);
 
-    // --- 銃ダメージフラグ：銃攻撃前にtrueにセットされる ---
     private bool nextDamageIsGun;
     private bool nextDamageUseHeavyReaction;
     private bool nextDamageUseOverlinkTextBoost;
 
     private const string OverlinkImpactTextMarker = "<ovl>";
 
-    // --- 次の成功した敵被弾時に1回だけ付与する状態異常 ---
     private bool hasQueuedSuccessfulEnemyHitStatusEffect;
     private StatusEffectType queuedSuccessfulEnemyHitStatusEffectType = StatusEffectType.None;
     private int queuedSuccessfulEnemyHitStatusEffectTurns;
@@ -57,11 +55,8 @@ public class BattleDamageResolver : MonoBehaviour
     private int queuedSuccessfulEnemyHitStatusEffectPotency;
     private int queuedSuccessfulEnemyHitStatusEffectChancePercent = 100;
 
-    /// <summary>
-    /// 次のダメージが銃由来かどうかをセットする。
-    /// PanelBattleManager.ExecuteGunHit から呼ばれる。
-    /// DamageEnemy 内で参照後に自動リセット。
-    /// </summary>
+    private BattleSfxController battleSfxController;
+
     public void SetNextDamageIsGun(bool value)
     {
         nextDamageIsGun = value;
@@ -126,6 +121,7 @@ public class BattleDamageResolver : MonoBehaviour
         this.hitEffectPrefab = hitEffectPrefab;
         this.levelUpEffectPrefab = levelUpEffectPrefab;
         this.enemyRespawnRoutineFactory = enemyRespawnRoutineFactory;
+        battleSfxController = FindObjectOfType<BattleSfxController>();
     }
 
     public void SetRewardDropController(RewardDropController controller, Func<int> getCurrentRewardBattleNumber)
@@ -181,6 +177,11 @@ public class BattleDamageResolver : MonoBehaviour
 
     public void DamageEnemy(int baseDamage)
     {
+        if (battleSfxController == null)
+        {
+            battleSfxController = FindObjectOfType<BattleSfxController>();
+        }
+
         BattleUnit enemyUnit = getEnemyUnit != null ? getEnemyUnit() : null;
         if (enemyUnit == null) return;
         if (enemyUnit.IsDead()) return;
@@ -206,16 +207,8 @@ public class BattleDamageResolver : MonoBehaviour
 
         int finalDamage = isCritical ? baseDamage * criticalMultiplier : baseDamage;
 
-        // ==============================================
-        // 敵タイプ補正
-        // ==============================================
         finalDamage = ApplyEnemyTypeModifier(finalDamage, enemyUnit, isGun);
 
-        // ==============================================
-        // 状態異常: 敵腐食チェック
-        // 装甲補正の後に追加ダメージを加算する。
-        // これにより装甲で軽減された後でも腐食分は確実に乗る。
-        // ==============================================
         int corrosionBonus = 0;
         if (enemyUnit.StatusEffects != null && enemyUnit.StatusEffects.HasEffect(StatusEffectType.Corrosion))
         {
@@ -233,11 +226,15 @@ public class BattleDamageResolver : MonoBehaviour
             finalDamage = enemyUnit.ApplyShellDamage(finalDamage, out shellAbsorbedDamage, out shellBrokenThisHit);
         }
 
+        if (finalDamage > 0)
+        {
+            battleSfxController?.PlayEnemyHit();
+        }
+
         enemyUnit.TakeDamage(finalDamage, useHeavyReaction);
 
         TryApplyQueuedSuccessfulEnemyHitStatusEffect(enemyUnit);
 
-        // === 状態異常: 敵被弾解除 ===
         if (enemyUnit.StatusEffects != null)
         {
             enemyUnit.StatusEffects.OnDamageReceived();
@@ -245,7 +242,6 @@ public class BattleDamageResolver : MonoBehaviour
 
         battleEventHub?.RaiseOneShotEffectRequested(hitEffectPrefab, enemyPos + Vector3.up * hitEffectHeight, hitEffectReturnDelay);
 
-        // --- テキスト表示 ---
         string text;
         Color textColor;
 
@@ -290,7 +286,6 @@ public class BattleDamageResolver : MonoBehaviour
                 damageTextDelay + 0.03f));
         }
 
-        // --- 腐食テキスト（ダメージ数値の少し上に表示） ---
         if (corrosionBonus > 0)
         {
             StartCoroutine(ShowDamageTextDelayed(
@@ -307,12 +302,6 @@ public class BattleDamageResolver : MonoBehaviour
 
         HandleEnemyDefeat(enemyUnit);
     }
-
- 
-
-    // ==============================================
-    // 敵タイプによるダメージ補正
-    // ==============================================
 
     private void TryApplyQueuedSuccessfulEnemyHitStatusEffect(BattleUnit enemyUnit)
     {
@@ -390,7 +379,6 @@ public class BattleDamageResolver : MonoBehaviour
         switch (type)
         {
             case EnemyType.Floating:
-                // 浮遊敵：近接ダメージ半減（銃はそのまま）
                 if (!isGun)
                 {
                     damage = Mathf.Max(1, damage / 2);
@@ -398,7 +386,6 @@ public class BattleDamageResolver : MonoBehaviour
                 break;
 
             case EnemyType.Armored:
-                // 装甲敵：小ダメージ（閾値以下）を1軽減。ただし最低1は通す
                 if (damage <= armorThreshold)
                 {
                     damage = Mathf.Max(1, damage - 1);
@@ -408,8 +395,6 @@ public class BattleDamageResolver : MonoBehaviour
 
         return damage;
     }
-
-    // ==============================================
 
     private void HandleEnemyDefeat(BattleUnit defeatedEnemy)
     {
@@ -473,7 +458,6 @@ public class BattleDamageResolver : MonoBehaviour
 
         panelBattleManager?.panelBoardController?.PlayDefeatCelebration();
 
-        // ここを復活
         int gainedCoins = panelBattleManager != null
             ? panelBattleManager.CalculateEnemyCoinReward(defeatedEnemy)
             : 0;

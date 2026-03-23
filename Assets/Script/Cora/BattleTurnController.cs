@@ -5,6 +5,7 @@ using UnityEngine;
 public class BattleTurnController : MonoBehaviour
 {
     private const string PlayerHitTextMarker = "<playerhit>";
+
     [Header("ターン進行タイミング")]
     [SerializeField] private float endPlayerTurnDelay = 0.5f;
     [SerializeField] private float enemyAttackWindupDelay = 0.2f;
@@ -18,6 +19,8 @@ public class BattleTurnController : MonoBehaviour
 
     public Action<int> OnPanelCorruptRequested;
 
+    private BattleSfxController battleSfxController;
+
     public void Configure(float endDelay, float attackWindup, float postAttack, float idleDelay)
     {
         endPlayerTurnDelay = endDelay;
@@ -26,9 +29,6 @@ public class BattleTurnController : MonoBehaviour
         enemyIdleDelay = idleDelay;
     }
 
-    // ============================================
-    // 非戦闘エンカウンターかどうかの判定
-    // ============================================
     private static bool IsSafeRoomEncounter(EncounterType encounter)
     {
         return encounter == EncounterType.Empty
@@ -36,11 +36,6 @@ public class BattleTurnController : MonoBehaviour
             || encounter == EncounterType.Shop;
     }
 
-    // ============================================
-    // 状態異常: プレイヤーパッシブ効果のターン消費
-    // 敵ターン終了時に呼ぶ。
-    // 将来パッシブ効果が増えたらここに足す。
-    // ============================================
     private void TickPlayerPassiveEffectsOnEnemyTurnEnd(BattleUnit playerUnit)
     {
         if (playerUnit == null) return;
@@ -50,12 +45,6 @@ public class BattleTurnController : MonoBehaviour
         holder.ConsumeEffectTurn(StatusEffectType.Corrosion);
     }
 
-
-    // ============================================
-    // 状態異常: 敵の駆動遅延
-    // 敵ターン開始時に、現在の enemy turn の cooldown 進行を1回止める。
-    // 既に攻撃可能状態なら効果は薄いが、そのターン分は消費する。
-    // ============================================
     private bool ShouldSkipEnemyCooldownProgressThisTurn(BattleUnit enemyUnit, Action<string, Vector3, Color> spawnDamageText)
     {
         if (enemyUnit == null) return false;
@@ -74,10 +63,6 @@ public class BattleTurnController : MonoBehaviour
         return true;
     }
 
-    // ============================================
-    // 状態異常: プレイヤー腐食によるダメージ増加
-    // 敵攻撃のダメージ計算後、TakeDamage前に呼ぶ。
-    // ============================================
     private int ApplyPlayerCorrosionBonus(int damage, BattleUnit playerUnit, Action<string, Vector3, Color> spawnDamageText)
     {
         if (playerUnit == null) return damage;
@@ -174,17 +159,19 @@ public class BattleTurnController : MonoBehaviour
             yield break;
         }
 
-        // ==============================================
-        // 状態異常: 敵金縛りチェック
-        // 金縛り中はクールダウンも進まない（完全凍結）
-        // ==============================================
+        if (battleSfxController == null)
+        {
+            battleSfxController = FindObjectOfType<BattleSfxController>();
+        }
+
+        battleSfxController?.PlayTurnShift();
+
         StatusEffectHolder enemyStatusHolder = enemyUnit.StatusEffects;
         if (enemyStatusHolder != null && enemyStatusHolder.HasEffect(StatusEffectType.Paralysis))
         {
             Vector3 paralysisTextPos = enemyUnit.transform.position + Vector3.up * 1.5f;
             spawnDamageText?.Invoke("金縛り！", paralysisTextPos, new Color(0.8f, 0.4f, 1f));
 
-            // 行動スキップした後に残りターンを消費
             enemyStatusHolder.ConsumeEffectTurn(StatusEffectType.Paralysis);
             enemyStatusHolder.ConsumeEffectTurn(StatusEffectType.Slow);
 
@@ -204,7 +191,6 @@ public class BattleTurnController : MonoBehaviour
         {
             EnemyAttackPattern pattern = enemyUnit.attackPattern;
 
-            // === HeavyHit 溜めターン ===
             if (pattern == EnemyAttackPattern.HeavyHit && !enemyUnit.isChargingHeavyHit)
             {
                 enemyUnit.isChargingHeavyHit = true;
@@ -221,7 +207,6 @@ public class BattleTurnController : MonoBehaviour
                 yield break;
             }
 
-            // === SelfBuff 回復ターン（50%） ===
             if (pattern == EnemyAttackPattern.SelfBuff)
             {
                 bool choosesHeal = UnityEngine.Random.Range(0, 100) < selfBuffHealChance
@@ -245,7 +230,6 @@ public class BattleTurnController : MonoBehaviour
                 }
             }
 
-            // === 攻撃（パターン別演出） ===
             if (pattern == EnemyAttackPattern.HeavyHit && enemyUnit.isChargingHeavyHit)
             {
                 enemyUnit.PlayHeavyAttackAnimation();
@@ -254,6 +238,7 @@ public class BattleTurnController : MonoBehaviour
             {
                 enemyUnit.PlayAttackAnimation();
             }
+
             yield return new WaitForSeconds(enemyAttackWindupDelay);
 
             int baseDamage = Mathf.Max(1, enemyUnit.attackPower);
@@ -264,7 +249,6 @@ public class BattleTurnController : MonoBehaviour
                 enemyUnit.isChargingHeavyHit = false;
             }
 
-            // 1発目
             bool isEvasion = UnityEngine.Random.Range(0, 100) < 15;
             Vector3 pos = playerUnit != null ? playerUnit.transform.position : Vector3.zero;
 
@@ -275,13 +259,11 @@ public class BattleTurnController : MonoBehaviour
             else
             {
                 int finalDamage = baseDamage;
-
-                // === 状態異常: プレイヤー腐食チェック ===
                 finalDamage = ApplyPlayerCorrosionBonus(finalDamage, playerUnit, spawnDamageText);
 
+                battleSfxController?.PlayPlayerHit();
                 if (playerUnit != null) playerUnit.TakeDamage(finalDamage);
 
-                // === 状態異常: プレイヤー被弾解除 ===
                 if (playerUnit != null && playerUnit.StatusEffects != null)
                 {
                     playerUnit.StatusEffects.OnDamageReceived();
@@ -299,7 +281,6 @@ public class BattleTurnController : MonoBehaviour
                 }
             }
 
-            // === MultiHit 2発目 ===
             if (pattern == EnemyAttackPattern.MultiHit)
             {
                 yield return new WaitForSeconds(multiHitInterval);
@@ -320,13 +301,11 @@ public class BattleTurnController : MonoBehaviour
                     else
                     {
                         int finalDmg2 = hit2Damage;
-
-                        // === 状態異常: プレイヤー腐食チェック（MultiHit 2発目） ===
                         finalDmg2 = ApplyPlayerCorrosionBonus(finalDmg2, playerUnit, spawnDamageText);
 
+                        battleSfxController?.PlayPlayerHit();
                         playerUnit.TakeDamage(finalDmg2);
 
-                        // === 状態異常: プレイヤー被弾解除（MultiHit 2発目） ===
                         if (playerUnit.StatusEffects != null)
                         {
                             playerUnit.StatusEffects.OnDamageReceived();
@@ -346,7 +325,6 @@ public class BattleTurnController : MonoBehaviour
                 }
             }
 
-            // === PanelCorrupt 盤面汚染 ===
             if (pattern == EnemyAttackPattern.PanelCorrupt)
             {
                 yield return new WaitForSeconds(0.15f);

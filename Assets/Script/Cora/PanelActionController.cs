@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -18,9 +18,10 @@ public class PanelActionController : MonoBehaviour
     private BattleUIController battleUIController;
     private BattleDamageResolver battleDamageResolver;
     private PanelBattleManager panelBattleManager;
+    private BattleSfxController battleSfxController;
 
     private bool isProcessing;
-    [Header("�ߐ�DoTween���o")]
+    [Header("近接DoTween演出")]
     [SerializeField] private string playerMeleeVisualRootName = "PlayerVisual";
     [SerializeField] private float meleeAttackDirectionX = 1f;
     [SerializeField] private float meleeWindupDistance = 0.08f;
@@ -65,6 +66,7 @@ public class PanelActionController : MonoBehaviour
         this.onAttachedItemsCollected = onAttachedItemsCollected;
         battleDamageResolver = FindObjectOfType<BattleDamageResolver>();
         panelBattleManager = FindObjectOfType<PanelBattleManager>();
+        battleSfxController = FindObjectOfType<BattleSfxController>();
         isProcessing = false;
     }
 
@@ -91,6 +93,7 @@ public class PanelActionController : MonoBehaviour
         if (clickedType == PanelType.None) return;
 
         isProcessing = true;
+        battleSfxController?.PlayPanelTap();
         battleEventHub?.RaiseBoardInteractableRequested(false);
 
         PanelBoardController.ChainResult chainResult = panelBoardController.FindChain(row, col, clickedType);
@@ -98,7 +101,6 @@ public class PanelActionController : MonoBehaviour
             ? new List<Vector2Int>(chainResult.selected)
             : new List<Vector2Int>();
 
-        // 本来のパネル数（攻撃回数・ゲージ加算に使う）
         int primaryCount = chain.Count;
 
         List<Vector2Int> adjacentCorruptPanels = panelBoardController.CollectAdjacentCorruptPanels(chain, clickedType);
@@ -131,15 +133,12 @@ public class PanelActionController : MonoBehaviour
             onAttachedItemsCollected?.Invoke(collectedItems);
         }
 
-        // 起点パネル反応
         panelBoardController.PlayTapFeedback(row, col, clickedType);
-
-        // 連結全体の一瞬プレビュー
         panelBoardController.PlayChainPreviewFeedback(chain, clickedType);
 
-        // 波紋消去 → エネルギーオーブ → アクション実行
         StartCoroutine(AnimatedClearThenAction(clickedType, chain, primaryCount, overlinkBonus, resonanceBonus));
     }
+
     private void ShowSwordChainBonusFeedback(int resonanceBonus, int overflow, int overlinkBonus)
     {
         if (battleEventHub == null)
@@ -199,6 +198,7 @@ public class PanelActionController : MonoBehaviour
 
         orbArrivalTime = flyDuration + delay + 0.2f;
 
+        battleSfxController?.PlayPanelClear();
         yield return panelBoardController.ClearChainPanelsAnimated(chain, type);
 
         float elapsed = Time.time - orbStartTime;
@@ -266,12 +266,9 @@ public class PanelActionController : MonoBehaviour
         switch (type)
         {
             case PanelType.Sword:
-                // プレイヤー配下の Canvas を一切巻き込まないため、
-                // 到着時のプレイヤー拡大演出は使わない。
                 break;
 
             case PanelType.Ammo:
-                // 実際の装填感はゲージ加算後に個別スロットで返す
                 break;
 
             case PanelType.Coin:
@@ -282,12 +279,10 @@ public class PanelActionController : MonoBehaviour
                 break;
 
             case PanelType.Heal:
-                // プレイヤー配下の Canvas に触れず、盤面波紋だけ返す。
                 panelBoardController?.PlayHealWaveFeedback();
                 break;
 
             case PanelType.LvUp:
-                // EXP到着時はプレイヤーUIを触らず、盤面側へ起動・強化感だけ返す。
                 panelBoardController?.PlayExpChargeFeedback();
                 break;
         }
@@ -320,7 +315,6 @@ public class PanelActionController : MonoBehaviour
 
         return unit.transform;
     }
-
 
     private bool ContainsCanvasInDescendants(Transform root)
     {
@@ -462,10 +456,6 @@ public class PanelActionController : MonoBehaviour
                 yield return StartCoroutine(PlayMeleeAttack(chainCount + Mathf.Max(0, resonanceBonus), overlinkBonus));
                 break;
 
-            // ============================================
-            // 旧 Magic → 弾薬パネル（Ammo）
-            // 攻撃は行わず。収集を通知してゲージ加算。
-            // ============================================
             case PanelType.Ammo:
                 yield return StartCoroutine(PlayAmmoCollect(chainCount));
                 break;
@@ -576,6 +566,7 @@ public class PanelActionController : MonoBehaviour
             }
         }
 
+        battleSfxController?.PlayMeleeHit();
         battleEventHub?.RaiseEnemyDamageRequested(damageToApply);
 
         if (isOverlinkImpact && overlinkHitPause > 0f)
@@ -599,12 +590,8 @@ public class PanelActionController : MonoBehaviour
 
         if (enemyUnit == null || enemyUnit.IsDead())
         {
-            // 敵不在でも空振りモーション1回
             yield return StartCoroutine(PlaySingleMeleeHitTween(baseDamage + overlinkBonus, overlinkBonus > 0));
-
-            // 銃ゲージ: 攻撃パネルを消したことで+1
             battleEventHub?.RaiseSwordBonusGaugeRequested();
-
             yield return StartCoroutine(FinishTurn());
             yield break;
         }
@@ -614,7 +601,6 @@ public class PanelActionController : MonoBehaviour
             enemyUnit = getEnemyUnit != null ? getEnemyUnit() : null;
             if (enemyUnit == null || enemyUnit.IsDead()) break;
 
-            // --- オーバーリンクボーナスは1ヒット目だけ ---
             int hitDamage = baseDamage;
             if (i == 0 && overlinkBonus > 0)
             {
@@ -629,7 +615,6 @@ public class PanelActionController : MonoBehaviour
             }
         }
 
-        // 銃ゲージ: 攻撃パネルを消したことで+1（ヒット数ではなく1回の処理行為に対し1）
         battleEventHub?.RaiseSwordBonusGaugeRequested();
 
         BattleUnitView playerView = playerUnit != null ? playerUnit.GetComponent<BattleUnitView>() : null;
@@ -641,10 +626,6 @@ public class PanelActionController : MonoBehaviour
         yield return StartCoroutine(FinishTurn());
     }
 
-    // ============================================
-    // �e��p�l�����W�i�� PlayMagicAttack ��u���j
-    // �U���͍s�킸�A������ʒm���ăQ�[�W���Z�̂݁B
-    // ============================================
     private IEnumerator PlayAmmoCollect(int panelCount)
     {
         if (panelCount <= 0)
@@ -655,7 +636,6 @@ public class PanelActionController : MonoBehaviour
 
         int gaugeBefore = playerCombatController != null ? playerCombatController.GetGunGauge() : 0;
 
-        // 弾薬収集イベント → PanelBattleManager 側でゲージ加算
         battleEventHub?.RaiseAmmoCollected(panelCount);
 
         int gaugeAfter = playerCombatController != null ? playerCombatController.GetGunGauge() : gaugeBefore;
@@ -667,13 +647,8 @@ public class PanelActionController : MonoBehaviour
         }
 
         yield return new WaitForSeconds(0.18f);
-
         yield return StartCoroutine(FinishTurn());
     }
-
-    // =============================================================
-    // LvUp パネル → プレイヤーEXP獲得
-    // =============================================================
 
     private IEnumerator PlayExpCollect(int chainCount)
     {
@@ -727,8 +702,6 @@ public class PanelActionController : MonoBehaviour
         yield return new WaitForSeconds(0.12f);
         yield return StartCoroutine(FinishTurn());
     }
-
-    // =============================================================
 
     private IEnumerator FinishTurn()
     {

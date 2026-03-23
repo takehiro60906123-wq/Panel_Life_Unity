@@ -312,7 +312,7 @@ public class EnemyScannerUI : MonoBehaviour
             case EnemyAttackPattern.MultiHit:
                 return $"行動: 連撃 — {atk} × 2 回攻撃";
             case EnemyAttackPattern.SelfBuff:
-                return $"行動: 自己修復 — ときどき {atk * 2} 回復";
+                return "行動: 自己強化 — 行動するたびATK+1";
             case EnemyAttackPattern.PanelCorrupt:
                 return atk > 0
                     ? $"行動: 盤面汚染 — {atk} ダメージ + 腐敗化"
@@ -393,7 +393,7 @@ public class EnemyScannerUI : MonoBehaviour
         {
             case EnemyAttackPattern.HeavyHit: return "・溜めターン中に倒せると安全。";
             case EnemyAttackPattern.MultiHit: return "・1ターンに複数回攻撃。HP管理に注意。";
-            case EnemyAttackPattern.SelfBuff: return "・放置すると回復する。早めに押し切りたい。";
+            case EnemyAttackPattern.SelfBuff: return "・放置するとATKが上がり続ける。早急に倒す。";
             case EnemyAttackPattern.PanelCorrupt: return "・盤面を腐敗パネルで汚染してくる。";
             default: return "";
         }

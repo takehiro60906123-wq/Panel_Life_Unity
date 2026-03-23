@@ -4,53 +4,30 @@ using UnityEngine.UI;
 using TMPro;
 using DG.Tweening;
 
-// ============================================
-// ¤“XUIƒRƒ“ƒgƒ[ƒ‰[
-//
-// Inspector ‚ÅˆÈ‰º‚ğİ’è:
-//   - shopPanel: ¤“X‘S‘Ì‚Ìƒ‹[ƒgƒpƒlƒ‹iCanvas “à‚Ì Panelj
-//   - shopSlots[3]: Še¤•iƒXƒƒbƒg‚Ìİ’è
-//   - leaveButton: u—§‚¿‹‚évƒ{ƒ^ƒ“
-//   - playerCoinsText: ŠƒRƒCƒ“•\¦
-//
-// yUnity ‘¤‚Å•K—v‚È\¬z
-//   Canvas
-//   „¤„Ÿ„Ÿ ShopPanel (”ñ•\¦‚Å”z’u)
-//       „¥„Ÿ„Ÿ Title ("¤“X" ƒeƒLƒXƒg)
-//       „¥„Ÿ„Ÿ CoinsText ("Š: 120G")
-//       „¥„Ÿ„Ÿ Slot0
-//       „    „¥„Ÿ„Ÿ NameText
-//       „    „¥„Ÿ„Ÿ DescText
-//       „    „¥„Ÿ„Ÿ CostText
-//       „    „¤„Ÿ„Ÿ BuyButton
-//       „¥„Ÿ„Ÿ Slot1 (“¯ã)
-//       „¥„Ÿ„Ÿ Slot2 (“¯ã)
-//       „¤„Ÿ„Ÿ LeaveButton ("—§‚¿‹‚é")
-// ============================================
 public class ShopUIController : MonoBehaviour
 {
-    [Header("¤“Xƒpƒlƒ‹")]
+    [Header("ã‚·ãƒ§ãƒƒãƒ—ãƒ‘ãƒãƒ«")]
     [SerializeField] private GameObject shopPanel;
     [SerializeField] private CanvasGroup shopCanvasGroup;
 
-    [Header("ŠƒRƒCƒ“")]
+    [Header("æ‰€æŒã‚³ã‚¤ãƒ³")]
     [SerializeField] private TMP_Text playerCoinsText;
 
-    [Header("¤•iƒXƒƒbƒg")]
+    [Header("å•†å“ã‚¹ãƒ­ãƒƒãƒˆ")]
     [SerializeField] private ShopSlotUI[] shopSlots;
 
-    [Header("—§‚¿‹‚éƒ{ƒ^ƒ“")]
+    [Header("ç«‹ã¡å»ã‚‹ãƒœã‚¿ãƒ³")]
     [SerializeField] private Button leaveButton;
 
-    [Header("‰‰oİ’è")]
+    [Header("æ¼”å‡ºè¨­å®š")]
     [SerializeField] private float fadeInDuration = 0.3f;
     [SerializeField] private float fadeOutDuration = 0.2f;
 
     private ShopController shopController;
+    private BattleSfxController battleSfxController;
 
     private void Start()
     {
-        // ‹N“®‚Í”ñ•\¦
         if (shopPanel != null)
         {
             shopPanel.SetActive(false);
@@ -61,21 +38,24 @@ public class ShopUIController : MonoBehaviour
             leaveButton.onClick.RemoveAllListeners();
             leaveButton.onClick.AddListener(OnClickLeave);
         }
+
+        battleSfxController = FindObjectOfType<BattleSfxController>();
     }
 
-    // ============================================
-    // ¤“X‚ğ•\¦‚·‚é
-    // ============================================
     public void ShowShop(List<ShopItemData> offerings, ShopController controller)
     {
         shopController = controller;
+
+        if (battleSfxController == null)
+        {
+            battleSfxController = FindObjectOfType<BattleSfxController>();
+        }
 
         if (shopPanel != null)
         {
             shopPanel.SetActive(true);
         }
 
-        // ƒtƒF[ƒhƒCƒ“
         if (shopCanvasGroup != null)
         {
             shopCanvasGroup.alpha = 0f;
@@ -85,9 +65,6 @@ public class ShopUIController : MonoBehaviour
         RefreshShop(offerings, controller);
     }
 
-    // ============================================
-    // ¤“X‚ğ”ñ•\¦‚É‚·‚é
-    // ============================================
     public void HideShop()
     {
         if (shopCanvasGroup != null)
@@ -108,20 +85,15 @@ public class ShopUIController : MonoBehaviour
         shopController = null;
     }
 
-    // ============================================
-    // •\¦‚ğXV‚·‚éiw“üŒã‚ÉŒÄ‚Î‚ê‚éj
-    // ============================================
     public void RefreshShop(List<ShopItemData> offerings, ShopController controller)
     {
         shopController = controller;
 
-        // ŠƒRƒCƒ“
         if (playerCoinsText != null && controller != null)
         {
-            playerCoinsText.text = $"Š: {controller.GetCurrentCoins()}G";
+            playerCoinsText.text = $"æ‰€æŒ: {controller.GetCurrentCoins()}G";
         }
 
-        // ŠeƒXƒƒbƒg‚ğXV
         if (shopSlots == null) return;
 
         for (int i = 0; i < shopSlots.Length; i++)
@@ -135,9 +107,6 @@ public class ShopUIController : MonoBehaviour
         }
     }
 
-    // ============================================
-    // uw“üvƒ{ƒ^ƒ“‰Ÿ‰º
-    // ============================================
     private void OnClickBuy(int slotIndex)
     {
         if (shopController == null) return;
@@ -145,18 +114,18 @@ public class ShopUIController : MonoBehaviour
         bool success = shopController.TryPurchase(slotIndex);
         if (!success) return;
 
-        // w“ü¬Œ÷‚ÌƒtƒB[ƒhƒoƒbƒN
+        battleSfxController?.PlayUiDecide();
+
         if (shopSlots != null && slotIndex >= 0 && slotIndex < shopSlots.Length)
         {
             shopSlots[slotIndex].PlayPurchasedFeedback();
         }
     }
 
-    // ============================================
-    // u—§‚¿‹‚évƒ{ƒ^ƒ“‰Ÿ‰º
-    // ============================================
     private void OnClickLeave()
     {
+        battleSfxController?.PlayUiCancel();
+
         if (shopController != null)
         {
             shopController.CloseShop();
@@ -166,9 +135,6 @@ public class ShopUIController : MonoBehaviour
     public bool IsShopOpen => shopPanel != null && shopPanel.activeSelf;
 }
 
-// ============================================
-// ¤•iƒXƒƒbƒg1‚Â•ª‚ÌUIQÆ
-// ============================================
 [System.Serializable]
 public class ShopSlotUI
 {
@@ -179,7 +145,7 @@ public class ShopSlotUI
     public Button buyButton;
     public Image iconImage;
 
-    [Header("Fİ’è")]
+    [Header("è‰²è¨­å®š")]
     public Color affordableColor = Color.white;
     public Color tooExpensiveColor = new Color(1f, 0.4f, 0.4f);
     public Color soldOutColor = new Color(0.5f, 0.5f, 0.5f);
@@ -188,7 +154,6 @@ public class ShopSlotUI
     {
         if (slotRoot == null) return;
 
-        // SOLD OUT or ‹óƒXƒƒbƒg
         if (item == null)
         {
             if (nameText != null) nameText.text = "SOLD OUT";
@@ -199,26 +164,22 @@ public class ShopSlotUI
             return;
         }
 
-        // ¤•i–¼
         if (nameText != null)
         {
             string categoryTag = GetCategoryTag(item.category);
             nameText.text = $"{categoryTag} {item.itemName}";
         }
 
-        // à–¾
         if (descriptionText != null)
         {
             descriptionText.text = item.description;
         }
 
-        // ‰¿Ši
         if (costText != null)
         {
             costText.text = $"{item.cost}G";
         }
 
-        // w“üƒ{ƒ^ƒ“
         if (buyButton != null)
         {
             buyButton.onClick.RemoveAllListeners();
@@ -248,7 +209,7 @@ public class ShopSlotUI
         }
         if (descriptionText != null)
         {
-            descriptionText.text = "w“üÏ‚İ";
+            descriptionText.text = "è³¼å…¥æ¸ˆã¿";
         }
         if (costText != null)
         {
@@ -275,10 +236,10 @@ public class ShopSlotUI
     {
         switch (category)
         {
-            case ShopItemCategory.Weapon: return "[•Ší]";
-            case ShopItemCategory.Gun: return "[e]";
-            case ShopItemCategory.Consumable: return "[Á–Õ•i]";
-            case ShopItemCategory.HealHP: return "[‰ñ•œ]";
+            case ShopItemCategory.Weapon: return "[æ­¦å™¨]";
+            case ShopItemCategory.Gun: return "[éŠƒ]";
+            case ShopItemCategory.Consumable: return "[æ¶ˆè€—å“]";
+            case ShopItemCategory.HealHP: return "[å›å¾©]";
             default: return "";
         }
     }

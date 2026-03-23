@@ -18,8 +18,10 @@ MonoBehaviour:
   attackPattern: 0
   baseHP: 13
   attackPower: 5
-  baseShellHp: 0
   attackInterval: 3
+  initialAttackCooldown: 2
+  baseShellHp: 0
+  passiveCorruptPerTurn: 0
   expYield: 9
   coinYield: 6
   hpPerLevel: 4
