@@ -208,6 +208,7 @@ public class BattleBootstrapper : MonoBehaviour
             () => manager.IsEnemyDefeatedThisTurn,
             value => manager.SetEnemyDefeatedThisTurn(value),
             manager.TravelForward,
+            manager.PlayEnemyEntranceRoutine,
             manager.SpawnNextEnemy,
             () => manager.enemyPresentationController.RefreshUpcomingEnemyStandbyVisuals(
                 manager.stageFlowController != null ? manager.stageFlowController.GetUpcomingEnemies() : null),

@@ -1,4 +1,4 @@
-using TMPro;
+﻿using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -128,10 +128,15 @@ public class BattleUnit : MonoBehaviour
 
     public void TakeDamage(int damage)
     {
-        TakeDamage(damage, false);
+        TakeDamage(damage, false, EnemyDeathVisualType.Default);
     }
 
     public void TakeDamage(int damage, bool useHeavyReaction)
+    {
+        TakeDamage(damage, useHeavyReaction, EnemyDeathVisualType.Default);
+    }
+
+    public void TakeDamage(int damage, bool useHeavyReaction, EnemyDeathVisualType deathVisualType)
     {
         if (damage <= 0) return;
 
@@ -139,13 +144,17 @@ public class BattleUnit : MonoBehaviour
 
         if (view != null)
         {
-            if (useHeavyReaction)
+            if (currentHP <= 0)
             {
-                view.PlayHeavyDamaged(currentHP <= 0);
+                view.PlayDeath(deathVisualType);
+            }
+            else if (useHeavyReaction)
+            {
+                view.PlayHeavyDamaged(false);
             }
             else
             {
-                view.PlayDamaged(currentHP <= 0);
+                view.PlayDamaged(false);
             }
         }
 

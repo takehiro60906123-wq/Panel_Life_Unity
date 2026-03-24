@@ -160,21 +160,43 @@ MonoBehaviour:
   titleCanvasGroup: {fileID: 1450651027}
   backgroundRectTransform: {fileID: 914646895}
   homeSceneName: Home
-  blinkSpeed: 1.8
   minAlpha: 0.25
   maxAlpha: 1
-  tapFloatSpeed: 1.25
+  blinkDuration: 0.7
   tapFloatDistance: 6
+  tapFloatDuration: 1.1
   titleFadeDelay: 0.25
   titleFadeDuration: 0.7
   tapAppearDelay: 0.9
   zoomScaleMin: 1
   zoomScaleMax: 1.03
-  zoomSpeed: 0.18
+  zoomDuration: 5.5
   fadeDuration: 0.5
   blackHoldDuration: 0.12
+  titleFadeOutForPrologueDuration: 0.28
+  prologuePanelAlpha: 0.68
   seSource: {fileID: 554181490}
   uiDecideSe: {fileID: 8300000, guid: 184c585661160544fb743caf9df30487, type: 3}
+  enableFirstLaunchPrologue: 1
+  prologueLines:
+  - "\u3053\u306E\u5730\u3067\u306F\u3001\u6642\u6298\u3001\u5DE8\u5927\u306A\u9F13\u52D5\u306E\u3088\u3046\u306A\u97F3\u304C\u97FF\u304F\u3068\u3044\u3046\u3002"
+  - "\u6587\u660E\u306B\u7D42\u7109\u3092\u3082\u305F\u3089\u3057\u305F\u5DE8\u4EBA\u306F\u3001\u304B\u3064\u3066\u6050\u308D\u3057\u3044\u9F13\u52D5\u3092\u9CF4\u3089\u3057\u305F\u3068\u3082\u4F1D\u3048\u3089\u308C\u3066\u3044\u308B\u3002"
+  - "\u305D\u306E\u5642\u3092\u805E\u304D\u3001\u5F7C\u5973\u306F\u3053\u306E\u5730\u3092\u8A2A\u308C\u305F\u3002"
+  prologueLineFadeDuration: 0.42
+  prologueInterLineDelay: 0.55
+  prologueFastInterLineDelay: 0.6
+  prologueFadeDuration: 0.25
+  fastForwardHoldThreshold: 0.22
+  prologueTextFontSize: 28
+  prologueHintFontSize: 18
+  prologueLineSpacing: 56
+  prologueFont: {fileID: 11400000, guid: 2e0ceaf4ca4df324d8aaf8673b08ab9a, type: 2}
+  prologueFastForwardHint: "\u9577\u62BC\u3057\u3067\u65E9\u9001\u308A"
+  prologueContinueHint: "\u30BF\u30C3\u30D7\u3067\u9032\u3080"
+  prologueTextAreaSize: {x: 720, y: 420}
+  prologueTextAreaOffset: {x: 0, y: 30}
+  prologueHintOffset: {x: 0, y: -300}
+  prologueHintSize: {x: 520, y: 70}
 --- !u!114 &554181486
 MonoBehaviour:
   m_ObjectHideFlags: 0

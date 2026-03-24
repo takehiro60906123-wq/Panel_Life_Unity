@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   enemyId: 32
   enemyName: "\u8D64\u773C\u7363"
-  enemyType: 3
+  enemyType: 4
   attackPattern: 2
   baseHP: 21
   attackPower: 6

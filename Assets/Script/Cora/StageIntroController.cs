@@ -4,8 +4,6 @@ using UnityEngine;
 
 public class StageIntroController : MonoBehaviour
 {
-    private FootstepLoopPlayer cachedPlayerFootstepLoopPlayer;
-
     [Header("有効化")]
     [SerializeField] private bool playOnGameStart = true;
 
@@ -111,12 +109,7 @@ public class StageIntroController : MonoBehaviour
             playerAnim.PlayRun();
         }
 
-        FootstepLoopPlayer footstepLoopPlayer = ResolvePlayerFootstepLoopPlayer(playerUnit);
-        footstepLoopPlayer?.BeginLoop();
-
         yield return PlayPlayerEntrance(playerUnit);
-
-        footstepLoopPlayer?.EndLoop();
 
         if (playerAnim != null)
         {
@@ -128,9 +121,16 @@ public class StageIntroController : MonoBehaviour
             yield return new WaitForSeconds(enemyEntranceDelay);
         }
 
-        if (enemyPresentation != null && enemyUnit != null)
+        if (enemyUnit != null)
         {
-            enemyPresentation.PlayCurrentEnemyEntrance(enemyUnit);
+            if (manager.bossIntroController != null && BossIntroController.IsBossUnit(enemyUnit))
+            {
+                yield return manager.StartCoroutine(manager.PlayEnemyEntranceRoutine(enemyUnit));
+            }
+            else if (enemyPresentation != null)
+            {
+                enemyPresentation.PlayCurrentEnemyEntrance(enemyUnit);
+            }
         }
 
         if (enemyEntranceSettleDuration > 0f)
@@ -177,23 +177,6 @@ public class StageIntroController : MonoBehaviour
         {
             playerUnit.SetUIActive(true);
         }
-    }
-
-    private FootstepLoopPlayer ResolvePlayerFootstepLoopPlayer(BattleUnit playerUnit)
-    {
-        if (playerUnit == null)
-        {
-            cachedPlayerFootstepLoopPlayer = null;
-            return null;
-        }
-
-        if (cachedPlayerFootstepLoopPlayer != null)
-        {
-            return cachedPlayerFootstepLoopPlayer;
-        }
-
-        cachedPlayerFootstepLoopPlayer = playerUnit.GetComponentInChildren<FootstepLoopPlayer>(true);
-        return cachedPlayerFootstepLoopPlayer;
     }
 
     private IEnumerator PlayPlayerEntrance(BattleUnit playerUnit)

@@ -38,6 +38,7 @@ public class BattleUnitView : MonoBehaviour
     private EnemyType lastHintEnemyType = EnemyType.Normal;
     private bool lastHintDanger;
     private bool hintInitialized;
+    private bool wasDangerLastFrame;
 
 
     public void BindLegacyReferences(
@@ -237,16 +238,30 @@ public class BattleUnitView : MonoBehaviour
 
     public void RefreshCooldown(int cooldown)
     {
-        if (turnText == null) return;
+        if (turnText != null)
+        {
+            if (cooldown > 0)
+            {
+                turnText.text = cooldown.ToString();
+            }
+            else
+            {
+                turnText.text = "!";
+            }
+        }
 
-        if (cooldown > 0)
+        bool isDangerNow = cooldown <= 1;
+
+        if (isDangerNow && !wasDangerLastFrame)
         {
-            turnText.text = cooldown.ToString();
+            tweenPresenter?.PlayDangerPulseTween();
         }
-        else
+        else if (!isDangerNow && wasDangerLastFrame)
         {
-            turnText.text = "!";
+            tweenPresenter?.StopDangerPulse();
         }
+
+        wasDangerLastFrame = isDangerNow;
 
         RefreshTurnHintFromCurrentState(force: true);
     }
@@ -356,10 +371,10 @@ public class BattleUnitView : MonoBehaviour
                 return enemyType == EnemyType.Ranged || enemyType == EnemyType.Rushing;
 
             case GunType.Rifle:
-                return enemyType == EnemyType.Floating || enemyType == EnemyType.Ranged || enemyType == EnemyType.Armored;
+                return enemyType == EnemyType.Floating || enemyType == EnemyType.Ranged || enemyType == EnemyType.Armored || enemyType == EnemyType.Boss;
 
             case GunType.Shotgun:
-                return enemyType == EnemyType.Armored || enemyType == EnemyType.Rushing;
+                return enemyType == EnemyType.Armored || enemyType == EnemyType.Rushing || enemyType == EnemyType.Boss;
 
             case GunType.MachineGun:
                 return enemyType == EnemyType.Rushing;
@@ -372,6 +387,41 @@ public class BattleUnitView : MonoBehaviour
     public void RefreshGunAdvantageHint()
     {
         RefreshTurnHintFromCurrentState(force: true);
+    }
+
+    public void PlayDeath(EnemyDeathVisualType deathVisualType)
+    {
+        if (playerAnimationPresenter != null)
+        {
+            playerAnimationPresenter.PlaySpin();
+            return;
+        }
+
+        if (tweenPresenter != null)
+        {
+            switch (deathVisualType)
+            {
+                case EnemyDeathVisualType.Gun:
+                    tweenPresenter.PlayGunDeathTween();
+                    break;
+
+                case EnemyDeathVisualType.Rifle:
+                    tweenPresenter.PlayRifleDeathTween();
+                    break;
+
+                case EnemyDeathVisualType.Overlink:
+                    tweenPresenter.PlayOverlinkDeathTween();
+                    break;
+
+                default:
+                    tweenPresenter.PlayDeathTween();
+                    break;
+            }
+
+            return;
+        }
+
+        TryPlayState("DEATH");
     }
 
     public void PlayDamaged(bool dead)
@@ -394,7 +444,7 @@ public class BattleUnitView : MonoBehaviour
         {
             if (dead)
             {
-                tweenPresenter.PlayDeathTween();
+                PlayDeath(EnemyDeathVisualType.Default);
             }
             else
             {
@@ -406,7 +456,7 @@ public class BattleUnitView : MonoBehaviour
 
         if (dead)
         {
-            TryPlayState("DEATH");
+            PlayDeath(EnemyDeathVisualType.Default);
         }
         else
         {
@@ -434,7 +484,7 @@ public class BattleUnitView : MonoBehaviour
         {
             if (dead)
             {
-                tweenPresenter.PlayDeathTween();
+                PlayDeath(EnemyDeathVisualType.Gun);
             }
             else
             {
@@ -548,6 +598,9 @@ public class BattleUnitView : MonoBehaviour
 
     public void PlayIdle()
     {
+        wasDangerLastFrame = false;
+        tweenPresenter?.StopDangerPulse();
+
         if (playerAnimationPresenter != null)
         {
             playerAnimationPresenter.PlayIdle();

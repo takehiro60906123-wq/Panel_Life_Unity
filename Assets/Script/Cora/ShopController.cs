@@ -285,6 +285,16 @@ public class ShopController : MonoBehaviour
                 }
                 break;
 
+            case EnemyType.Boss:
+                switch (gunType)
+                {
+                    case GunType.Rifle: return 3.0f;
+                    case GunType.Shotgun: return 2.4f;
+                    case GunType.Pistol: return 1.0f;
+                    case GunType.MachineGun: return 0.9f;
+                }
+                break;
+
             case EnemyType.Normal:
             default:
                 switch (gunType)

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections;
 using UnityEngine;
 
@@ -43,6 +43,7 @@ public class BattleDamageResolver : MonoBehaviour
     [SerializeField] private Color shellBreakTextColor = new Color(0.95f, 0.96f, 1f, 1f);
 
     private bool nextDamageIsGun;
+    private bool nextDamageIsRifle;
     private bool nextDamageUseHeavyReaction;
     private bool nextDamageUseOverlinkTextBoost;
 
@@ -65,6 +66,11 @@ public class BattleDamageResolver : MonoBehaviour
     public void SetNextDamageUseHeavyReaction(bool value)
     {
         nextDamageUseHeavyReaction = value;
+    }
+
+    public void SetNextDamageIsRifle(bool value)
+    {
+        nextDamageIsRifle = value;
     }
 
     public void SetNextDamageUseOverlinkTextBoost(bool value)
@@ -188,10 +194,12 @@ public class BattleDamageResolver : MonoBehaviour
         if (getIsEnemySpawning != null && getIsEnemySpawning()) return;
 
         bool isGun = nextDamageIsGun;
+        bool isRifle = nextDamageIsRifle;
         bool useHeavyReaction = nextDamageUseHeavyReaction;
         bool useOverlinkTextBoost = nextDamageUseOverlinkTextBoost;
 
         nextDamageIsGun = false;
+        nextDamageIsRifle = false;
         nextDamageUseHeavyReaction = false;
         nextDamageUseOverlinkTextBoost = false;
 
@@ -231,7 +239,21 @@ public class BattleDamageResolver : MonoBehaviour
             battleSfxController?.PlayEnemyHit();
         }
 
-        enemyUnit.TakeDamage(finalDamage, useHeavyReaction);
+        EnemyDeathVisualType deathVisualType = EnemyDeathVisualType.Default;
+        if (useOverlinkTextBoost)
+        {
+            deathVisualType = EnemyDeathVisualType.Overlink;
+        }
+        else if (isRifle)
+        {
+            deathVisualType = EnemyDeathVisualType.Rifle;
+        }
+        else if (isGun)
+        {
+            deathVisualType = EnemyDeathVisualType.Gun;
+        }
+
+        enemyUnit.TakeDamage(finalDamage, useHeavyReaction, deathVisualType);
 
         TryApplyQueuedSuccessfulEnemyHitStatusEffect(enemyUnit);
 
@@ -457,9 +479,6 @@ public class BattleDamageResolver : MonoBehaviour
         }
 
         panelBattleManager?.panelBoardController?.PlayDefeatCelebration();
-
-        bool isDangerEnemy = defeatedEnemy != null && defeatedEnemy.IsDangerEnemy();
-        ScreenShakeController.Instance?.EnemyDefeatImpact(isDangerEnemy);
 
         int gainedCoins = panelBattleManager != null
             ? panelBattleManager.CalculateEnemyCoinReward(defeatedEnemy)

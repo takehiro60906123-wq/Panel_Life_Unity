@@ -14,13 +14,13 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   enemyId: 31
   enemyName: "\u6697\u6BBB\u7363"
-  enemyType: 2
+  enemyType: 5
   attackPattern: 1
   baseHP: 32
   attackPower: 8
   attackInterval: 3
   initialAttackCooldown: 2
-  baseShellHp: 12
+  baseShellHp: 16
   passiveCorruptPerTurn: 2
   expYield: 12
   coinYield: 7

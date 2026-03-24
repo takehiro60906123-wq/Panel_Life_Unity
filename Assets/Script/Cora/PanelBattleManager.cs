@@ -81,6 +81,9 @@ public class PanelBattleManager : MonoBehaviour
     [Header("ステージ入場演出コントローラー")]
     public StageIntroController stageIntroController;
 
+    [Header("ボス登場演出コントローラー")]
+    public BossIntroController bossIntroController;
+
     [Header("アイテムアイコンDB")]
     public BattleItemIconDatabase battleItemIconDatabase;
 
@@ -150,6 +153,8 @@ public class PanelBattleManager : MonoBehaviour
     [SerializeField] private string homeSceneName = "Home";
     [SerializeField] private bool returnToHomeOnGameOver = true;
     [SerializeField] private bool returnToHomeOnStageClear = true;
+    [SerializeField] private bool useEndingSceneOnFinalClear = true;
+    [SerializeField] private string endingSceneName = "Ending";
     [SerializeField] private float resultMessageHoldDuration = 1.0f;
     [SerializeField] private float resultTextFadeDuration = 0.18f;
     [SerializeField] private float resultFadeDuration = 0.45f;
@@ -980,22 +985,6 @@ public class PanelBattleManager : MonoBehaviour
     }
 
 
-    private FootstepLoopPlayer GetPlayerFootstepLoopPlayer()
-    {
-        if (playerUnit == null) return null;
-        return playerUnit.GetComponentInChildren<FootstepLoopPlayer>(true);
-    }
-
-    private void BeginPlayerFootstepLoop()
-    {
-        GetPlayerFootstepLoopPlayer()?.BeginLoop();
-    }
-
-    private void EndPlayerFootstepLoop()
-    {
-        GetPlayerFootstepLoopPlayer()?.EndLoop();
-    }
-
     private PlayerAnimationPresenter GetPlayerAnimationPresenter()
     {
         if (playerUnit == null) return null;
@@ -1525,6 +1514,30 @@ public class PanelBattleManager : MonoBehaviour
         isEnemyDefeatedThisTurn = value;
     }
 
+    public IEnumerator PlayEnemyEntranceRoutine(BattleUnit unit)
+    {
+        if (unit == null)
+        {
+            yield break;
+        }
+
+        if (BossIntroController.IsBossUnit(unit) && bossIntroController != null)
+        {
+            enemyPresentationController?.PrepareEnemyForDeferredEntrance(unit);
+            unit.InitializeTurn();
+            yield return StartCoroutine(bossIntroController.PlayBossIntro(unit));
+
+            if (unit.animator != null)
+            {
+                unit.animator.Play("IDLE", 0, 0f);
+            }
+
+            yield break;
+        }
+
+        enemyPresentationController?.ActivateEnemyAsCurrent(unit);
+    }
+
     public void SetEncounterState(EncounterType encounterType, int steps)
     {
         currentEncounter = encounterType;
@@ -1673,9 +1686,7 @@ public class PanelBattleManager : MonoBehaviour
 
         if (roomTravelController != null)
         {
-            BeginPlayerFootstepLoop();
             yield return roomTravelController.TravelForward(playerUnit.transform, waitOffset);
-            EndPlayerFootstepLoop();
 
             if (playerAnim != null)
             {
@@ -1690,8 +1701,6 @@ public class PanelBattleManager : MonoBehaviour
             yield break;
         }
 
-        BeginPlayerFootstepLoop();
-
         playerUnit.transform
             .DOMove(playerUnit.transform.position + waitOffset, roomTravelDuration)
             .SetEase(roomTravelEase);
@@ -1705,7 +1714,6 @@ public class PanelBattleManager : MonoBehaviour
         }
 
         yield return new WaitForSeconds(roomTravelDuration);
-        EndPlayerFootstepLoop();
 
         if (playerAnim != null)
         {
@@ -1735,14 +1743,11 @@ public class PanelBattleManager : MonoBehaviour
         Vector3 cameraStartPos = mainCam != null ? mainCam.transform.position : Vector3.zero;
 
         Vector3 exitTargetPos = ResolvePlayerHorizontalExitPosition(mainCam, themeChangeExitViewportX, playerStartPos);
-        BeginPlayerFootstepLoop();
-
         Tween exitTween = playerUnit.transform
             .DOMove(exitTargetPos, Mathf.Max(0.01f, themeChangePlayerExitDuration))
             .SetEase(Ease.InCubic);
 
         yield return exitTween.WaitForCompletion();
-        EndPlayerFootstepLoop();
 
         yield return StartCoroutine(FadeThemeChangeOverlayTo(1f, themeChangeFadeOutDuration));
 
@@ -1767,8 +1772,6 @@ public class PanelBattleManager : MonoBehaviour
             playerAnim.PlayRun();
         }
 
-        BeginPlayerFootstepLoop();
-
         Tween entryTween = playerUnit.transform
             .DOMove(playerTargetPos, Mathf.Max(0.01f, themeChangePlayerEntryDuration))
             .SetEase(Ease.OutCubic);
@@ -1779,8 +1782,6 @@ public class PanelBattleManager : MonoBehaviour
         {
             yield return entryTween.WaitForCompletion();
         }
-
-        EndPlayerFootstepLoop();
 
         if (playerAnim != null)
         {
@@ -2033,13 +2034,21 @@ public class PanelBattleManager : MonoBehaviour
 
     public void OnStageClear()
     {
-        Debug.Log("ステージクリア！Homeへ戻ります。");
+        Debug.Log("ステージクリア！");
         SetBoardInteractable(false);
 
-        if (returnToHomeOnStageClear && !resultReturnSequenceRunning)
+        if (!returnToHomeOnStageClear || resultReturnSequenceRunning)
         {
-            StartCoroutine(ReturnToHomeWithResultRoutine("探索完了", stageClearResultTextColor));
+            return;
         }
+
+        bool shouldGoEnding =
+            useEndingSceneOnFinalClear &&
+            stageFlowController != null &&
+            stageFlowController.HasConfiguredFinalBattleBeenCleared();
+
+        string destinationSceneName = shouldGoEnding ? endingSceneName : homeSceneName;
+        StartCoroutine(ReturnToSceneWithResultRoutine("探索完了", stageClearResultTextColor, destinationSceneName));
     }
 
     public void OnPlayerDefeated()
@@ -2049,12 +2058,12 @@ public class PanelBattleManager : MonoBehaviour
 
         if (returnToHomeOnGameOver && !resultReturnSequenceRunning)
         {
-            StartCoroutine(ReturnToHomeWithResultRoutine("GAME OVER", gameOverResultTextColor));
+            StartCoroutine(ReturnToSceneWithResultRoutine("GAME OVER", gameOverResultTextColor, homeSceneName));
         }
     }
 
 
-    private IEnumerator ReturnToHomeWithResultRoutine(string message, Color messageColor)
+    private IEnumerator ReturnToSceneWithResultRoutine(string message, Color messageColor, string destinationSceneName)
     {
         if (resultReturnSequenceRunning)
         {
@@ -2129,7 +2138,7 @@ public class PanelBattleManager : MonoBehaviour
             yield return null;
         }
 
-        SceneManager.LoadScene(homeSceneName);
+        SceneManager.LoadScene(destinationSceneName);
     }
 
     private void EnsureResultOverlayUI()

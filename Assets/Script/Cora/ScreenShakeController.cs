@@ -38,6 +38,15 @@ public class ScreenShakeController : MonoBehaviour
     [Header("フラッシュ用オーバーレイ（Canvas > Image, RaycastTarget=OFF）")]
     [SerializeField] private Image flashOverlay;
 
+    [Header("危険ヴィネット（任意）")]
+    [SerializeField] private Image dangerVignetteOverlay;
+    [SerializeField] private Color dangerVignetteColor = new Color(0.8f, 0.1f, 0.05f, 0.12f);
+    [SerializeField] private float dangerVignetteFadeIn = 0.3f;
+    [SerializeField] private float dangerVignetteFadeOut = 0.25f;
+    [SerializeField] private float dangerVignettePulseMin = 0.06f;
+    [SerializeField] private float dangerVignettePulseMax = 0.14f;
+    [SerializeField] private float dangerVignettePulseSpeed = 1.2f;
+
     [Header("プリセット: Light")]
     [SerializeField] private float lightIntensity = 0.04f;
     [SerializeField] private float lightDuration = 0.08f;
@@ -86,6 +95,8 @@ public class ScreenShakeController : MonoBehaviour
     private Vector3 cameraBaseLocalPos;
     private Tween currentShakeTween;
     private Coroutine hitStopCoroutine;
+    private Tween dangerVignetteTween;
+    private bool dangerVignetteActive;
 
     private void Awake()
     {
@@ -116,6 +127,12 @@ public class ScreenShakeController : MonoBehaviour
         if (instance == this)
         {
             instance = null;
+        }
+
+        if (dangerVignetteOverlay != null)
+        {
+            dangerVignetteOverlay.DOKill();
+            dangerVignetteOverlay.enabled = false;
         }
 
         if (Time.timeScale < 0.5f)
@@ -276,6 +293,68 @@ public class ScreenShakeController : MonoBehaviour
     public static void TryGunImpact(GunType gunType)
     {
         if (instance != null) instance.GunImpact(gunType);
+    }
+
+    public void StartDangerVignette()
+    {
+        if (dangerVignetteOverlay == null) return;
+        if (dangerVignetteActive) return;
+
+        dangerVignetteActive = true;
+        dangerVignetteOverlay.gameObject.SetActive(true);
+        dangerVignetteOverlay.raycastTarget = false;
+
+        Color c = dangerVignetteColor;
+        c.a = 0f;
+        dangerVignetteOverlay.color = c;
+
+        dangerVignetteOverlay.DOKill();
+        dangerVignetteOverlay.DOFade(dangerVignettePulseMax, dangerVignetteFadeIn)
+            .SetEase(Ease.OutQuad)
+            .OnComplete(() =>
+            {
+                if (!dangerVignetteActive || dangerVignetteOverlay == null) return;
+
+                dangerVignetteTween = dangerVignetteOverlay
+                    .DOFade(dangerVignettePulseMin, dangerVignettePulseSpeed)
+                    .SetLoops(-1, LoopType.Yoyo)
+                    .SetEase(Ease.InOutSine);
+            });
+    }
+
+    public void StopDangerVignette()
+    {
+        if (dangerVignetteOverlay == null) return;
+        if (!dangerVignetteActive) return;
+
+        dangerVignetteActive = false;
+
+        if (dangerVignetteTween != null && dangerVignetteTween.IsActive())
+        {
+            dangerVignetteTween.Kill();
+        }
+        dangerVignetteTween = null;
+
+        dangerVignetteOverlay.DOKill();
+        dangerVignetteOverlay.DOFade(0f, dangerVignetteFadeOut)
+            .SetEase(Ease.OutQuad)
+            .OnComplete(() =>
+            {
+                if (dangerVignetteOverlay != null)
+                {
+                    dangerVignetteOverlay.gameObject.SetActive(false);
+                }
+            });
+    }
+
+    public static void TryStartDangerVignette()
+    {
+        if (instance != null) instance.StartDangerVignette();
+    }
+
+    public static void TryStopDangerVignette()
+    {
+        if (instance != null) instance.StopDangerVignette();
     }
 
     private void ShakeCamera(float intensity, float duration, int vibrato)

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections;
 using UnityEngine;
 using DG.Tweening;
@@ -279,8 +279,6 @@ public class GunCombatController : MonoBehaviour
 
         PlayGunShotVisual(gun, target);
 
-        ScreenShakeController.TryGunImpact(gun.gunType);
-
         if (ShouldEjectShell(gun, shotIndex) && battleUIController != null)
         {
             battleUIController.PlayGunShellEject(gun.gunType, ResolveShellDelay(gun));
@@ -289,6 +287,7 @@ public class GunCombatController : MonoBehaviour
         if (battleDamageResolver != null)
         {
             battleDamageResolver.SetNextDamageIsGun(true);
+            battleDamageResolver.SetNextDamageIsRifle(gun.gunType == GunType.Rifle);
             battleDamageResolver.SetNextDamageUseHeavyReaction(gun.gunType == GunType.Shotgun);
         }
 

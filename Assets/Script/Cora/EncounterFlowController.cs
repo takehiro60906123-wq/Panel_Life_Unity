@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections;
 using UnityEngine;
 
@@ -27,6 +27,7 @@ public class EncounterFlowController : MonoBehaviour
     private Action<bool> setIsEnemyDefeatedThisTurn;
 
     private Func<IEnumerator> travelForwardRoutine;
+    private Func<BattleUnit, IEnumerator> playEnemyEntranceRoutine;
     private Action spawnNextEnemy;
     private Action refreshUpcomingEnemyStandbyVisuals;
     private Action<BattleUnit> activateEnemyAsCurrent;
@@ -61,6 +62,7 @@ public class EncounterFlowController : MonoBehaviour
         Func<bool> getIsEnemyDefeatedThisTurn,
         Action<bool> setIsEnemyDefeatedThisTurn,
         Func<IEnumerator> travelForwardRoutine,
+        Func<BattleUnit, IEnumerator> playEnemyEntranceRoutine,
         Action spawnNextEnemy,
         Action refreshUpcomingEnemyStandbyVisuals,
         Action<BattleUnit> activateEnemyAsCurrent,
@@ -88,6 +90,7 @@ public class EncounterFlowController : MonoBehaviour
         this.getIsEnemyDefeatedThisTurn = getIsEnemyDefeatedThisTurn;
         this.setIsEnemyDefeatedThisTurn = setIsEnemyDefeatedThisTurn;
         this.travelForwardRoutine = travelForwardRoutine;
+        this.playEnemyEntranceRoutine = playEnemyEntranceRoutine;
         this.spawnNextEnemy = spawnNextEnemy;
         this.refreshUpcomingEnemyStandbyVisuals = refreshUpcomingEnemyStandbyVisuals;
         this.activateEnemyAsCurrent = activateEnemyAsCurrent;
@@ -189,7 +192,14 @@ public class EncounterFlowController : MonoBehaviour
             }
             else
             {
-                activateEnemyAsCurrent?.Invoke(enemyUnit);
+                if (playEnemyEntranceRoutine != null)
+                {
+                    StartCoroutine(playEnemyEntranceRoutine(enemyUnit));
+                }
+                else
+                {
+                    activateEnemyAsCurrent?.Invoke(enemyUnit);
+                }
             }
 
             PublishEncounterState(EncounterType.Enemy, 0);
@@ -337,7 +347,6 @@ public class EncounterFlowController : MonoBehaviour
                 if (playerUnit != null)
                 {
                     playerUnit.TakeDamage(damage);
-                    ScreenShakeController.TryShake(ShakePreset.PlayerHit);
 
                     // === 状態異常: プレイヤー被弾解除（フォールバック） ===
                     if (playerUnit.StatusEffects != null)
@@ -580,7 +589,14 @@ public class EncounterFlowController : MonoBehaviour
 
         if (nextEnemy != null)
         {
-            activateEnemyAsCurrent?.Invoke(nextEnemy);
+            if (playEnemyEntranceRoutine != null)
+            {
+                yield return StartCoroutine(playEnemyEntranceRoutine(nextEnemy));
+            }
+            else
+            {
+                activateEnemyAsCurrent?.Invoke(nextEnemy);
+            }
 
             // ここは1個だけで十分
             RequestDamageText("敵発見", nextEnemy.transform.position + Vector3.up * 1.6f, Color.red);

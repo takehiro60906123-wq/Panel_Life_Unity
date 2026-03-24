@@ -348,10 +348,10 @@ public class BattleUIController : MonoBehaviour
                 return type == EnemyType.Ranged || type == EnemyType.Rushing;
 
             case GunType.Rifle:
-                return type == EnemyType.Ranged || type == EnemyType.Floating || type == EnemyType.Armored;
+                return type == EnemyType.Ranged || type == EnemyType.Floating || type == EnemyType.Armored || type == EnemyType.Boss;
 
             case GunType.Shotgun:
-                return type == EnemyType.Rushing || type == EnemyType.Armored;
+                return type == EnemyType.Rushing || type == EnemyType.Armored || type == EnemyType.Boss;
 
             case GunType.MachineGun:
                 return type == EnemyType.Rushing;
