@@ -1,4 +1,4 @@
-﻿using UnityEngine;
+using UnityEngine;
 using UnityEngine.UI;
 
 public class BattleBootstrapper : MonoBehaviour
@@ -41,6 +41,7 @@ public class BattleBootstrapper : MonoBehaviour
         manager.gunCombatController = ResolveOrAdd(manager.gunCombatController);
         manager.rewardDropController = ResolveOrAdd(manager.rewardDropController);
         manager.stageIntroController = ResolveOrAdd(manager.stageIntroController);
+        manager.bossIntroController = ResolveOrAdd(manager.bossIntroController);
         manager.battleItemIconDatabase = ResolveOrAdd(manager.battleItemIconDatabase);
     }
 

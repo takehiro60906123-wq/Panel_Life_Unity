@@ -848,7 +848,7 @@ MonoBehaviour:
   expYield: 8
   coinYield: 5
   attackPower: 4
-  enemyType: 1
+  enemyType: 5
   attackPattern: 3
   passiveCorruptPerTurn: 1
   isChargingHeavyHit: 0
@@ -962,11 +962,31 @@ MonoBehaviour:
   deathSquashY: 0.72
   deathFlashDuration: 0.07
   deathFlashColor: {r: 1, g: 1, b: 1, a: 1}
+  gunDeathBlowbackDistance: 0.55
+  gunDeathBlowbackDuration: 0.1
+  gunDeathSpinAngle: 360
+  gunDeathFadeDuration: 0.18
+  gunDeathEndScale: 0.65
+  gunDeathFlashColor: {r: 1, g: 0.95, b: 0.85, a: 1}
+  rifleDeathPauseDuration: 0.08
+  rifleDeathCrumbleDuration: 0.16
+  rifleDeathSplitOffsetX: 0.12
+  rifleDeathFlashColor: {r: 1, g: 1, b: 0.92, a: 1}
+  overlinkDeathExpandScale: 1.55
+  overlinkDeathExpandDuration: 0.08
+  overlinkDeathShrinkDuration: 0.12
+  overlinkDeathEndScale: 0.08
+  overlinkDeathFlashColor: {r: 1, g: 0.85, b: 0.35, a: 1}
+  overlinkDeathShakeIntensity: 0.06
   chargePulseDuration: 0.35
   chargeScaleUp: 1.18
   chargeFlashColor: {r: 1, g: 0.6, b: 0.2, a: 1}
   chargeShakeVibrato: 12
   chargeShakeStrength: 0.04
+  dangerPulseColor: {r: 1, g: 0.25, b: 0.18, a: 1}
+  dangerPulseInterval: 0.55
+  dangerPulseScaleAmount: 1.06
+  dangerPulseBobY: 0.025
   skillPulseDuration: 0.3
   skillScaleUp: 1.12
   corruptFlashColor: {r: 0.7, g: 0.2, b: 0.8, a: 1}

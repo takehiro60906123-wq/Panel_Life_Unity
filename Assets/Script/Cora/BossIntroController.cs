@@ -1,32 +1,27 @@
-﻿// =============================================================
-// BossIntroController.cs
-// ボス登場カットイン演出
+// =============================================================
+// BossIntroController.cs — シネマティック演出強化版
 //
-// 配置:
-//   PanelBattleManager と同じ GameObject、または子オブジェクトにアタッチ。
-//   Inspector で参照を設定する。
+// 追加演出:
+//   ・レターボックス（上下黒帯）でシネマスコープ演出
+//   ・カメラズームイン → ボスのアップ
+//   ・シルエット → 閃光リビール
+//   ・ヒットストップ的な「溜め」
+//   ・カメラ引き → レターボックス退場 → 戦闘開始
 //
-// 使い方:
-//   ボス戦開始時（敵がボスタイプと判定された直後）に呼ぶ。
-//   既存の EnemyPresentationController.PlayEntranceAnimation() の代わりに、
-//   こちらの PlayBossIntro() を使う。
+// 既存との互換:
+//   ScreenShakeController の LateUpdate は、シェイク中でなければ
+//   cameraBaseLocalPos を毎フレーム更新する仕様。
+//   ズーム中はシェイクが走らないため競合しない。
+//   ズーム完了後に位置を正しく戻せば安全。
 //
-//   yield return StartCoroutine(bossIntroController.PlayBossIntro(bossUnit));
-//
-// 演出フロー:
-//   1. 盤面ロック＋霧が濃くなる
-//   2. BGM ダッキング（音が引く）
-//   3. 画面シェイク（地鳴り）
-//   4. 画面暗転
-//   5. ボス名バナー スライドイン
-//   6. ボスシルエット登場 → 全体表示
-//   7. バナー退出
-//   8. 霧が晴れる＋盤面アンロック
-//
-// 設計方針:
-//   StageIntroController と同じコルーチンベースの構造。
-//   既存の ScreenShakeController があれば連携する（なくても動く）。
-//   DungeonMistController があれば霧演出も入る（なくても動く）。
+// セットアップ:
+//   1. Canvas 直下に「LetterboxTop」「LetterboxBottom」を Image で作成
+//      - Color: 黒 (0,0,0,1)
+//      - RaycastTarget: OFF
+//      - 高さ: 画面の 12〜15% 程度（Anchor で上端/下端に貼る）
+//      - 初期状態で画面外に配置（Top は上、Bottom は下に退避）
+//   2. BossIntroController の Inspector で参照をセット
+//   3. 既存の darkOverlay, bannerRoot 等はそのまま使用
 // =============================================================
 using System.Collections;
 using UnityEngine;
@@ -47,12 +42,54 @@ public class BossIntroController : MonoBehaviour
     [SerializeField] private TMP_Text bossSubtitleText;
 
     [Header("暗転オーバーレイ")]
-    [Tooltip("画面全体を覆う Image。ScreenShakeController の flashOverlay とは別に、\n暗転用に専用の黒 Image を用意する。初期は透明。")]
+    [Tooltip("画面全体を覆う Image。暗転用に専用の黒 Image を用意する。初期は透明。")]
     [SerializeField] private Image darkOverlay;
 
     [Header("盤面参照")]
     [SerializeField] private PanelBoardController panelBoardController;
     [SerializeField] private DungeonMistController dungeonMistController;
+
+    // ─────────────────────────────────────────
+    // レターボックス（上下黒帯）
+    // ─────────────────────────────────────────
+    [Header("レターボックス")]
+    [Tooltip("画面上端の黒帯 RectTransform。Anchor を上端に設定し、初期は画面外（上方向）に退避させておく。")]
+    [SerializeField] private RectTransform letterboxTop;
+    [Tooltip("画面下端の黒帯 RectTransform。Anchor を下端に設定し、初期は画面外（下方向）に退避させておく。")]
+    [SerializeField] private RectTransform letterboxBottom;
+    [SerializeField] private float letterboxBarHeight = 120f;
+    [SerializeField] private float letterboxEnterDuration = 0.30f;
+    [SerializeField] private float letterboxExitDuration = 0.25f;
+    [SerializeField] private Ease letterboxEnterEase = Ease.OutCubic;
+    [SerializeField] private Ease letterboxExitEase = Ease.InCubic;
+
+    // ─────────────────────────────────────────
+    // シネマティックカメラ
+    // ─────────────────────────────────────────
+    [Header("カメラズーム")]
+    [Tooltip("Orthographic: ズームイン時の orthographicSize。小さいほどアップ。")]
+    [SerializeField] private float zoomInSize = 2.2f;
+    [Tooltip("Perspective: ズームイン時の fieldOfView。小さいほどアップ。")]
+    [SerializeField] private float zoomInFov = 25f;
+    [Tooltip("スプライト中心からのオフセット（ワールド座標）。bounds.center 基準なので大きな値は不要。")]
+    [SerializeField] private Vector2 zoomFocusOffset = new Vector2(0f, 0.15f);
+    [SerializeField] private float zoomInDuration = 0.50f;
+    [SerializeField] private float zoomInDelay = 0.10f;
+    [SerializeField] private Ease zoomInEase = Ease.InOutCubic;
+    [SerializeField] private float closeUpHoldDuration = 0.60f;
+    [SerializeField] private float zoomOutDuration = 0.40f;
+    [SerializeField] private Ease zoomOutEase = Ease.InOutQuad;
+
+    // ─────────────────────────────────────────
+    // シルエット → 閃光リビール
+    // ─────────────────────────────────────────
+    [Header("シルエットリビール")]
+    [SerializeField] private Color silhouetteColor = new Color(0.08f, 0.06f, 0.12f, 1f);
+    [SerializeField] private float silhouetteHoldDuration = 0.35f;
+    [SerializeField] private float revealFlashAlpha = 0.55f;
+    [SerializeField] private Color revealFlashColor = new Color(1f, 0.97f, 0.85f);
+    [SerializeField] private float revealFlashDuration = 0.12f;
+    [SerializeField] private float revealColorDuration = 0.18f;
 
     // ─────────────────────────────────────────
     // フェーズ 1: 前触れ（地鳴り）
@@ -105,7 +142,6 @@ public class BossIntroController : MonoBehaviour
     // BGM ダッキング
     // ─────────────────────────────────────────
     [Header("BGM ダッキング（任意）")]
-    [Tooltip("BGM の AudioSource。設定すると前触れ時にボリュームを下げる。")]
     [SerializeField] private AudioSource bgmSource;
     [SerializeField] private float bgmDuckVolume = 0.15f;
     [SerializeField] private float bgmDuckDuration = 0.3f;
@@ -119,6 +155,10 @@ public class BossIntroController : MonoBehaviour
     [SerializeField] private AudioClip bossRumbleSe;
     [SerializeField] private AudioClip bossAppearSe;
 
+    [Header("自動生成")]
+    [Tooltip("true にすると、未設定の UI を PlayBossIntro 時に自動生成する。\nInspector で個別に設定済みのものはそのまま使う。")]
+    [SerializeField] private bool autoGenerateUI = true;
+
     // ─────────────────────────────────────────
     // 内部状態
     // ─────────────────────────────────────────
@@ -127,10 +167,34 @@ public class BossIntroController : MonoBehaviour
     private float bgmOriginalVolume = 1f;
     private BattleSfxController battleSfxController;
 
+    // カメラ復帰用
+    private Camera cachedCamera;
+    private float originalOrthoSize;
+    private float originalFov;
+    private Vector3 originalCameraPos;
+    private bool isCameraOrtho;
+
+    // レターボックス復帰用
+    private Vector2 letterboxTopBasePos;
+    private Vector2 letterboxBottomBasePos;
+    private bool hasCachedLetterboxPos;
+
+    // 自動生成済みフラグ
+    private bool uiGenerated;
+
+    // 盤面フェード用
+    private CanvasGroup boardCanvasGroupRef;
+    private float boardOriginalAlpha = 1f;
+
     private void Awake()
     {
+        Debug.Log($"[BossIntro] Awake: autoGenerateUI={autoGenerateUI}, " +
+                  $"darkOverlay={darkOverlay != null}, bannerRoot={bannerRoot != null}");
+
         CacheBannerPosition();
+        CacheLetterboxPositions();
         HideBannerImmediate();
+        HideLetterboxImmediate();
 
         if (panelBoardController == null)
         {
@@ -158,6 +222,23 @@ public class BossIntroController : MonoBehaviour
         }
     }
 
+    private void CacheLetterboxPositions()
+    {
+        if (hasCachedLetterboxPos) return;
+
+        if (letterboxTop != null)
+        {
+            letterboxTopBasePos = letterboxTop.anchoredPosition;
+        }
+
+        if (letterboxBottom != null)
+        {
+            letterboxBottomBasePos = letterboxBottom.anchoredPosition;
+        }
+
+        hasCachedLetterboxPos = true;
+    }
+
     private void HideBannerImmediate()
     {
         if (bannerCanvasGroup != null)
@@ -171,55 +252,146 @@ public class BossIntroController : MonoBehaviour
         }
     }
 
+    private void HideLetterboxImmediate()
+    {
+        if (letterboxTop != null)
+        {
+            letterboxTop.anchoredPosition = letterboxTopBasePos + new Vector2(0f, letterboxBarHeight);
+            letterboxTop.gameObject.SetActive(false);
+        }
+
+        if (letterboxBottom != null)
+        {
+            letterboxBottom.anchoredPosition = letterboxBottomBasePos + new Vector2(0f, -letterboxBarHeight);
+            letterboxBottom.gameObject.SetActive(false);
+        }
+    }
+
     // =============================================================
     // 公開 API
     // =============================================================
 
-    /// <summary>
-    /// ボスイントロ演出を実行する。
-    /// コルーチンとして yield return で呼ぶ。
-    /// bossUnit は既にシーン上に配置済み（非表示状態）である前提。
-    /// </summary>
     public IEnumerator PlayBossIntro(BattleUnit bossUnit, string bossName = null, string subtitle = null)
     {
+        Debug.Log($"[BossIntro] PlayBossIntro 開始: bossUnit={bossUnit?.name}, enemyType={bossUnit?.enemyType}");
+
         if (bossUnit == null) yield break;
+
+        // UI が未設定なら動的生成
+        EnsureUIGenerated();
+
+        Debug.Log($"[BossIntro] UI状態: darkOverlay={darkOverlay != null}, letterboxTop={letterboxTop != null}, " +
+                  $"bannerRoot={bannerRoot != null}, bannerText={bossNameText != null}");
 
         // ─── 準備 ───
         SetBossVisibility(bossUnit, false);
         SetupBannerText(bossName, subtitle, bossUnit);
+        CacheCamera();
 
-        // ─── フェーズ 1: 前触れ ───
+        // =============================================
+        // フェーズ 1: 前触れ — 不穏な空気
+        // =============================================
         yield return new WaitForSeconds(forebodingDelay);
 
         PlaySe(bossRumbleSe);
         DuckBgm();
 
-        // 霧を濃くする
         if (dungeonMistController != null)
         {
             dungeonMistController.ApplyBattleState(true, false);
         }
 
-        // 地鳴りシェイク
+        // レターボックス登場（地鳴りと同時）
+        PlayLetterboxEnter();
         PlayForebodingShake();
 
         yield return new WaitForSeconds(forebodingShakeDuration);
 
-        // ─── フェーズ 2: 暗転 ───
+        // =============================================
+        // フェーズ 2: 暗転
+        // =============================================
         yield return PlayDarkenRoutine();
-
         yield return new WaitForSeconds(darkenHoldDuration);
 
-        // ─── フェーズ 3: バナー ───
-        yield return PlayBannerRoutine();
-
-        // ─── フェーズ 4: ボス登場 ───
+        // =============================================
+        // フェーズ 3: ボス実体化 — シルエットで登場
+        // =============================================
         yield return new WaitForSeconds(bossRevealDelay);
 
-        PlaySe(bossAppearSe);
-        yield return PlayBossRevealRoutine(bossUnit);
+        Transform bossTransform = bossUnit.transform;
+        Vector3 bossOriginalPos = bossTransform.position;
 
-        // ─── フェーズ 5: 回復 ───
+        // ボスをシルエット（黒塗り）で小さく表示
+        bossTransform.localScale = Vector3.one * bossStartScale;
+        SetBossVisibility(bossUnit, true);
+        SetBossAlpha(bossUnit, 1f);
+        TintBossColor(bossUnit, silhouetteColor);
+        bossUnit.SetUIActive(false);
+
+        // スケールアップ（シルエットのまま等倍へ）
+        bossTransform.DOScale(Vector3.one, bossScaleUpDuration).SetEase(bossScaleUpEase);
+        yield return new WaitForSeconds(bossScaleUpDuration);
+
+        // 着地インパクト — スクワッシュ（横に潰れて縦に縮む）
+        PlayLandingImpact();
+        bossTransform.DOScale(new Vector3(1.15f, 0.85f, 1f), 0.06f)
+            .SetEase(Ease.OutQuad);
+        yield return new WaitForSeconds(0.06f);
+        // ストレッチ（縦に戻る）
+        bossTransform.DOScale(Vector3.one, 0.10f).SetEase(Ease.OutBack);
+        yield return new WaitForSeconds(0.12f);
+
+        // シルエットを少し見せる間
+        yield return new WaitForSeconds(silhouetteHoldDuration);
+
+        // =============================================
+        // フェーズ 4: 威圧ズーム — ボス自体がドカンと迫る
+        // =============================================
+
+        // ① ボスを一瞬でかくして手前に迫らせる
+        float intimidateScale = 1.8f;
+        float intimidateForwardX = -0.4f; // プレイヤー側に少し飛び出す
+        bossTransform.DOScale(Vector3.one * intimidateScale, 0.12f).SetEase(Ease.OutCubic);
+        bossTransform.DOMoveX(bossOriginalPos.x + intimidateForwardX, 0.12f).SetEase(Ease.OutCubic);
+        yield return new WaitForSeconds(0.12f);
+
+        // ② ヒットストップ的な「溜め」— 一瞬止まる
+        ScreenShakeController shakeCtrl = ScreenShakeController.Instance;
+        if (shakeCtrl != null) shakeCtrl.HitStop(0.08f);
+        yield return new WaitForSeconds(0.10f);
+
+        // ③ 閃光 → シルエット解除（拡大状態で色が戻る＝一番インパクトある瞬間）
+        yield return PlayRevealFlash(bossUnit);
+
+        // ④ 拡大状態でちょっと保持（「こいつがボスか」と認識させる間）
+        yield return new WaitForSeconds(closeUpHoldDuration);
+
+        // ⑤ 元のサイズ・位置に戻す
+        bossTransform.DOScale(Vector3.one, 0.25f).SetEase(Ease.InOutQuad);
+        bossTransform.DOMove(bossOriginalPos, 0.25f).SetEase(Ease.InOutQuad);
+        yield return new WaitForSeconds(0.28f);
+
+        // =============================================
+        // フェーズ 5: バナー表示
+        // =============================================
+        yield return PlayBannerRoutine();
+
+        // =============================================
+        // フェーズ 6: 戦闘準備
+        // =============================================
+
+        // HP バー表示
+        bossUnit.SetUIActive(true);
+
+        // 着地で軽くバウンド
+        bossTransform.DOPunchScale(
+            new Vector3(0.08f, -0.12f, 0f),
+            0.14f, 4, 0.7f);
+
+        // レターボックス退場
+        PlayLetterboxExit();
+
+        // 暗転解除
         yield return PlayLightenRoutine();
 
         RestoreBgm();
@@ -227,10 +399,6 @@ public class BossIntroController : MonoBehaviour
         yield return new WaitForSeconds(unlockDelay);
     }
 
-    /// <summary>
-    /// ボスかどうかの簡易判定。
-    /// 呼び出し側で使う用。
-    /// </summary>
     public static bool IsBossUnit(BattleUnit unit)
     {
         if (unit == null) return false;
@@ -238,12 +406,249 @@ public class BossIntroController : MonoBehaviour
     }
 
     // =============================================================
-    // フェーズ実装
+    // レターボックス演出
+    // =============================================================
+
+    private void PlayLetterboxEnter()
+    {
+        if (letterboxTop != null)
+        {
+            letterboxTop.gameObject.SetActive(true);
+            letterboxTop.DOKill();
+            letterboxTop.DOAnchorPos(letterboxTopBasePos, letterboxEnterDuration)
+                .SetEase(letterboxEnterEase);
+        }
+
+        if (letterboxBottom != null)
+        {
+            letterboxBottom.gameObject.SetActive(true);
+            letterboxBottom.DOKill();
+            letterboxBottom.DOAnchorPos(letterboxBottomBasePos, letterboxEnterDuration)
+                .SetEase(letterboxEnterEase);
+        }
+    }
+
+    private void PlayLetterboxExit()
+    {
+        if (letterboxTop != null)
+        {
+            letterboxTop.DOKill();
+            letterboxTop.DOAnchorPos(
+                    letterboxTopBasePos + new Vector2(0f, letterboxBarHeight),
+                    letterboxExitDuration)
+                .SetEase(letterboxExitEase)
+                .OnComplete(() =>
+                {
+                    if (letterboxTop != null) letterboxTop.gameObject.SetActive(false);
+                });
+        }
+
+        if (letterboxBottom != null)
+        {
+            letterboxBottom.DOKill();
+            letterboxBottom.DOAnchorPos(
+                    letterboxBottomBasePos + new Vector2(0f, -letterboxBarHeight),
+                    letterboxExitDuration)
+                .SetEase(letterboxExitEase)
+                .OnComplete(() =>
+                {
+                    if (letterboxBottom != null) letterboxBottom.gameObject.SetActive(false);
+                });
+        }
+    }
+
+    // =============================================================
+    // カメラズーム演出
+    // =============================================================
+
+    private void CacheCamera()
+    {
+        if (cachedCamera == null)
+        {
+            cachedCamera = Camera.main;
+        }
+
+        if (cachedCamera != null)
+        {
+            isCameraOrtho = cachedCamera.orthographic;
+            originalOrthoSize = cachedCamera.orthographicSize;
+            originalFov = cachedCamera.fieldOfView;
+            originalCameraPos = cachedCamera.transform.position;
+        }
+
+        // 盤面の CanvasGroup を探してキャッシュ
+        if (boardCanvasGroupRef == null && panelBoardController != null)
+        {
+            // PanelBoardController の親 Canvas 内の boardParent を探す
+            Transform boardParent = panelBoardController.transform.parent;
+            if (boardParent != null)
+            {
+                boardCanvasGroupRef = boardParent.GetComponent<CanvasGroup>();
+            }
+            // 見つからなければ PanelBoardController 自体から
+            if (boardCanvasGroupRef == null)
+            {
+                boardCanvasGroupRef = panelBoardController.GetComponentInParent<CanvasGroup>();
+            }
+        }
+    }
+
+    private IEnumerator PlayCameraZoomIn(Transform focusTarget)
+    {
+        if (cachedCamera == null || focusTarget == null) yield break;
+
+        Transform camTransform = cachedCamera.transform;
+
+        // スプライトの見た目の中心を取得
+        Vector3 focusCenter = focusTarget.position;
+        SpriteRenderer sr = focusTarget.GetComponentInChildren<SpriteRenderer>();
+        if (sr != null)
+        {
+            focusCenter = sr.bounds.center;
+        }
+
+        Debug.Log($"[BossIntro ZOOM] focusCenter={focusCenter}, camera.pos={camTransform.position}, " +
+                  $"ortho={isCameraOrtho}, fov={cachedCamera.fieldOfView}");
+
+        // 盤面をフェードアウト（ボスが見えるように）
+        FadeBoardOut();
+
+        if (isCameraOrtho)
+        {
+            // Orthographic: XY移動 + orthographicSize 縮小
+            Vector3 targetPos = new Vector3(
+                focusCenter.x + zoomFocusOffset.x,
+                focusCenter.y + zoomFocusOffset.y,
+                camTransform.position.z
+            );
+
+            Sequence seq = DOTween.Sequence();
+            seq.Join(camTransform.DOMove(targetPos, zoomInDuration).SetEase(zoomInEase));
+            seq.Join(DOTween.To(
+                () => cachedCamera.orthographicSize,
+                x => cachedCamera.orthographicSize = x,
+                zoomInSize, zoomInDuration).SetEase(zoomInEase));
+            yield return seq.WaitForCompletion();
+        }
+        else
+        {
+            // Perspective: XY移動 + FOV 縮小でズーム
+            Vector3 targetPos = new Vector3(
+                focusCenter.x + zoomFocusOffset.x,
+                focusCenter.y + zoomFocusOffset.y,
+                camTransform.position.z
+            );
+
+            Sequence seq = DOTween.Sequence();
+            seq.Join(camTransform.DOMove(targetPos, zoomInDuration).SetEase(zoomInEase));
+            seq.Join(DOTween.To(
+                () => cachedCamera.fieldOfView,
+                x => cachedCamera.fieldOfView = x,
+                zoomInFov, zoomInDuration).SetEase(zoomInEase));
+            yield return seq.WaitForCompletion();
+        }
+    }
+
+    private IEnumerator PlayCameraZoomOut()
+    {
+        if (cachedCamera == null) yield break;
+
+        Transform camTransform = cachedCamera.transform;
+
+        Sequence seq = DOTween.Sequence();
+        seq.Join(camTransform.DOMove(originalCameraPos, zoomOutDuration).SetEase(zoomOutEase));
+
+        if (isCameraOrtho)
+        {
+            seq.Join(DOTween.To(
+                () => cachedCamera.orthographicSize,
+                x => cachedCamera.orthographicSize = x,
+                originalOrthoSize, zoomOutDuration).SetEase(zoomOutEase));
+        }
+        else
+        {
+            seq.Join(DOTween.To(
+                () => cachedCamera.fieldOfView,
+                x => cachedCamera.fieldOfView = x,
+                originalFov, zoomOutDuration).SetEase(zoomOutEase));
+        }
+
+        yield return seq.WaitForCompletion();
+
+        // 盤面を復帰
+        FadeBoardIn();
+    }
+
+    // =============================================================
+    // 盤面フェード（ズーム中にボスを隠さないため）
+    // =============================================================
+
+    private void FadeBoardOut()
+    {
+        if (boardCanvasGroupRef != null)
+        {
+            boardOriginalAlpha = boardCanvasGroupRef.alpha;
+            boardCanvasGroupRef.DOKill();
+            boardCanvasGroupRef.DOFade(0f, 0.2f).SetEase(Ease.OutQuad);
+        }
+    }
+
+    private void FadeBoardIn()
+    {
+        if (boardCanvasGroupRef != null)
+        {
+            boardCanvasGroupRef.DOKill();
+            boardCanvasGroupRef.DOFade(boardOriginalAlpha, 0.25f).SetEase(Ease.OutQuad);
+        }
+    }
+
+    // =============================================================
+    // シルエット → 閃光リビール
+    // =============================================================
+
+    private void TintBossColor(BattleUnit unit, Color tint)
+    {
+        if (unit == null) return;
+
+        SpriteRenderer[] renderers = unit.GetComponentsInChildren<SpriteRenderer>(true);
+        foreach (SpriteRenderer sr in renderers)
+        {
+            if (sr == null) continue;
+            sr.color = tint;
+        }
+    }
+
+    private IEnumerator PlayRevealFlash(BattleUnit bossUnit)
+    {
+        // 画面全体に白い閃光
+        ScreenShakeController shakeController = ScreenShakeController.Instance;
+        if (shakeController != null)
+        {
+            shakeController.Flash(revealFlashColor, revealFlashDuration, revealFlashAlpha);
+            shakeController.HitStop(0.06f);
+        }
+
+        PlaySe(bossAppearSe);
+
+        // シルエットから本来の色へ復帰
+        SpriteRenderer[] renderers = bossUnit.GetComponentsInChildren<SpriteRenderer>(true);
+        foreach (SpriteRenderer sr in renderers)
+        {
+            if (sr == null) continue;
+
+            sr.DOKill();
+            sr.DOColor(Color.white, revealColorDuration).SetEase(Ease.OutQuad);
+        }
+
+        yield return new WaitForSeconds(Mathf.Max(revealFlashDuration, revealColorDuration));
+    }
+
+    // =============================================================
+    // 既存フェーズ（前触れ・暗転・バナー・着地・回復）
     // =============================================================
 
     private void PlayForebodingShake()
     {
-        // ScreenShakeController があればそちらを使う
         ScreenShakeController shakeController = ScreenShakeController.Instance;
         if (shakeController != null)
         {
@@ -251,10 +656,23 @@ public class BossIntroController : MonoBehaviour
             return;
         }
 
-        // フォールバック: 盤面シェイク
         if (panelBoardController != null)
         {
             panelBoardController.PlayImpactShake(forebodingShakeIntensity / 3f, forebodingShakeDuration);
+        }
+    }
+
+    private void PlayLandingImpact()
+    {
+        ScreenShakeController shakeController = ScreenShakeController.Instance;
+        if (shakeController != null)
+        {
+            shakeController.Shake(bossLandingShakeIntensity, bossLandingShakeDuration, 20);
+            shakeController.Flash(new Color(1f, 0.95f, 0.8f), 0.10f, 0.25f);
+        }
+        else if (panelBoardController != null)
+        {
+            panelBoardController.PlayImpactShake(1.5f, bossLandingShakeDuration);
         }
     }
 
@@ -281,7 +699,6 @@ public class BossIntroController : MonoBehaviour
 
         CacheBannerPosition();
 
-        // スライドイン準備
         bannerRoot.gameObject.SetActive(true);
 
         Vector2 startPos = bannerBaseAnchoredPos + new Vector2(bannerSlideInOffsetX, 0f);
@@ -302,9 +719,7 @@ public class BossIntroController : MonoBehaviour
         // 着地パンチ
         bannerRoot.DOPunchScale(
             new Vector3(bannerSettlePunchScale, bannerSettlePunchScale, 0f),
-            0.12f,
-            6,
-            0.8f);
+            0.12f, 6, 0.8f);
 
         // ホールド
         yield return new WaitForSeconds(bannerHoldDuration);
@@ -322,56 +737,6 @@ public class BossIntroController : MonoBehaviour
         yield return new WaitForSeconds(bannerSlideOutDuration);
 
         bannerRoot.gameObject.SetActive(false);
-    }
-
-    private IEnumerator PlayBossRevealRoutine(BattleUnit bossUnit)
-    {
-        if (bossUnit == null) yield break;
-
-        Transform bossTransform = bossUnit.transform;
-
-        // 小さい状態で表示開始
-        bossTransform.localScale = Vector3.one * bossStartScale;
-        SetBossVisibility(bossUnit, true);
-        SetBossAlpha(bossUnit, 1f);
-
-        // スケールアップ
-        bossTransform.DOScale(Vector3.one, bossScaleUpDuration)
-            .SetEase(bossScaleUpEase);
-
-        yield return new WaitForSeconds(bossScaleUpDuration);
-
-        // 着地インパクト
-        ScreenShakeController shakeController = ScreenShakeController.Instance;
-        if (shakeController != null)
-        {
-            shakeController.Shake(bossLandingShakeIntensity, bossLandingShakeDuration, 20);
-            shakeController.Flash(new Color(1f, 0.95f, 0.8f), 0.10f, 0.25f);
-        }
-        else if (panelBoardController != null)
-        {
-            panelBoardController.PlayImpactShake(1.5f, bossLandingShakeDuration);
-        }
-
-        // ボスの EnemyTweenPresenter で軽い着地演出
-        EnemyTweenPresenter tweenPresenter = bossUnit.GetComponent<EnemyTweenPresenter>();
-        if (tweenPresenter == null)
-        {
-            tweenPresenter = bossUnit.GetComponentInChildren<EnemyTweenPresenter>();
-        }
-
-        if (tweenPresenter != null)
-        {
-            tweenPresenter.EnsureSetup();
-            // 着地で少し潰れて戻る
-            bossTransform.DOPunchScale(
-                new Vector3(0.08f, -0.12f, 0f),
-                0.14f,
-                4,
-                0.7f);
-        }
-
-        yield return new WaitForSeconds(0.18f);
     }
 
     private IEnumerator PlayLightenRoutine()
@@ -396,11 +761,9 @@ public class BossIntroController : MonoBehaviour
 
         if (string.IsNullOrEmpty(resolvedName) && bossUnit != null)
         {
-            // BattleUnit に名前があればそれを使う
             BattleUnitView view = bossUnit.GetComponent<BattleUnitView>();
             if (view != null)
             {
-                // unitName があるか試す（なければ "BOSS" をフォールバック）
                 resolvedName = bossUnit.name;
             }
         }
@@ -466,6 +829,201 @@ public class BossIntroController : MonoBehaviour
 
         bgmSource.DOKill();
         bgmSource.DOFade(bgmOriginalVolume, bgmRestoreDuration);
+    }
+
+    // =============================================================
+    // UI 動的生成
+    // =============================================================
+
+    private void EnsureUIGenerated()
+    {
+        if (uiGenerated || !autoGenerateUI) return;
+        uiGenerated = true;
+
+        Debug.Log($"[BossIntro] EnsureUIGenerated: autoGenerateUI={autoGenerateUI}");
+
+        Canvas targetCanvas = FindOverlayCanvas();
+        if (targetCanvas == null)
+        {
+            Debug.LogWarning("[BossIntro] Canvas が見つかりません。UI を自動生成できません。");
+            return;
+        }
+
+        Debug.Log($"[BossIntro] Canvas 発見: {targetCanvas.gameObject.name} (sortOrder={targetCanvas.sortingOrder})");
+
+        RectTransform canvasRect = targetCanvas.GetComponent<RectTransform>();
+
+        // --- DarkOverlay ---
+        if (darkOverlay == null)
+        {
+            darkOverlay = CreateFullScreenImage(canvasRect, "BossIntroDarkOverlay", Color.black);
+            darkOverlay.raycastTarget = false;
+            Color c = darkOverlay.color;
+            c.a = 0f;
+            darkOverlay.color = c;
+            darkOverlay.gameObject.SetActive(false);
+        }
+
+        // --- LetterboxTop ---
+        if (letterboxTop == null)
+        {
+            GameObject topObj = CreateUIObject(canvasRect, "BossIntroLetterboxTop");
+            letterboxTop = topObj.GetComponent<RectTransform>();
+            Image topImg = topObj.AddComponent<Image>();
+            topImg.color = Color.black;
+            topImg.raycastTarget = false;
+
+            // Anchor: top-stretch (左上～右上)
+            letterboxTop.anchorMin = new Vector2(0f, 1f);
+            letterboxTop.anchorMax = new Vector2(1f, 1f);
+            letterboxTop.pivot = new Vector2(0.5f, 1f);
+            letterboxTop.sizeDelta = new Vector2(0f, letterboxBarHeight);
+            // 初期位置: 画面外（上方向に退避）
+            letterboxTop.anchoredPosition = new Vector2(0f, letterboxBarHeight);
+
+            letterboxTopBasePos = Vector2.zero; // 表示位置は (0, 0)
+            topObj.SetActive(false);
+        }
+
+        // --- LetterboxBottom ---
+        if (letterboxBottom == null)
+        {
+            GameObject bottomObj = CreateUIObject(canvasRect, "BossIntroLetterboxBottom");
+            letterboxBottom = bottomObj.GetComponent<RectTransform>();
+            Image bottomImg = bottomObj.AddComponent<Image>();
+            bottomImg.color = Color.black;
+            bottomImg.raycastTarget = false;
+
+            // Anchor: bottom-stretch (左下～右下)
+            letterboxBottom.anchorMin = new Vector2(0f, 0f);
+            letterboxBottom.anchorMax = new Vector2(1f, 0f);
+            letterboxBottom.pivot = new Vector2(0.5f, 0f);
+            letterboxBottom.sizeDelta = new Vector2(0f, letterboxBarHeight);
+            // 初期位置: 画面外（下方向に退避）
+            letterboxBottom.anchoredPosition = new Vector2(0f, -letterboxBarHeight);
+
+            letterboxBottomBasePos = Vector2.zero;
+            bottomObj.SetActive(false);
+        }
+
+        // --- BannerRoot + テキスト ---
+        if (bannerRoot == null)
+        {
+            GameObject bannerObj = CreateUIObject(canvasRect, "BossIntroBannerRoot");
+            bannerRoot = bannerObj.GetComponent<RectTransform>();
+
+            // 画面中央やや上
+            bannerRoot.anchorMin = new Vector2(0.5f, 0.55f);
+            bannerRoot.anchorMax = new Vector2(0.5f, 0.55f);
+            bannerRoot.pivot = new Vector2(0.5f, 0.5f);
+            bannerRoot.sizeDelta = new Vector2(600f, 120f);
+            bannerRoot.anchoredPosition = Vector2.zero;
+
+            bannerCanvasGroup = bannerObj.AddComponent<CanvasGroup>();
+            bannerCanvasGroup.alpha = 0f;
+
+            // 半透明背景バー
+            Image bannerBg = bannerObj.AddComponent<Image>();
+            bannerBg.color = new Color(0f, 0f, 0f, 0.6f);
+            bannerBg.raycastTarget = false;
+
+            // ボス名テキスト
+            GameObject nameObj = CreateUIObject(bannerRoot, "BossNameText");
+            bossNameText = nameObj.AddComponent<TMPro.TextMeshProUGUI>();
+            bossNameText.text = "BOSS";
+            bossNameText.fontSize = 42;
+            bossNameText.fontStyle = TMPro.FontStyles.Bold;
+            bossNameText.color = Color.white;
+            bossNameText.alignment = TMPro.TextAlignmentOptions.Center;
+            RectTransform nameRect = nameObj.GetComponent<RectTransform>();
+            nameRect.anchorMin = new Vector2(0f, 0.35f);
+            nameRect.anchorMax = new Vector2(1f, 1f);
+            nameRect.offsetMin = new Vector2(16f, 0f);
+            nameRect.offsetMax = new Vector2(-16f, -8f);
+
+            // サブタイトルテキスト
+            GameObject subObj = CreateUIObject(bannerRoot, "BossSubtitleText");
+            bossSubtitleText = subObj.AddComponent<TMPro.TextMeshProUGUI>();
+            bossSubtitleText.text = "";
+            bossSubtitleText.fontSize = 20;
+            bossSubtitleText.color = new Color(0.85f, 0.8f, 0.7f, 1f);
+            bossSubtitleText.alignment = TMPro.TextAlignmentOptions.Center;
+            RectTransform subRect = subObj.GetComponent<RectTransform>();
+            subRect.anchorMin = new Vector2(0f, 0f);
+            subRect.anchorMax = new Vector2(1f, 0.38f);
+            subRect.offsetMin = new Vector2(16f, 4f);
+            subRect.offsetMax = new Vector2(-16f, 0f);
+            subObj.SetActive(false);
+
+            bannerObj.SetActive(false);
+        }
+
+        // キャッシュ更新
+        hasCachedBannerPos = false;
+        hasCachedLetterboxPos = true;
+        CacheBannerPosition();
+
+        Debug.Log("[BossIntro] UI を動的生成しました");
+    }
+
+    private Canvas FindOverlayCanvas()
+    {
+        // BattleOverlayCanvas を名前で探す（あれば最適）
+        Canvas[] canvases = FindObjectsOfType<Canvas>();
+        Canvas bestCandidate = null;
+        int highestOrder = int.MinValue;
+
+        foreach (Canvas c in canvases)
+        {
+            if (c == null || !c.gameObject.activeInHierarchy) continue;
+
+            // 名前に Overlay が含まれるものを優先
+            if (c.gameObject.name.Contains("Overlay") && c.sortingOrder > highestOrder)
+            {
+                bestCandidate = c;
+                highestOrder = c.sortingOrder;
+            }
+        }
+
+        // Overlay Canvas が無ければ、最も Sort Order が高い Canvas を使う
+        if (bestCandidate == null)
+        {
+            highestOrder = int.MinValue;
+            foreach (Canvas c in canvases)
+            {
+                if (c == null || !c.gameObject.activeInHierarchy) continue;
+                if (c.sortingOrder > highestOrder)
+                {
+                    bestCandidate = c;
+                    highestOrder = c.sortingOrder;
+                }
+            }
+        }
+
+        return bestCandidate;
+    }
+
+    private GameObject CreateUIObject(Transform parent, string objectName)
+    {
+        GameObject obj = new GameObject(objectName, typeof(RectTransform));
+        obj.transform.SetParent(parent, false);
+        return obj;
+    }
+
+    private Image CreateFullScreenImage(RectTransform parent, string objectName, Color color)
+    {
+        GameObject obj = CreateUIObject(parent, objectName);
+        RectTransform rect = obj.GetComponent<RectTransform>();
+
+        // Stretch-Stretch: 画面全体を覆う
+        rect.anchorMin = Vector2.zero;
+        rect.anchorMax = Vector2.one;
+        rect.offsetMin = Vector2.zero;
+        rect.offsetMax = Vector2.zero;
+
+        Image img = obj.AddComponent<Image>();
+        img.color = color;
+        return img;
     }
 
     private void PlaySe(AudioClip clip)

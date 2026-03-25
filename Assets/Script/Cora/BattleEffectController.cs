@@ -135,6 +135,15 @@ public class BattleEffectController : MonoBehaviour
     [SerializeField] private float overlinkBannerEndScale = 1.00f;
     [SerializeField] private float overlinkBannerPunchScale = 0.16f;
 
+    [Header("Overlink Cutin Image (Optional)")]
+    [SerializeField] private RectTransform overlinkCutinImage;
+    [SerializeField] private CanvasGroup overlinkCutinCanvasGroup;
+    [SerializeField] private Vector2 overlinkCutinStartOffset = new Vector2(-500f, 0f);
+    [SerializeField] private float overlinkCutinFadeInDuration = 0.04f;
+    [SerializeField] private float overlinkCutinMoveDuration = 0.12f;
+    [SerializeField] private float overlinkCutinHoldDuration = 0.05f;
+    [SerializeField] private float overlinkCutinFadeOutDuration = 0.08f;
+
     [Header("Total Damage UI (Preplaced)")]
     [SerializeField] private RectTransform totalDamageRoot;
     [SerializeField] private CanvasGroup totalDamageCanvasGroup;
@@ -154,6 +163,9 @@ public class BattleEffectController : MonoBehaviour
     private Vector2 overlinkBannerBaseAnchoredPos;
     private Vector3 overlinkBannerBaseScale = Vector3.one;
     private bool hasOverlinkBannerPose;
+    private Vector2 overlinkCutinBaseAnchoredPos;
+    private bool hasOverlinkCutinPose;
+    private Sequence overlinkCutinSequence;
 
     private Vector2 totalDamageBaseAnchoredPos;
     private Vector3 totalDamageBaseScale = Vector3.one;
@@ -168,6 +180,7 @@ public class BattleEffectController : MonoBehaviour
     {
         CacheUiAnchors();
         HideOverlinkBannerImmediate();
+        HideOverlinkCutinImmediate();
         HideTotalDamageImmediate();
     }
 
@@ -178,6 +191,12 @@ public class BattleEffectController : MonoBehaviour
             overlinkBannerBaseAnchoredPos = overlinkBannerRoot.anchoredPosition;
             overlinkBannerBaseScale = overlinkBannerRoot.localScale;
             hasOverlinkBannerPose = true;
+        }
+
+        if (overlinkCutinImage != null && !hasOverlinkCutinPose)
+        {
+            overlinkCutinBaseAnchoredPos = overlinkCutinImage.anchoredPosition;
+            hasOverlinkCutinPose = true;
         }
 
         if (totalDamageRoot != null && !hasTotalDamagePose)
@@ -193,6 +212,15 @@ public class BattleEffectController : MonoBehaviour
             if (overlinkBannerCanvasGroup == null)
             {
                 overlinkBannerCanvasGroup = overlinkBannerRoot.gameObject.AddComponent<CanvasGroup>();
+            }
+        }
+
+        if (overlinkCutinImage != null && overlinkCutinCanvasGroup == null)
+        {
+            overlinkCutinCanvasGroup = overlinkCutinImage.GetComponent<CanvasGroup>();
+            if (overlinkCutinCanvasGroup == null)
+            {
+                overlinkCutinCanvasGroup = overlinkCutinImage.gameObject.AddComponent<CanvasGroup>();
             }
         }
 
@@ -274,6 +302,7 @@ public class BattleEffectController : MonoBehaviour
         totalDamageHideTween?.Kill();
         totalDamageCountTween?.Kill();
         HideOverlinkBannerImmediate();
+        HideOverlinkCutinImmediate();
         HideTotalDamageImmediate();
     }
 
@@ -475,6 +504,8 @@ public class BattleEffectController : MonoBehaviour
         overlinkBannerRoot.anchoredPosition = overlinkBannerBaseAnchoredPos + new Vector2(overlinkBannerEnterOffsetX, overlinkBannerEnterOffsetY);
         overlinkBannerRoot.localScale = overlinkBannerBaseScale * overlinkBannerStartScale;
 
+        PlayOverlinkCutin();
+
         Sequence seq = DOTween.Sequence();
         seq.Append(overlinkBannerRoot.DOAnchorPos(overlinkBannerBaseAnchoredPos, overlinkBannerEnterDuration).SetEase(Ease.OutCubic));
         if (overlinkBannerCanvasGroup != null)
@@ -491,6 +522,84 @@ public class BattleEffectController : MonoBehaviour
             seq.Join(overlinkBannerCanvasGroup.DOFade(0f, overlinkBannerExitDuration).SetEase(Ease.InQuad));
         }
         seq.OnComplete(HideOverlinkBannerImmediate);
+    }
+
+    private void PlayOverlinkCutin()
+    {
+        CacheUiAnchors();
+        if (overlinkCutinImage == null)
+        {
+            return;
+        }
+
+        overlinkCutinSequence?.Kill();
+        overlinkCutinImage.DOKill();
+        overlinkCutinImage.gameObject.SetActive(true);
+        overlinkCutinImage.anchoredPosition = overlinkCutinBaseAnchoredPos + overlinkCutinStartOffset;
+
+        if (overlinkCutinCanvasGroup != null)
+        {
+            overlinkCutinCanvasGroup.DOKill();
+            overlinkCutinCanvasGroup.alpha = 0f;
+        }
+
+        overlinkCutinSequence = DOTween.Sequence();
+
+        if (overlinkCutinCanvasGroup != null)
+        {
+            overlinkCutinSequence.Append(
+                overlinkCutinCanvasGroup
+                    .DOFade(1f, overlinkCutinFadeInDuration)
+                    .SetEase(Ease.OutQuad));
+        }
+        else
+        {
+            overlinkCutinSequence.AppendInterval(0f);
+        }
+
+        overlinkCutinSequence.Join(
+            overlinkCutinImage
+                .DOAnchorPos(overlinkCutinBaseAnchoredPos, overlinkCutinMoveDuration)
+                .SetEase(Ease.OutCubic));
+
+        overlinkCutinSequence.AppendInterval(overlinkCutinHoldDuration);
+
+        if (overlinkCutinCanvasGroup != null)
+        {
+            overlinkCutinSequence.Append(
+                overlinkCutinCanvasGroup
+                    .DOFade(0f, overlinkCutinFadeOutDuration)
+                    .SetEase(Ease.InQuad));
+        }
+        else
+        {
+            overlinkCutinSequence.AppendInterval(overlinkCutinFadeOutDuration);
+        }
+
+        overlinkCutinSequence.OnComplete(HideOverlinkCutinImmediate);
+        overlinkCutinSequence.OnKill(() => overlinkCutinSequence = null);
+    }
+
+    private void HideOverlinkCutinImmediate()
+    {
+        overlinkCutinSequence?.Kill();
+        overlinkCutinSequence = null;
+
+        if (overlinkCutinImage == null)
+        {
+            return;
+        }
+
+        overlinkCutinImage.DOKill();
+        overlinkCutinImage.anchoredPosition = overlinkCutinBaseAnchoredPos;
+
+        if (overlinkCutinCanvasGroup != null)
+        {
+            overlinkCutinCanvasGroup.DOKill();
+            overlinkCutinCanvasGroup.alpha = 0f;
+        }
+
+        overlinkCutinImage.gameObject.SetActive(false);
     }
 
     private void HideOverlinkBannerImmediate()
