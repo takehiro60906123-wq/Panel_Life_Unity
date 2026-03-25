@@ -2138,7 +2138,7 @@ public class PanelBattleManager : MonoBehaviour
             yield return null;
         }
 
-        SceneManager.LoadScene(destinationSceneName);
+        SceneTransitionManager.TransitionToScene(destinationSceneName, TransitionType.CircleIris);
     }
 
     private void EnsureResultOverlayUI()

@@ -210,7 +210,8 @@ public class TitleScreenController : MonoBehaviour
             yield return new WaitForSeconds(blackHoldDuration);
         }
 
-        SceneManager.LoadScene(homeSceneName);
+        SceneTransitionManager.TransitionToScene(homeSceneName, TransitionType.CircleIris);
+
     }
 
     private bool ShouldShowPrologue()

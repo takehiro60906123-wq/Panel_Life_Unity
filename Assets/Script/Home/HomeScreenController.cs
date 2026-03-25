@@ -307,7 +307,8 @@ public class HomeScreenController : MonoBehaviour
         yield return new WaitUntil(() => leaderReachedExit && subordinateReachedExit);
         yield return StartCoroutine(FadeOutRoutine());
 
-        SceneManager.LoadScene(battleSceneName);
+        SceneTransitionManager.TransitionToScene(battleSceneName, TransitionType.DiamondIris);
+
     }
 
     private Transform GetSubordinateExitPoint()
