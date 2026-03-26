@@ -610,7 +610,7 @@ public class BossIntroController : MonoBehaviour
     {
         if (unit == null) return;
 
-        SpriteRenderer[] renderers = unit.GetComponentsInChildren<SpriteRenderer>(true);
+        SpriteRenderer[] renderers = TintHelper.GetTintableRenderers(unit);
         foreach (SpriteRenderer sr in renderers)
         {
             if (sr == null) continue;
@@ -631,7 +631,7 @@ public class BossIntroController : MonoBehaviour
         PlaySe(bossAppearSe);
 
         // シルエットから本来の色へ復帰
-        SpriteRenderer[] renderers = bossUnit.GetComponentsInChildren<SpriteRenderer>(true);
+        SpriteRenderer[] renderers = TintHelper.GetTintableRenderers(bossUnit);
         foreach (SpriteRenderer sr in renderers)
         {
             if (sr == null) continue;
@@ -789,7 +789,7 @@ public class BossIntroController : MonoBehaviour
     {
         if (unit == null) return;
 
-        SpriteRenderer[] renderers = unit.GetComponentsInChildren<SpriteRenderer>(true);
+        SpriteRenderer[] renderers = TintHelper.GetAllRenderers(unit);
         foreach (SpriteRenderer sr in renderers)
         {
             if (sr == null) continue;
@@ -803,7 +803,7 @@ public class BossIntroController : MonoBehaviour
     {
         if (unit == null) return;
 
-        SpriteRenderer[] renderers = unit.GetComponentsInChildren<SpriteRenderer>(true);
+        SpriteRenderer[] renderers = TintHelper.GetAllRenderers(unit);
         foreach (SpriteRenderer sr in renderers)
         {
             if (sr == null) continue;

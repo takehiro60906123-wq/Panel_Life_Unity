@@ -295,12 +295,13 @@ public class StageIntroController : MonoBehaviour
         }
 
         Transform root = playerUnit.transform;
-        SpriteRenderer[] renderers = playerUnit.GetComponentsInChildren<SpriteRenderer>(true);
-        Vector3 targetPos = root.position;
-        Vector3 startPos = targetPos + playerStartOffset;
+        SpriteRenderer[] renderers = TintHelper.GetTintableRenderers(playerUnit);
+
+        // PreparePlayer で既に startPos に移動済みなので targetPos を逆算
+        Vector3 startPos = root.position;
+        Vector3 targetPos = startPos - playerStartOffset;
 
         root.DOKill(false);
-        root.position = startPos;
 
         for (int i = 0; i < renderers.Length; i++)
         {
@@ -341,7 +342,12 @@ public class StageIntroController : MonoBehaviour
 
         playerUnit.SetUIActive(false);
 
-        SpriteRenderer[] renderers = playerUnit.GetComponentsInChildren<SpriteRenderer>(true);
+        // 入場開始位置に移動（元の位置で一瞬映るのを防ぐ）
+        Transform root = playerUnit.transform;
+        root.position = root.position + playerStartOffset;
+
+        // 完全に透明にする（影は除外）
+        SpriteRenderer[] renderers = TintHelper.GetTintableRenderers(playerUnit);
         for (int i = 0; i < renderers.Length; i++)
         {
             SpriteRenderer sr = renderers[i];
@@ -351,7 +357,7 @@ public class StageIntroController : MonoBehaviour
             sr.enabled = true;
 
             Color c = sr.color;
-            c.a = playerStartAlpha;
+            c.a = 0f;  // 完全に透明（入場演出で playerStartAlpha まで戻す）
             sr.color = c;
         }
     }

@@ -1133,7 +1133,7 @@ SpriteRenderer:
   m_SortingLayer: 0
   m_SortingOrder: -14
   m_Sprite: {fileID: -2413806693520163455, guid: a86470a33a6bf42c4b3595704624658b, type: 3}
-  m_Color: {r: 0, g: 0, b: 0, a: 0.76862746}
+  m_Color: {r: 0, g: 0, b: 0, a: 0.5882353}
   m_FlipX: 0
   m_FlipY: 0
   m_DrawMode: 0
@@ -1457,7 +1457,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.14885187, y: 0.44137493}
   m_AnchorMax: {x: 0.44270372, y: 0.47129172}
-  m_AnchoredPosition: {x: 2, y: 3.5001001}
+  m_AnchoredPosition: {x: 2, y: 3.5000916}
   m_SizeDelta: {x: -7.0081024, y: -7}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &678829184

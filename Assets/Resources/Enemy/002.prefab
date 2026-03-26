@@ -579,6 +579,7 @@ GameObject:
   m_Component:
   - component: {fileID: 4735549176265527068}
   - component: {fileID: 7166529566945923798}
+  - component: {fileID: 5011809801976433727}
   m_Layer: 0
   m_Name: HpSlider
   m_TagString: Untagged
@@ -658,6 +659,32 @@ MonoBehaviour:
   m_OnValueChanged:
     m_PersistentCalls:
       m_Calls: []
+--- !u!114 &5011809801976433727
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3179990838393455257}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2b53faa642540ce4bac653bcb56f4dfa, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  mainBarDuration: 0.25
+  mainBarEase: 6
+  trailColor: {r: 0.85, g: 0.15, b: 0.1, a: 0.8}
+  trailDelay: 0.4
+  trailDuration: 0.5
+  trailEase: 5
+  damagePunchScale: 0.08
+  damagePunchDuration: 0.15
+  damagePunchVibrato: 6
+  healFlashColor: {r: 0.3, g: 1, b: 0.5, a: 0.5}
+  healFlashDuration: 0.2
+  dangerThreshold: 0.25
+  dangerBarColor: {r: 0.9, g: 0.25, b: 0.15, a: 1}
+  dangerPulseSpeed: 1.5
 --- !u!1 &3757543632721898702
 GameObject:
   m_ObjectHideFlags: 0

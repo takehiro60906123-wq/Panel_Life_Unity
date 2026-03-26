@@ -135,6 +135,9 @@ public class GunCombatController : MonoBehaviour
         if (playerCombatController == null) return;
         if (!playerCombatController.TryConsumeEquippedGunForShotCount(out int shotCount)) return;
 
+        // 発射決定した瞬間に盤面をロック（連打防止）
+        battleEventHub?.RaiseBoardInteractableRequested(false);
+
         StartCoroutine(FireRoutine(gun, target, shotCount));
     }
 

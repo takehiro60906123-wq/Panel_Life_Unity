@@ -15,6 +15,9 @@ public static class TintHelper
 {
     private static readonly List<SpriteRenderer> tempList = new List<SpriteRenderer>(16);
 
+    /// <summary>
+    /// 色変更（フラッシュ・シルエット等）の対象。Shadow を除外する。
+    /// </summary>
     public static SpriteRenderer[] GetTintableRenderers(Component root)
     {
         if (root == null) return System.Array.Empty<SpriteRenderer>();
@@ -26,22 +29,28 @@ public static class TintHelper
         {
             SpriteRenderer sr = all[i];
             if (sr == null) continue;
-            if (ShouldIgnore(sr.gameObject)) continue;
+            if (ShouldIgnoreTint(sr.gameObject)) continue;
             tempList.Add(sr);
         }
 
         return tempList.ToArray();
     }
 
-    private static bool ShouldIgnore(GameObject go)
+    /// <summary>
+    /// 表示制御（フェードアウト・非表示・死亡等）の対象。Shadow も含む全て。
+    /// </summary>
+    public static SpriteRenderer[] GetAllRenderers(Component root)
     {
-        // マーカーコンポーネントによる除外
+        if (root == null) return System.Array.Empty<SpriteRenderer>();
+        return root.GetComponentsInChildren<SpriteRenderer>(true);
+    }
+
+    private static bool ShouldIgnoreTint(GameObject go)
+    {
         if (go.GetComponent<IgnoreTintMarker>() != null) return true;
 
-        // 名前による除外（大文字小文字を無視）
         string name = go.name;
         if (name.IndexOf("shadow", System.StringComparison.OrdinalIgnoreCase) >= 0) return true;
-        if (name.IndexOf("Shadow", System.StringComparison.Ordinal) >= 0) return true;
 
         return false;
     }

@@ -517,9 +517,10 @@ public class EnemyTweenPresenter : MonoBehaviour
             )
         );
 
-        for (int i = 0; i < spriteRenderers.Length; i++)
+        SpriteRenderer[] allRenderers = TintHelper.GetAllRenderers(visualRoot);
+        for (int i = 0; i < allRenderers.Length; i++)
         {
-            SpriteRenderer sr = spriteRenderers[i];
+            SpriteRenderer sr = allRenderers[i];
             if (sr == null) continue;
 
             sr.DOKill();
