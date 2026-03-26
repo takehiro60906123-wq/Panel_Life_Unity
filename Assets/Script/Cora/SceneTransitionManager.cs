@@ -55,6 +55,36 @@ public class SceneTransitionManager : MonoBehaviour
     [SerializeField] private float logoHoldDuration = 0.6f;
     [SerializeField] private float logoFadeOutDuration = 0.2f;
 
+    [Header("Tips表示")]
+    [Tooltip("ランダムで表示するTipsテキスト。空なら表示しない。")]
+    [SerializeField, TextArea(1, 3)] private string[] tips =
+    {
+        "敵をタップすると敵の情報が確認できる",
+        "ボスを倒すと武器を落とすことがある",
+        "武器アイコンを長押しすると性能が確認できる",
+        "銃ゲージは弾薬パネルだけでなく攻撃パネルでも少し溜まる",
+        "ショットガンは攻撃直前の敵に撃つと効果的",
+        "装備する武器によってパネルの取得上限が変わる",
+        "大剣は最大5リンクまで取得できる",
+    };
+    [SerializeField] private float tipsFontSize = 26f;
+    [SerializeField] private Color tipsColor = new Color(0.75f, 0.75f, 0.75f, 1f);
+    [SerializeField] private Color tipsLabelColor = new Color(0.55f, 0.75f, 0.65f, 1f);
+    [SerializeField] private string tipsLabel = "TIPS";
+    [Tooltip("Tips の表示位置 Y（0=下端, 0.5=中央, 1=上端）")]
+    [SerializeField, Range(0f, 1f)] private float tipsAnchorY = 0.45f;
+
+    [Header("Tips タイミング")]
+    [SerializeField] private float tipsFadeInDuration = 0.3f;
+    [SerializeField] private float tipsHoldDuration = 2.5f;
+    [SerializeField] private float tipsFadeOutDuration = 0.25f;
+
+    [Header("Tips フォント")]
+    [Tooltip("Tips に使う TMP フォント。未設定ならデフォルトフォント。")]
+    [SerializeField] private TMPro.TMP_FontAsset tipsFont;
+    [Tooltip("TIPS ラベルに使う TMP フォント。未設定なら tipsFont と同じ。")]
+    [SerializeField] private TMPro.TMP_FontAsset tipsLabelFont;
+
     // 内部
     private Canvas transitionCanvas;
     private RawImage transitionImage;
@@ -65,6 +95,12 @@ public class SceneTransitionManager : MonoBehaviour
     // ロゴ
     private Image logoImage;
     private CanvasGroup logoCanvasGroup;
+
+    // Tips
+    private TMPro.TMP_Text tipsLabelText;
+    private TMPro.TMP_Text tipsBodyText;
+    private CanvasGroup tipsCanvasGroup;
+    private bool showTipsOnNextTransition;
 
     // シェーダーソース（ランタイム生成）
     private const string ShaderSource = @"
@@ -205,6 +241,17 @@ Shader ""Hidden/SceneTransition""
     public void LoadScene(string sceneName, TransitionType type = TransitionType.CircleIris)
     {
         if (isTransitioning) return;
+        showTipsOnNextTransition = false;
+        StartCoroutine(TransitionRoutine(sceneName, type));
+    }
+
+    /// <summary>
+    /// Tips表示付きでシーンを読み込む。
+    /// </summary>
+    public void LoadSceneWithTips(string sceneName, TransitionType type = TransitionType.CircleIris)
+    {
+        if (isTransitioning) return;
+        showTipsOnNextTransition = true;
         StartCoroutine(TransitionRoutine(sceneName, type));
     }
 
@@ -384,6 +431,9 @@ Shader ""Hidden/SceneTransition""
 
         // ── ロゴ Image ──
         CreateLogoUI(canvasObj.transform);
+
+        // ── Tips テキスト ──
+        CreateTipsUI(canvasObj.transform);
     }
 
     private void CreateLogoUI(Transform canvasRoot)
@@ -413,48 +463,148 @@ Shader ""Hidden/SceneTransition""
         logoObj.SetActive(false);
     }
 
+    private void CreateTipsUI(Transform canvasRoot)
+    {
+        if (tips == null || tips.Length == 0) return;
+
+        // Tips 全体の親（CanvasGroup でまとめてフェード）
+        GameObject tipsRoot = new GameObject("TransitionTips", typeof(RectTransform));
+        tipsRoot.transform.SetParent(canvasRoot, false);
+
+        RectTransform tipsRect = tipsRoot.GetComponent<RectTransform>();
+        tipsRect.anchorMin = new Vector2(0.1f, tipsAnchorY);
+        tipsRect.anchorMax = new Vector2(0.9f, tipsAnchorY);
+        tipsRect.pivot = new Vector2(0.5f, 0.5f);
+        tipsRect.sizeDelta = new Vector2(0f, 120f);
+        tipsRect.anchoredPosition = Vector2.zero;
+
+        tipsCanvasGroup = tipsRoot.AddComponent<CanvasGroup>();
+        tipsCanvasGroup.alpha = 0f;
+        tipsCanvasGroup.interactable = false;
+        tipsCanvasGroup.blocksRaycasts = false;
+
+        // 「TIPS」ラベル
+        GameObject labelObj = new GameObject("TipsLabel", typeof(RectTransform));
+        labelObj.transform.SetParent(tipsRoot.transform, false);
+
+        RectTransform labelRect = labelObj.GetComponent<RectTransform>();
+        labelRect.anchorMin = new Vector2(0f, 0.55f);
+        labelRect.anchorMax = new Vector2(1f, 1f);
+        labelRect.offsetMin = Vector2.zero;
+        labelRect.offsetMax = Vector2.zero;
+
+        tipsLabelText = labelObj.AddComponent<TMPro.TextMeshProUGUI>();
+        tipsLabelText.text = tipsLabel;
+        tipsLabelText.fontSize = tipsFontSize * 0.8f;
+        tipsLabelText.color = tipsLabelColor;
+        tipsLabelText.alignment = TMPro.TextAlignmentOptions.Center;
+        tipsLabelText.fontStyle = TMPro.FontStyles.Bold;
+        tipsLabelText.raycastTarget = false;
+        ApplyTipsFont(tipsLabelText, tipsLabelFont != null ? tipsLabelFont : tipsFont);
+
+        // Tips 本文
+        GameObject bodyObj = new GameObject("TipsBody", typeof(RectTransform));
+        bodyObj.transform.SetParent(tipsRoot.transform, false);
+
+        RectTransform bodyRect = bodyObj.GetComponent<RectTransform>();
+        bodyRect.anchorMin = new Vector2(0f, 0f);
+        bodyRect.anchorMax = new Vector2(1f, 0.52f);
+        bodyRect.offsetMin = Vector2.zero;
+        bodyRect.offsetMax = Vector2.zero;
+
+        tipsBodyText = bodyObj.AddComponent<TMPro.TextMeshProUGUI>();
+        tipsBodyText.text = "";
+        tipsBodyText.fontSize = tipsFontSize;
+        tipsBodyText.color = tipsColor;
+        tipsBodyText.alignment = TMPro.TextAlignmentOptions.Center;
+        tipsBodyText.enableWordWrapping = true;
+        tipsBodyText.raycastTarget = false;
+        ApplyTipsFont(tipsBodyText, tipsFont);
+
+        tipsRoot.SetActive(false);
+    }
+
+    private void ApplyTipsFont(TMPro.TMP_Text text, TMPro.TMP_FontAsset font)
+    {
+        if (text == null || font == null) return;
+        text.font = font;
+    }
+
     // =============================================================
-    // ロゴ表示（暗転中）
+    // ロゴ＋Tips 表示（暗転中）
     // =============================================================
 
     private IEnumerator ShowLogoDuringBlack()
     {
-        if (logoImage == null || logoSprite == null)
+        bool hasLogo = logoImage != null && logoSprite != null;
+        bool hasTips = showTipsOnNextTransition && tipsBodyText != null && tips != null && tips.Length > 0;
+
+        if (!hasLogo && !hasTips)
         {
-            // ロゴが無ければ従来の暗転保持だけ
             yield return new WaitForSecondsRealtime(blackHoldDuration);
             yield break;
         }
 
-        logoImage.gameObject.SetActive(true);
-        logoCanvasGroup.alpha = 0f;
+        // ── ロゴ準備 ──
+        if (hasLogo)
+        {
+            logoImage.gameObject.SetActive(true);
+            logoCanvasGroup.alpha = 0f;
+        }
 
-        // フェードイン
+        // ── Tips 準備（ランダム選択） ──
+        if (hasTips)
+        {
+            string selectedTip = tips[UnityEngine.Random.Range(0, tips.Length)];
+            tipsBodyText.text = selectedTip;
+            tipsCanvasGroup.alpha = 0f;
+            tipsCanvasGroup.gameObject.SetActive(true);
+        }
+
+        // ── フェードイン ──
+        float fadeInTime = hasTips
+            ? Mathf.Max(logoFadeInDuration, tipsFadeInDuration)
+            : logoFadeInDuration;
         float elapsed = 0f;
-        while (elapsed < logoFadeInDuration)
+        while (elapsed < fadeInTime)
         {
             elapsed += Time.unscaledDeltaTime;
-            logoCanvasGroup.alpha = Mathf.Clamp01(elapsed / Mathf.Max(0.001f, logoFadeInDuration));
+            if (hasLogo) logoCanvasGroup.alpha = Mathf.Clamp01(elapsed / Mathf.Max(0.001f, logoFadeInDuration));
+            if (hasTips) tipsCanvasGroup.alpha = Mathf.Clamp01(elapsed / Mathf.Max(0.001f, tipsFadeInDuration));
             yield return null;
         }
-        logoCanvasGroup.alpha = 1f;
+        if (hasLogo) logoCanvasGroup.alpha = 1f;
+        if (hasTips) tipsCanvasGroup.alpha = 1f;
 
-        // 保持
-        yield return new WaitForSecondsRealtime(logoHoldDuration);
+        // ── 保持（Tips があれば Tips の時間を優先、なければロゴの時間） ──
+        float holdTime = hasTips ? tipsHoldDuration : logoHoldDuration;
+        yield return new WaitForSecondsRealtime(holdTime);
 
-        // フェードアウト
+        // ── フェードアウト ──
+        float fadeOutTime = hasTips
+            ? Mathf.Max(logoFadeOutDuration, tipsFadeOutDuration)
+            : logoFadeOutDuration;
         elapsed = 0f;
-        while (elapsed < logoFadeOutDuration)
+        while (elapsed < fadeOutTime)
         {
             elapsed += Time.unscaledDeltaTime;
-            logoCanvasGroup.alpha = 1f - Mathf.Clamp01(elapsed / Mathf.Max(0.001f, logoFadeOutDuration));
+            if (hasLogo) logoCanvasGroup.alpha = 1f - Mathf.Clamp01(elapsed / Mathf.Max(0.001f, logoFadeOutDuration));
+            if (hasTips) tipsCanvasGroup.alpha = 1f - Mathf.Clamp01(elapsed / Mathf.Max(0.001f, tipsFadeOutDuration));
             yield return null;
         }
-        logoCanvasGroup.alpha = 0f;
+        if (hasLogo)
+        {
+            logoCanvasGroup.alpha = 0f;
+            logoImage.gameObject.SetActive(false);
+        }
+        if (hasTips)
+        {
+            tipsCanvasGroup.alpha = 0f;
+            tipsCanvasGroup.gameObject.SetActive(false);
+        }
 
-        logoImage.gameObject.SetActive(false);
+        showTipsOnNextTransition = false;
 
-        // 少し間を置いてからシーン読み込みへ
         yield return new WaitForSecondsRealtime(0.1f);
     }
 
@@ -524,6 +674,22 @@ Shader ""Hidden/SceneTransition""
         if (instance != null)
         {
             instance.LoadScene(sceneName, type);
+        }
+        else
+        {
+            SceneManager.LoadScene(sceneName);
+        }
+    }
+
+    /// <summary>
+    /// Tips表示付きでシーンを読み込む静的メソッド。
+    /// Home → Battle など、攻略情報を出したい遷移で使う。
+    /// </summary>
+    public static void TransitionToSceneWithTips(string sceneName, TransitionType type = TransitionType.CircleIris)
+    {
+        if (instance != null)
+        {
+            instance.LoadSceneWithTips(sceneName, type);
         }
         else
         {

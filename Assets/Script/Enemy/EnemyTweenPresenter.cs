@@ -132,7 +132,7 @@ public class EnemyTweenPresenter : MonoBehaviour
             }
         }
 
-        spriteRenderers = visualRoot.GetComponentsInChildren<SpriteRenderer>(true);
+        spriteRenderers = TintHelper.GetTintableRenderers(visualRoot);
         baseColors = new Color[spriteRenderers.Length];
 
         for (int i = 0; i < spriteRenderers.Length; i++)
@@ -539,31 +539,22 @@ public class EnemyTweenPresenter : MonoBehaviour
         EnsureSetup();
         KillTweens();
 
-        FlashColor(gunDeathFlashColor, 0.06f);
+        // 白フラッシュ（被弾の瞬間）
+        FlashColor(gunDeathFlashColor, 0.08f);
 
-        Vector3 blowbackTarget = baseLocalPos + new Vector3(
-            -attackDirectionX * gunDeathBlowbackDistance,
-            0.12f,
-            0f);
+        // 粒子分解エフェクト発生
+        ParticleDissolveEffect.Play(visualRoot);
 
+        // スプライトを一瞬ホールド → フェードアウト（粒子に溶けていく感じ）
         Sequence seq = DOTween.Sequence();
-        seq.AppendInterval(0.02f);
 
+        // 0.1秒だけ静止（ヒットストップ的な溜め）
+        seq.AppendInterval(0.10f);
+
+        // 少し膨張しながらフェード（内側から崩壊する感じ）
         seq.Append(
-            visualRoot.DOLocalMove(blowbackTarget, gunDeathBlowbackDuration)
+            visualRoot.DOScale(baseLocalScale * 1.05f, 0.3f)
                 .SetEase(Ease.OutQuad));
-
-        seq.Join(
-            visualRoot.DORotate(
-                new Vector3(0f, 0f, -attackDirectionX * gunDeathSpinAngle),
-                gunDeathBlowbackDuration + gunDeathFadeDuration,
-                RotateMode.FastBeyond360)
-                .SetEase(Ease.OutQuad));
-
-        seq.Join(
-            visualRoot.DOScale(baseLocalScale * gunDeathEndScale, gunDeathFadeDuration)
-                .SetDelay(gunDeathBlowbackDuration * 0.5f)
-                .SetEase(Ease.InBack));
 
         for (int i = 0; i < spriteRenderers.Length; i++)
         {
@@ -571,9 +562,15 @@ public class EnemyTweenPresenter : MonoBehaviour
             if (sr == null) continue;
 
             sr.DOKill();
-            sr.DOFade(0f, gunDeathFadeDuration)
-                .SetDelay(gunDeathBlowbackDuration * 0.3f)
-                .SetEase(Ease.OutQuad);
+
+            // 白く飛ばしてからフェードアウト
+            Color c = sr.color;
+            c.a = 1f;
+            sr.color = c;
+
+            sr.DOColor(new Color(1f, 0.95f, 0.8f, 0f), 0.35f)
+                .SetDelay(0.08f)
+                .SetEase(Ease.InQuad);
         }
     }
 

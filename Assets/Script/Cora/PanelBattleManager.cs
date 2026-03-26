@@ -178,6 +178,9 @@ public class PanelBattleManager : MonoBehaviour
     [SerializeField, Range(0f, 1f)] private float themeChangePlayerEntryViewportY = 0.15f;
     [SerializeField] private Image themeChangeFadeOverlay;
 
+    [Header("エピローグコントローラー")]
+    public EpilogueController epilogueController;
+
 
     private struct PendingDropFeedback
     {
@@ -2047,8 +2050,71 @@ public class PanelBattleManager : MonoBehaviour
             stageFlowController != null &&
             stageFlowController.HasConfiguredFinalBattleBeenCleared();
 
+        // エンディング行き かつ エピローグがあるなら、エピローグルートへ
+        if (shouldGoEnding && epilogueController != null && epilogueController.HasEpilogue())
+        {
+            StartCoroutine(EpilogueToEndingRoutine());
+            return;
+        }
+
         string destinationSceneName = shouldGoEnding ? endingSceneName : homeSceneName;
         StartCoroutine(ReturnToSceneWithResultRoutine("探索完了", stageClearResultTextColor, destinationSceneName));
+    }
+
+    private IEnumerator EpilogueToEndingRoutine()
+    {
+        resultReturnSequenceRunning = true;
+
+        // 「探索完了」テキスト表示（既存と同じ）
+        EnsureResultOverlayUI();
+
+        if (resultMessageText != null)
+        {
+            Color c = stageClearResultTextColor;
+            c.a = 1f;
+            resultMessageText.text = "探索完了";
+            resultMessageText.color = c;
+            resultMessageText.gameObject.SetActive(true);
+        }
+
+        if (resultMessageCanvasGroup != null)
+        {
+            resultMessageCanvasGroup.alpha = 0f;
+        }
+
+        // テキストフェードイン
+        float elapsed = 0f;
+        while (elapsed < resultTextFadeDuration)
+        {
+            elapsed += Time.deltaTime;
+            float t = Mathf.Clamp01(elapsed / Mathf.Max(0.01f, resultTextFadeDuration));
+            if (resultMessageCanvasGroup != null)
+                resultMessageCanvasGroup.alpha = t;
+            yield return null;
+        }
+
+        yield return new WaitForSeconds(resultMessageHoldDuration);
+
+        // テキストフェードアウト
+        if (resultMessageCanvasGroup != null)
+        {
+            elapsed = 0f;
+            while (elapsed < resultFadeDuration)
+            {
+                elapsed += Time.deltaTime;
+                float t = Mathf.Clamp01(elapsed / Mathf.Max(0.01f, resultFadeDuration));
+                resultMessageCanvasGroup.alpha = 1f - t;
+                yield return null;
+            }
+            resultMessageCanvasGroup.alpha = 0f;
+        }
+
+        // ★ エピローグ再生
+        yield return StartCoroutine(epilogueController.PlayEpilogue());
+
+        // エンディングへ遷移
+        resultReturnSequenceRunning = false;
+        SceneTransitionManager.TransitionToScene(endingSceneName, TransitionType.CircleIris);
     }
 
     public void OnPlayerDefeated()

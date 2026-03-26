@@ -55,7 +55,7 @@ public class EnemyPresentationController : MonoBehaviour
 
         unit.transform.DOKill();
 
-        SpriteRenderer[] renderers = unit.GetComponentsInChildren<SpriteRenderer>(true);
+        SpriteRenderer[] renderers = TintHelper.GetTintableRenderers(unit);
         foreach (SpriteRenderer sr in renderers)
         {
             if (sr == null) continue;
@@ -74,7 +74,7 @@ public class EnemyPresentationController : MonoBehaviour
 
         unit.transform.DOKill();
 
-        SpriteRenderer[] renderers = unit.GetComponentsInChildren<SpriteRenderer>(true);
+        SpriteRenderer[] renderers = TintHelper.GetTintableRenderers(unit);
         foreach (SpriteRenderer sr in renderers)
         {
             if (sr == null) continue;
@@ -102,7 +102,7 @@ public class EnemyPresentationController : MonoBehaviour
         Transform root = unit.transform;
         root.DOKill();
 
-        SpriteRenderer[] renderers = unit.GetComponentsInChildren<SpriteRenderer>(true);
+        SpriteRenderer[] renderers = TintHelper.GetTintableRenderers(unit);
 
         Vector3 targetPos = root.position;
         Vector3 startPos = targetPos + Vector3.right * entranceSlideDistance;
@@ -168,7 +168,7 @@ public class EnemyPresentationController : MonoBehaviour
     {
         if (unit == null) return;
 
-        SpriteRenderer[] renderers = unit.GetComponentsInChildren<SpriteRenderer>(true);
+        SpriteRenderer[] renderers = TintHelper.GetTintableRenderers(unit);
         foreach (SpriteRenderer sr in renderers)
         {
             Color c = sr.color;
@@ -183,7 +183,7 @@ public class EnemyPresentationController : MonoBehaviour
     {
         if (unit == null) return;
 
-        SpriteRenderer[] renderers = unit.GetComponentsInChildren<SpriteRenderer>(true);
+        SpriteRenderer[] renderers = TintHelper.GetTintableRenderers(unit);
         foreach (SpriteRenderer sr in renderers)
         {
             sr.enabled = isVisible;
@@ -196,7 +196,7 @@ public class EnemyPresentationController : MonoBehaviour
     {
         if (unit == null) return;
 
-        SpriteRenderer[] renderers = unit.GetComponentsInChildren<SpriteRenderer>(true);
+        SpriteRenderer[] renderers = TintHelper.GetTintableRenderers(unit);
         foreach (SpriteRenderer sr in renderers)
         {
             Color c = sr.color;
@@ -216,7 +216,7 @@ public class EnemyPresentationController : MonoBehaviour
 
         unit.transform.localScale = Vector3.one * 0.96f;
 
-        SpriteRenderer[] renderers = unit.GetComponentsInChildren<SpriteRenderer>(true);
+        SpriteRenderer[] renderers = TintHelper.GetTintableRenderers(unit);
         foreach (SpriteRenderer sr in renderers)
         {
             sr.DOFade(1f, enemyRevealDuration);

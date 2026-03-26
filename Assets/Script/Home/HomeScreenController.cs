@@ -197,6 +197,7 @@ public class HomeScreenController : MonoBehaviour
         return false;
     }
 
+    // 変更後
     private IEnumerator IdleDialogueLoopRoutine()
     {
         if (idleDialogueStartDelay > 0f)
@@ -204,11 +205,11 @@ public class HomeScreenController : MonoBehaviour
             yield return new WaitForSeconds(idleDialogueStartDelay);
         }
 
-        int index = 0;
-
-        while (!isSequenceStarted)
+        for (int i = 0; i < subordinateIdleLines.Length; i++)
         {
-            string line = GetNextIdleLine(ref index);
+            if (isSequenceStarted) yield break;
+
+            string line = subordinateIdleLines[i];
             if (string.IsNullOrWhiteSpace(line))
             {
                 yield break;
@@ -307,7 +308,7 @@ public class HomeScreenController : MonoBehaviour
         yield return new WaitUntil(() => leaderReachedExit && subordinateReachedExit);
         yield return StartCoroutine(FadeOutRoutine());
 
-        SceneTransitionManager.TransitionToScene(battleSceneName, TransitionType.DiamondIris);
+        SceneTransitionManager.TransitionToSceneWithTips(battleSceneName, TransitionType.DiamondIris);
 
     }
 

@@ -1880,6 +1880,7 @@ GameObject:
   - component: {fileID: 1450651026}
   - component: {fileID: 1450651025}
   - component: {fileID: 1450651027}
+  - component: {fileID: 1450651028}
   m_Layer: 5
   m_Name: TitlePanel
   m_TagString: Untagged
@@ -1956,6 +1957,24 @@ CanvasGroup:
   m_Interactable: 1
   m_BlocksRaycasts: 1
   m_IgnoreParentGroups: 0
+--- !u!114 &1450651028
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1450651023}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: dee1a46475308c6468b93f1b60136348, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  shineWidthRatio: 0.25
+  shineColor: {r: 1, g: 1, b: 1, a: 0.55}
+  shineAngle: 25
+  shineDuration: 0.7
+  loopInterval: 3.5
+  startDelay: 1
 --- !u!1 &1475482580
 GameObject:
   m_ObjectHideFlags: 0
