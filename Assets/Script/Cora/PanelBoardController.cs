@@ -179,6 +179,8 @@ public class PanelBoardController : MonoBehaviour
 
     private int rows;
     private int cols;
+    public int Rows => rows;
+    public int Cols => cols;
 
     private PanelType[,] gridData;
     private GameObject[,] panelObjects;
@@ -252,6 +254,16 @@ public class PanelBoardController : MonoBehaviour
     public void SetSpecialPanelClickHandler(Func<int, int, bool> handler)
     {
         onSpecialPanelClicked = handler;
+    }
+
+    /// <summary>
+    /// 外部からリワードパネルのクリックを発火させる。
+    /// シンプルモードなど、盤面の Button を経由しない場合に使用。
+    /// </summary>
+    public bool TryInvokeSpecialPanelClick(int row, int col)
+    {
+        if (onSpecialPanelClicked == null) return false;
+        return onSpecialPanelClicked.Invoke(row, col);
     }
 
     public void SetBattleItemIconDatabase(BattleItemIconDatabase database)
@@ -2672,5 +2684,189 @@ public class PanelBoardController : MonoBehaviour
         DropAndFillPanels();
 
         onComplete?.Invoke();
+    }
+
+    // --- ② 盤面スキャン結果データ ---
+
+    /// <summary>
+    /// シンプルモード用：あるパネル種の最良チェーン情報。
+    /// </summary>
+    public struct SimpleCardInfo
+    {
+        /// <summary>パネル種別</summary>
+        public PanelType type;
+
+        /// <summary>このチェーンの起点セル (row, col)</summary>
+        public Vector2Int origin;
+
+        /// <summary>リンク上限で切った後の取得枚数</summary>
+        public int selectedCount;
+
+        /// <summary>連結全体の総数 (上限前)</summary>
+        public int totalConnected;
+
+        /// <summary>盤面上にこのパネル種が何枚あるか</summary>
+        public int totalOnBoard;
+
+        /// <summary>パネルアイコン</summary>
+        public Sprite icon;
+
+        /// <summary>リワードパネルかどうか</summary>
+        public bool isReward;
+
+        /// <summary>リワードの短縮ラベル (例: "剣", "SG")</summary>
+        public string rewardLabel;
+
+        /// <summary>リワードの詳細テキスト</summary>
+        public string rewardDetailText;
+
+        /// <summary>リワードID (RewardDropController が使う)</summary>
+        public string rewardId;
+
+        /// <summary>チェーン内にアイテム付きパネルがあるか</summary>
+        public bool hasAttachedItem;
+
+        /// <summary>付いているアイテムの名前</summary>
+        public string attachedItemName;
+
+        /// <summary>付いているアイテムのアイコン</summary>
+        public Sprite attachedItemIcon;
+    }
+
+    // --- ③ 盤面スキャンメソッド ---
+
+    /// <summary>
+    /// 盤面を走査し、各パネル種ごとに「最も取得枚数が多いチェーン」を返す。
+    /// シンプルモードのカード生成に使う。
+    /// </summary>
+    public List<SimpleCardInfo> ScanBoardForSimpleCards()
+    {
+        List<SimpleCardInfo> cards = new List<SimpleCardInfo>();
+
+        if (gridData == null) return cards;
+
+        // パネル種ごとに最良チェーンを探す
+        // 走査対象: Sword, Ammo, Heal, Coin, LvUp, Corrupt
+        PanelType[] targetTypes = {
+            PanelType.Sword,
+            PanelType.Ammo,
+            PanelType.Heal,
+            PanelType.Coin,
+            PanelType.LvUp,
+            PanelType.Corrupt
+        };
+
+        foreach (PanelType targetType in targetTypes)
+        {
+            SimpleCardInfo best = default;
+            best.type = targetType;
+            best.selectedCount = 0;
+            best.totalOnBoard = 0;
+
+            // まず総数カウント & 最良チェーン探索
+            HashSet<Vector2Int> visited = new HashSet<Vector2Int>();
+
+            for (int r = 0; r < rows; r++)
+            {
+                for (int c = 0; c < cols; c++)
+                {
+                    if (HasRewardPanelAt(r, c)) continue;
+                    if (gridData[r, c] != targetType) continue;
+
+                    best.totalOnBoard++;
+
+                    // 既に別チェーンの一部として走査済みならスキップ
+                    Vector2Int pos = new Vector2Int(r, c);
+                    if (visited.Contains(pos)) continue;
+
+                    // チェーン探索
+                    ChainResult chain = FindChain(r, c, targetType);
+
+                    // visited に追加
+                    if (chain.selected != null)
+                    {
+                        foreach (var cell in chain.selected)
+                        {
+                            visited.Add(cell);
+                        }
+                    }
+
+                    // 最良チェーン更新
+                    if (chain.selected != null && chain.selected.Count > best.selectedCount)
+                    {
+                        best.selectedCount = chain.selected.Count;
+                        best.totalConnected = chain.totalConnected;
+                        best.origin = chain.selected.Count > 0
+                            ? chain.selected[0]
+                            : new Vector2Int(r, c);
+
+                        // チェーン内にアイテム付きパネルがあるか検索
+                        best.hasAttachedItem = false;
+                        best.attachedItemName = null;
+                        best.attachedItemIcon = null;
+                        if (attachedItems != null)
+                        {
+                            foreach (Vector2Int cell in chain.selected)
+                            {
+                                BattleItemData item = attachedItems[cell.x, cell.y];
+                                if (item != null)
+                                {
+                                    best.hasAttachedItem = true;
+                                    best.attachedItemName = item.itemName;
+                                    best.attachedItemIcon = item.icon;
+                                    break; // 最初に見つかった1つだけ表示
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // 盤面にそのパネルが1枚以上あればカードに追加
+            if (best.totalOnBoard > 0)
+            {
+                best.icon = GetSpriteForType(targetType);
+                cards.Add(best);
+            }
+        }
+
+        // --- リワードパネル（ボスドロップ武器等）もカードとして追加 ---
+        if (rewardPanels != null)
+        {
+            for (int r = 0; r < rows; r++)
+            {
+                for (int c = 0; c < cols; c++)
+                {
+                    BoardRewardPanelCell reward = rewardPanels[r, c];
+                    if (reward == null) continue;
+
+                    SimpleCardInfo rewardCard = new SimpleCardInfo
+                    {
+                        type = PanelType.None, // リワードは通常パネル種ではない
+                        origin = new Vector2Int(r, c),
+                        selectedCount = 1,
+                        totalConnected = 1,
+                        totalOnBoard = 1,
+                        icon = reward.iconSprite,
+                        isReward = true,
+                        rewardLabel = reward.shortLabel,
+                        rewardDetailText = reward.detailText,
+                        rewardId = reward.rewardId
+                    };
+
+                    cards.Add(rewardCard);
+                }
+            }
+        }
+
+        return cards;
+    }
+
+    /// <summary>
+    /// 指定パネル種のスプライトを返す (公開版)。
+    /// </summary>
+    public Sprite GetPanelSprite(PanelType type)
+    {
+        return GetSpriteForType(type);
     }
 }
