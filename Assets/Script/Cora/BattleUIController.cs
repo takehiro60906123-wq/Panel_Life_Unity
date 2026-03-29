@@ -1,4 +1,4 @@
-﻿using UnityEngine;
+using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
 using UnityEngine.EventSystems;
@@ -109,6 +109,9 @@ public class BattleUIController : MonoBehaviour
     [Header("階層UI")]
     public TMP_Text floorText;
 
+    [Header("逃走UI")]
+    [SerializeField] private Button retreatButton;
+
     // WARNING:
     // playerExpBar (経験値スライダー) は World Scale 前提で配置されている。
     // transform.localScale を DOScale / DOPunchScale / Vector3.one 代入などで直接触ると、
@@ -135,10 +138,17 @@ public class BattleUIController : MonoBehaviour
             hasCachedPistolButtonColors = true;
         }
 
+        if (retreatButton != null)
+        {
+            retreatButton.onClick.RemoveAllListeners();
+            retreatButton.onClick.AddListener(OnClickRetreat);
+        }
+
         BindItemSlotButtons();
         RefreshGunUI();
         RefreshInventoryUI();
         RefreshCurrentGunEffectHint(force: true);
+        RefreshRetreatUI();
     }
 
     private void Update()
@@ -561,6 +571,22 @@ public class BattleUIController : MonoBehaviour
         PlayGunFireFeedback();
         panelBattleManager.GunCombatController.FireEquippedGun();
     }
+
+    // ============================================
+    // 逃走UI
+    // ============================================
+
+    private void OnClickRetreat()
+    {
+        if (panelBattleManager == null) return;
+        panelBattleManager.TryRetreat();
+    }
+
+    public void RefreshRetreatUI()
+    {
+       
+    }
+
     private void PlayGunFireFeedback()
     {
         if (pistolButton != null)

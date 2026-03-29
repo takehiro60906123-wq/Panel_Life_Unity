@@ -1,4 +1,4 @@
-﻿using System.Collections;
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
@@ -181,6 +181,11 @@ public class PanelBattleManager : MonoBehaviour
     [Header("エピローグコントローラー")]
     public EpilogueController epilogueController;
 
+    [Header("逃走設定")]
+    [SerializeField, Range(0f, 1f)] private float retreatSuccessRate = 0.75f;
+    [SerializeField] private float retreatSuccessDelay = 0.5f;
+    [SerializeField] private float retreatFailDelay = 0.3f;
+    private bool retreatInProgress;
 
     private struct PendingDropFeedback
     {
@@ -1559,6 +1564,7 @@ public class PanelBattleManager : MonoBehaviour
         if (battleUIController != null)
         {
             battleUIController.SetEncounterInfo(currentEncounter, remainingSteps);
+            battleUIController.RefreshRetreatUI();
         }
     }
 
@@ -1670,6 +1676,85 @@ public class PanelBattleManager : MonoBehaviour
         }
 
         encounterFlowController.AdvanceEmptyTurn();
+    }
+
+    // ============================================
+    // 逃走処理
+    // ============================================
+
+    /// <summary>
+    /// 逃走を試みる。成功率に基づいて判定し、
+    /// 成功なら報酬なしで次のエンカウントへ進む。
+    /// 失敗なら1ターン消費（敵ターンが来る）。
+    /// ボス戦では呼ばれない想定（UIで非表示にする）。
+    /// </summary>
+    public void TryRetreat()
+    {
+        if (!isPlayerTurn) return;
+        if (retreatInProgress) return;
+        if (currentEncounter != EncounterType.Enemy) return;
+        if (enemyUnit == null) return;
+        if (enemyUnit.enemyType == EnemyType.Boss) return;
+
+        retreatInProgress = true;
+        SetBoardInteractable(false);
+
+        float roll = Random.Range(0f, 1f);
+        bool success = roll < retreatSuccessRate;
+
+        if (success)
+        {
+            SpawnDamageText("退避成功！", playerUnit.transform.position + Vector3.up * 1.5f, new Color(0.4f, 0.9f, 1f));
+            StartCoroutine(RetreatSuccessRoutine());
+        }
+        else
+        {
+            SpawnDamageText("退避失敗…", playerUnit.transform.position + Vector3.up * 1.5f, new Color(0.7f, 0.7f, 0.7f));
+            StartCoroutine(RetreatFailRoutine());
+        }
+    }
+
+    /// <summary>
+    /// 逃走可能かどうかを返す。UI表示制御用。
+    /// </summary>
+    public bool CanRetreat()
+    {
+        if (currentEncounter != EncounterType.Enemy) return false;
+        if (enemyUnit == null) return false;
+        if (enemyUnit.enemyType == EnemyType.Boss) return false;
+        return true;
+    }
+
+    private IEnumerator RetreatSuccessRoutine()
+    {
+        yield return new WaitForSeconds(retreatSuccessDelay);
+
+        // 敵を即非表示にしてから破棄（撃破カウントは増やさない＝報酬なし）
+        // Destroy() はフレーム末まで遅延するため、SetActive(false) で即座に消す
+        if (enemyUnit != null)
+        {
+            enemyUnit.gameObject.SetActive(false);
+            Destroy(enemyUnit.gameObject);
+            enemyUnit = null;
+        }
+
+        retreatInProgress = false;
+
+        // 次のエンカウントへ進む
+        if (encounterFlowController != null)
+        {
+            yield return StartCoroutine(encounterFlowController.EnemyRespawnRoutine());
+        }
+    }
+
+    private IEnumerator RetreatFailRoutine()
+    {
+        yield return new WaitForSeconds(retreatFailDelay);
+
+        retreatInProgress = false;
+
+        // 1ターン消費 → 敵ターンへ
+        yield return StartCoroutine(EndPlayerTurn());
     }
 
     public IEnumerator TravelForward()
