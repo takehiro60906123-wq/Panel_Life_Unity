@@ -25,6 +25,8 @@ public class HpBarEnhancer : MonoBehaviour
     [SerializeField] private Ease mainBarEase = Ease.OutQuad;
 
     [Header("ダメージトレイル")]
+    [SerializeField] private bool enableDamageTrail = true;
+    [SerializeField] private bool disableDamageTrailAutomaticallyForPlayer = true;
     [Tooltip("赤い残像バーの色")]
     [SerializeField] private Color trailColor = new Color(0.85f, 0.15f, 0.1f, 0.8f);
     [Tooltip("トレイルが追いかけ始めるまでの遅延")]
@@ -65,6 +67,9 @@ public class HpBarEnhancer : MonoBehaviour
     private bool isDangerPulsing;
     private Vector3 baseScale;
 
+    // 初回の値変化はダメージではなく初期化なのでスキップするフラグ
+    private bool hasReceivedFirstRealValue;
+
     private void Awake()
     {
         slider = GetComponent<Slider>();
@@ -73,7 +78,19 @@ public class HpBarEnhancer : MonoBehaviour
         {
             baseScale = sliderRect.localScale;
         }
+        AutoConfigureDamageTrail();
         Initialize();
+    }
+
+    private void AutoConfigureDamageTrail()
+    {
+        if (!disableDamageTrailAutomaticallyForPlayer) return;
+
+        PlayerCombatController playerCombat = GetComponentInParent<PlayerCombatController>();
+        if (playerCombat != null)
+        {
+            enableDamageTrail = false;
+        }
     }
 
     private void Initialize()
@@ -92,8 +109,11 @@ public class HpBarEnhancer : MonoBehaviour
             }
         }
 
+        // Awake 時点では slider.value がまだ 0（デフォルト）の可能性がある。
+        // 初回の値変化を「ダメージ」として扱わないようフラグで制御する。
         lastKnownValue = slider.value;
         trailValue = slider.value;
+        hasReceivedFirstRealValue = (slider.maxValue > 0 && slider.value > 0);
 
         CreateTrailImage();
     }
@@ -106,12 +126,31 @@ public class HpBarEnhancer : MonoBehaviour
         dangerPulseTween?.Kill();
     }
 
+    /// <summary>
+    /// SetActive(true) で再有効化されたとき、
+    /// スライダーの現在値にトレイルを即座に同期する。
+    /// イントロ演出中に非表示 → 再表示される際の 0 表示を防ぐ。
+    /// </summary>
+    private void OnEnable()
+    {
+        if (slider == null || !initialized) return;
+
+        float current = slider.value;
+        lastKnownValue = current;
+        trailValue = current;
+        UpdateTrailVisual(current);
+
+        // 再表示時は初回同期済みとする
+        hasReceivedFirstRealValue = true;
+    }
+
     // =============================================================
     // ダメージトレイル Image 自動生成
     // =============================================================
 
     private void CreateTrailImage()
     {
+        if (!enableDamageTrail) return;
         if (slider.fillRect == null) return;
 
         // Fill Image の親を取得
@@ -174,20 +213,32 @@ public class HpBarEnhancer : MonoBehaviour
         // 値が変わった
         if (!Mathf.Approximately(currentValue, lastKnownValue))
         {
-            float delta = currentValue - lastKnownValue;
-
-            if (delta < 0f)
+            // 初回の値変化は BattleUnit.Awake → RefreshHP による初期設定。
+            // ダメージ演出を出さず、即座に同期する。
+            if (!hasReceivedFirstRealValue)
             {
-                // ── ダメージ ──
-                OnDamage(lastKnownValue, currentValue);
+                hasReceivedFirstRealValue = true;
+                lastKnownValue = currentValue;
+                trailValue = currentValue;
+                UpdateTrailVisual(currentValue);
             }
             else
             {
-                // ── 回復 ──
-                OnHeal(currentValue);
-            }
+                float delta = currentValue - lastKnownValue;
 
-            lastKnownValue = currentValue;
+                if (delta < 0f)
+                {
+                    // ── ダメージ ──
+                    OnDamage(lastKnownValue, currentValue);
+                }
+                else
+                {
+                    // ── 回復 ──
+                    OnHeal(currentValue);
+                }
+
+                lastKnownValue = currentValue;
+            }
         }
 
         // 危機判定
@@ -200,8 +251,17 @@ public class HpBarEnhancer : MonoBehaviour
         // → Slider の value は BattleUnitView が直接セットするので、
         //   ここでは追加演出だけ行う
 
-        // トレイルバーのアニメーション
-        AnimateTrail(toValue);
+        if (enableDamageTrail && trailImage != null)
+        {
+            // トレイルバーのアニメーション
+            AnimateTrail(toValue);
+        }
+        else
+        {
+            trailTween?.Kill();
+            trailValue = toValue;
+            UpdateTrailVisual(toValue);
+        }
 
         // パンチ演出
         PlayDamagePunch();

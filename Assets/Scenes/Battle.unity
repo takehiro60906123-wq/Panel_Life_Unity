@@ -13563,13 +13563,15 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1863116009}
-  m_Enabled: 1
+  m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 2b53faa642540ce4bac653bcb56f4dfa, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
   mainBarDuration: 0.25
   mainBarEase: 6
+  enableDamageTrail: 1
+  disableDamageTrailAutomaticallyForPlayer: 1
   trailColor: {r: 0.85, g: 0.15, b: 0.1, a: 0.8}
   trailDelay: 0.4
   trailDuration: 0.5

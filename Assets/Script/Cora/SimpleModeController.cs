@@ -134,11 +134,13 @@ public class SimpleModeController : MonoBehaviour
     /// <summary>
     /// シンプルモード中は毎フレーム盤面を隠し続ける。
     /// PanelBattleManager の DOFade が alpha を戻してしまうのを防ぐ。
+    /// ただし敵が倒された後など、カード表示に戻らない状況では盤面を隠さない。
     /// </summary>
     private void LateUpdate()
     {
         if (!isSimpleMode) return;
         if (isShowingBoardForAction) return; // 演出中は盤面表示を許可
+        if (!ShouldShowSimpleCards()) return; // 敵がいない → 盤面表示のまま
         if (boardCanvasGroup == null) return;
 
         if (boardCanvasGroup.alpha > 0.01f)
@@ -181,6 +183,23 @@ public class SimpleModeController : MonoBehaviour
 
         if (interactable)
         {
+            // 敵がいない（倒した後や非戦闘フェーズ）ならカード表示しない
+            if (!ShouldShowSimpleCards())
+            {
+                // カードを片付けて盤面を見せたまま自然に遷移させる
+                ClearCards();
+                if (simpleModeCanvasGroup != null)
+                {
+                    simpleModeCanvasGroup.DOKill();
+                    simpleModeCanvasGroup.alpha = 0f;
+                    simpleModeCanvasGroup.interactable = false;
+                    simpleModeCanvasGroup.blocksRaycasts = false;
+                }
+                isShowingBoardForAction = false;
+                isProcessingCard = false;
+                return;
+            }
+
             if (isShowingBoardForAction)
             {
                 // 演出が終わった → 少し待ってからカード表示に戻す
@@ -209,6 +228,14 @@ public class SimpleModeController : MonoBehaviour
     {
         // 演出結果をしばらく見せる
         yield return new WaitForSeconds(boardShowAfterActionDelay);
+
+        // 敵がもういない場合はカードに戻さず盤面表示のまま
+        if (!ShouldShowSimpleCards())
+        {
+            isShowingBoardForAction = false;
+            isProcessingCard = false;
+            yield break;
+        }
 
         // フラグを落とす → LateUpdate が盤面を即座に隠す
         isShowingBoardForAction = false;
@@ -245,6 +272,27 @@ public class SimpleModeController : MonoBehaviour
         boardCanvasGroup.alpha = 0f;
         boardCanvasGroup.interactable = false;
         boardCanvasGroup.blocksRaycasts = false;
+    }
+
+    /// <summary>
+    /// シンプルモードのカード表示に戻すべきかを判定する。
+    /// 敵がいない（倒した後・非戦闘フェーズ）場合は false を返し、
+    /// 盤面表示のまま自然に遷移させる。
+    /// </summary>
+    private bool ShouldShowSimpleCards()
+    {
+        if (panelBattleManager == null) return true;
+
+        // 非戦闘フェーズならカード不要
+        if (panelBattleManager.currentEncounter != EncounterType.Enemy)
+            return false;
+
+        // 敵がいない or 死んでいるならカード不要
+        BattleUnit enemy = panelBattleManager.enemyUnit;
+        if (enemy == null || enemy.IsDead())
+            return false;
+
+        return true;
     }
 
     // =============================================================

@@ -1,4 +1,4 @@
-// =============================================================
+﻿// =============================================================
 // EpilogueController.cs
 // ステージクリア後のエピローグ表示
 //
@@ -55,7 +55,8 @@ public class EpilogueController : MonoBehaviour
     private GameObject epilogueRoot;
     private CanvasGroup rootCanvasGroup;
     private Image blackBackground;
-    private TMP_Text activeLineText;
+    private RectTransform textContainer;
+    private readonly List<TMP_Text> lineTexts = new List<TMP_Text>();
     private bool isPlaying;
     private bool fastForwardRequested;
 
@@ -75,6 +76,7 @@ public class EpilogueController : MonoBehaviour
         fastForwardRequested = false;
 
         CreateEpilogueUI();
+        ClearExistingLineTexts();
         epilogueRoot.SetActive(true);
         rootCanvasGroup.alpha = 1f;
 
@@ -100,23 +102,17 @@ public class EpilogueController : MonoBehaviour
                 continue;
             }
 
-            // テキスト設定
-            activeLineText.text = line;
-            activeLineText.alpha = 0f;
-            activeLineText.gameObject.SetActive(true);
+            TMP_Text lineText = CreateLineText(line);
+            LayoutRebuilder.ForceRebuildLayoutImmediate(textContainer);
 
             // フェードイン
-            yield return FadeText(activeLineText, 0f, 1f, lineFadeInDuration);
+            yield return FadeText(lineText, 0f, 1f, lineFadeInDuration);
 
             // 保持（早送り対応）
             float holdTime = fastForwardRequested ? fastForwardHoldDuration : lineHoldDuration;
             yield return WaitRealtimeWithTapCheck(holdTime);
 
-            // フェードアウト
-            float fadeOut = fastForwardRequested ? fastForwardFadeOutDuration : lineFadeOutDuration;
-            yield return FadeText(activeLineText, 1f, 0f, fadeOut);
-
-            activeLineText.gameObject.SetActive(false);
+            // 以前の節は消さずに残す
 
             // 行間
             if (i < epilogueLines.Length - 1)
@@ -188,33 +184,75 @@ public class EpilogueController : MonoBehaviour
         blackBackground.color = new Color(0f, 0f, 0f, 1f);
         blackBackground.raycastTarget = true;
 
-        // テキスト（画面中央、1行ずつ使い回す）
-        GameObject textObj = new GameObject("EpilogueText", typeof(RectTransform));
-        textObj.transform.SetParent(epilogueRoot.transform, false);
+        // テキストコンテナ（節を積み上げる）
+        GameObject textContainerObj = new GameObject("EpilogueTextContainer", typeof(RectTransform), typeof(VerticalLayoutGroup), typeof(ContentSizeFitter));
+        textContainerObj.transform.SetParent(epilogueRoot.transform, false);
+
+        textContainer = textContainerObj.GetComponent<RectTransform>();
+        textContainer.anchorMin = new Vector2(0.1f, 0.2f);
+        textContainer.anchorMax = new Vector2(0.9f, 0.8f);
+        textContainer.offsetMin = Vector2.zero;
+        textContainer.offsetMax = Vector2.zero;
+        textContainer.pivot = new Vector2(0.5f, 0.5f);
+
+        VerticalLayoutGroup layout = textContainerObj.GetComponent<VerticalLayoutGroup>();
+        layout.childAlignment = TextAnchor.MiddleCenter;
+        layout.childControlWidth = true;
+        layout.childControlHeight = false;
+        layout.childForceExpandWidth = true;
+        layout.childForceExpandHeight = false;
+        layout.spacing = 36f;
+
+        ContentSizeFitter fitter = textContainerObj.GetComponent<ContentSizeFitter>();
+        fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+        fitter.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
+        epilogueRoot.SetActive(false);
+    }
+
+
+    private TMP_Text CreateLineText(string line)
+    {
+        GameObject textObj = new GameObject("EpilogueLine", typeof(RectTransform));
+        textObj.transform.SetParent(textContainer, false);
 
         RectTransform textRect = textObj.GetComponent<RectTransform>();
-        textRect.anchorMin = new Vector2(0.1f, 0.35f);
-        textRect.anchorMax = new Vector2(0.9f, 0.65f);
+        textRect.anchorMin = new Vector2(0f, 0.5f);
+        textRect.anchorMax = new Vector2(1f, 0.5f);
+        textRect.pivot = new Vector2(0.5f, 0.5f);
         textRect.offsetMin = Vector2.zero;
         textRect.offsetMax = Vector2.zero;
 
-        activeLineText = textObj.AddComponent<TextMeshProUGUI>();
-        activeLineText.text = "";
-        activeLineText.fontSize = fontSize;
-        activeLineText.color = textColor;
-        activeLineText.alignment = TextAlignmentOptions.Center;
-        activeLineText.enableWordWrapping = true;
-        activeLineText.overflowMode = TextOverflowModes.Overflow;
-        activeLineText.raycastTarget = false;
-        activeLineText.alpha = 0f;
+        TMP_Text lineText = textObj.AddComponent<TextMeshProUGUI>();
+        lineText.text = line;
+        lineText.fontSize = fontSize;
+        lineText.color = textColor;
+        lineText.alignment = TextAlignmentOptions.Center;
+        lineText.enableWordWrapping = true;
+        lineText.overflowMode = TextOverflowModes.Overflow;
+        lineText.raycastTarget = false;
+        lineText.alpha = 0f;
 
         if (customFont != null)
         {
-            activeLineText.font = customFont;
+            lineText.font = customFont;
         }
 
-        textObj.SetActive(false);
-        epilogueRoot.SetActive(false);
+        lineTexts.Add(lineText);
+        return lineText;
+    }
+
+
+    private void ClearExistingLineTexts()
+    {
+        for (int i = lineTexts.Count - 1; i >= 0; i--)
+        {
+            if (lineTexts[i] != null)
+            {
+                Destroy(lineTexts[i].gameObject);
+            }
+        }
+
+        lineTexts.Clear();
     }
 
     // =============================================================

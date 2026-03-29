@@ -7,7 +7,7 @@ public class EnemyPresentationController : MonoBehaviour
     private float enemyRevealDuration = 0.2f;
     private Ease roomTravelEase = Ease.Linear;
 
-    [Header("�o�ꉉ�o�ݒ�")]
+    [Header("�o�ꉉ�o�ݒ�")]
     [SerializeField] private float entranceSlideDistance = 2.4f;
     [SerializeField] private float entranceSlideDuration = 0.16f;
     [SerializeField] private Ease entranceSlideEase = Ease.OutCubic;
@@ -183,7 +183,8 @@ public class EnemyPresentationController : MonoBehaviour
     {
         if (unit == null) return;
 
-        SpriteRenderer[] renderers = TintHelper.GetTintableRenderers(unit);
+        // 表示/非表示は影も含めた全 SpriteRenderer に適用する
+        SpriteRenderer[] renderers = TintHelper.GetAllRenderers(unit);
         foreach (SpriteRenderer sr in renderers)
         {
             sr.enabled = isVisible;
@@ -196,7 +197,8 @@ public class EnemyPresentationController : MonoBehaviour
     {
         if (unit == null) return;
 
-        SpriteRenderer[] renderers = TintHelper.GetTintableRenderers(unit);
+        // 透明度も影を含めた全 SpriteRenderer に適用する
+        SpriteRenderer[] renderers = TintHelper.GetAllRenderers(unit);
         foreach (SpriteRenderer sr in renderers)
         {
             Color c = sr.color;
@@ -216,7 +218,8 @@ public class EnemyPresentationController : MonoBehaviour
 
         unit.transform.localScale = Vector3.one * 0.96f;
 
-        SpriteRenderer[] renderers = TintHelper.GetTintableRenderers(unit);
+        // フェードインは影も含めた全 SpriteRenderer に適用
+        SpriteRenderer[] renderers = TintHelper.GetAllRenderers(unit);
         foreach (SpriteRenderer sr in renderers)
         {
             sr.DOFade(1f, enemyRevealDuration);

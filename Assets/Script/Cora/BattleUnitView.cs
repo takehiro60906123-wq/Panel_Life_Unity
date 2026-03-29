@@ -1,4 +1,5 @@
-﻿using TMPro;
+using System.Collections.Generic;
+using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -11,6 +12,10 @@ public class BattleUnitView : MonoBehaviour
     private Slider shellSlider;
     private TextMeshProUGUI shellText;
     private Animator animator;
+
+    // Debug: 同じ Slider を複数 BattleUnit が掴んでいないか監視
+    private static readonly Dictionary<int, string> HpSliderOwners = new Dictionary<int, string>();
+    private static readonly Dictionary<int, string> ShellSliderOwners = new Dictionary<int, string>();
 
     [Header("Shell UI")]
     [SerializeField] private bool autoCreateShellBarIfMissing = true;
@@ -84,9 +89,66 @@ public class BattleUnitView : MonoBehaviour
         }
 
         tweenPresenter?.EnsureSetup();
+        ValidateUiBindings();
         CacheTurnIndicatorReferences();
         EnsureShellUI();
         RefreshTurnHintFromCurrentState(force: true);
+    }
+
+    private void ValidateUiBindings()
+    {
+        RegisterSliderOwner(hpSlider, HpSliderOwners, "HP");
+        RegisterSliderOwner(shellSlider, ShellSliderOwners, "Shell");
+
+        if (hpSlider != null && shellSlider != null && hpSlider == shellSlider)
+        {
+            Debug.LogError($"[BattleUnitView] {name}: hpSlider と shellSlider に同じ Slider が割り当てられています: {GetHierarchyPath(hpSlider.transform)}", this);
+        }
+
+        if (hpSlider != null)
+        {
+            string path = GetHierarchyPath(hpSlider.transform);
+            string lower = path.ToLowerInvariant();
+            if (lower.Contains("exp") || lower.Contains("experience"))
+            {
+                Debug.LogWarning($"[BattleUnitView] {name}: hpSlider が EXP バーっぽい階層を参照しています: {path}", this);
+            }
+        }
+    }
+
+    private void RegisterSliderOwner(Slider slider, Dictionary<int, string> owners, string label)
+    {
+        if (slider == null) return;
+
+        int id = slider.GetInstanceID();
+        string path = GetHierarchyPath(slider.transform);
+        string owner = GetHierarchyPath(transform);
+
+        if (owners.TryGetValue(id, out string existingOwner))
+        {
+            if (existingOwner != owner)
+            {
+                Debug.LogError($"[BattleUnitView] {label} Slider の二重参照を検出: slider={path} / ownerA={existingOwner} / ownerB={owner}", slider);
+            }
+            return;
+        }
+
+        owners[id] = owner;
+        Debug.Log($"[BattleUnitView] {label} Slider bind: owner={owner} -> slider={path}", slider);
+    }
+
+    private string GetHierarchyPath(Transform t)
+    {
+        if (t == null) return "<null>";
+
+        System.Text.StringBuilder sb = new System.Text.StringBuilder(t.name);
+        Transform current = t.parent;
+        while (current != null)
+        {
+            sb.Insert(0, current.name + "/");
+            current = current.parent;
+        }
+        return sb.ToString();
     }
 
     private void Awake()
@@ -118,6 +180,7 @@ public class BattleUnitView : MonoBehaviour
         {
             hpSlider.maxValue = maxHP;
             hpSlider.value = currentHP;
+            Debug.Log($"[BattleUnitView] RefreshHP writer={name} slider={GetHierarchyPath(hpSlider.transform)} value={currentHP}/{maxHP}", hpSlider);
         }
 
         if (hpText != null)
