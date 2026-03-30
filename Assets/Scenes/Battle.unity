@@ -3444,7 +3444,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.42800003, y: 0.11647917}
   m_AnchorMax: {x: 0.58114815, y: 0.16929166}
-  m_AnchoredPosition: {x: 0.0000076293945, y: 0.14685059}
+  m_AnchoredPosition: {x: 0, y: 0.14697266}
   m_SizeDelta: {x: 0.000015258789, y: 0.43669987}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &503835135
@@ -4457,7 +4457,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.59225935, y: 0.080000006}
   m_AnchorMax: {x: 0.83674085, y: 0.1463125}
-  m_AnchoredPosition: {x: 3.0721436, y: 0.45007324}
+  m_AnchoredPosition: {x: 3.0721436, y: 0.44995117}
   m_SizeDelta: {x: -6.1443, y: -6.431198}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!225 &583004234
@@ -5362,7 +5362,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0.16613977}
   m_AnchorMax: {x: 1, y: 0.6343539}
-  m_AnchoredPosition: {x: -0.5, y: 1.7826996}
+  m_AnchoredPosition: {x: -0.5, y: 1.7827148}
   m_SizeDelta: {x: 0.6699829, y: -0.9059143}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &780250214
@@ -6805,13 +6805,16 @@ MonoBehaviour:
   battleEnemyHit: {fileID: 8300000, guid: 57837243d1147e341b9fa921d33edaa5, type: 3}
   battleEnemyDown: {fileID: 8300000, guid: 307ca353ad59b1842ad947f7d5b5fab3, type: 3}
   battlePlayerHit: {fileID: 8300000, guid: f8ae50e0e223e83449b91cd2a37aed09, type: 3}
+  retreatStart: {fileID: 8300000, guid: de035a1e9703ac64785013148b76c782, type: 3}
+  retreatSuccess: {fileID: 8300000, guid: 1e298cd12b82e564a9d4ca4a7b287d0f, type: 3}
+  retreatFail: {fileID: 8300000, guid: 1fdee8475c38e804584f92dc152af7e1, type: 3}
   gunPistolFire: {fileID: 8300000, guid: 964bc486dcd315749b5739e9693cd4b4, type: 3}
   gunMgFire: {fileID: 8300000, guid: 5aec007591e74b44ba67425b722a4c79, type: 3}
   gunShotgunFire: {fileID: 8300000, guid: 2547d890135ba5446bc65e10a0cecc45, type: 3}
   gunRifleFire: {fileID: 8300000, guid: 4533efda1c761fc448b550c89e15d0c6, type: 3}
   rewardCoin: {fileID: 8300000, guid: 8a688ddec330f6a4fb220cdfe1384c0b, type: 3}
   rewardExp: {fileID: 8300000, guid: 9a28a662f249e9845987b27877c3282a, type: 3}
-  rewardLevelUp: {fileID: 8300000, guid: 1ddea46d55a4e73438f4b58be78a4414, type: 3}
+  rewardLevelUp: {fileID: 8300000, guid: 6a2c4f982ba94134caa76a97e4351a9c, type: 3}
   bossAppear: {fileID: 8300000, guid: edfbba838c7e90445ac3e79bfe1d25bf, type: 3}
   resultVictory: {fileID: 8300000, guid: 711c80fd7f00081448b850f66bed269c, type: 3}
   resultGameOver: {fileID: 8300000, guid: 82caa74777f78c242aff89fb4c1ea93c, type: 3}
@@ -9472,6 +9475,7 @@ MonoBehaviour:
   battleItemIconDatabase: {fileID: 0}
   playGameStartIntro: 1
   battleEventHub: {fileID: 0}
+  battleSfxController: {fileID: 0}
   playerUnit: {fileID: 1270524463}
   battleContext: {fileID: 0}
   playerLoadout:
@@ -9539,9 +9543,24 @@ MonoBehaviour:
   themeChangePlayerEntryViewportY: 0.15
   themeChangeFadeOverlay: {fileID: 0}
   epilogueController: {fileID: 1314218359}
+  retreatResultSeDelay: 0.06
   retreatSuccessRate: 0.75
   retreatSuccessDelay: 0.5
   retreatFailDelay: 0.3
+  retreatPrepDuration: 0.1
+  retreatBackstepDistance: 0.22
+  retreatBackstepDuration: 0.1
+  retreatRecoverDuration: 0.12
+  retreatEnemyRecoilDistance: 0.18
+  retreatEnemyRecoilDuration: 0.1
+  retreatEnemyPressureDistance: 0.14
+  retreatEnemyPressureDuration: 0.1
+  retreatSuccessFlashColor: {r: 0.48, g: 0.92, b: 1, a: 1}
+  retreatSuccessFlashAlpha: 0.22
+  retreatFailFlashColor: {r: 1, g: 0.34, b: 0.34, a: 1}
+  retreatFailFlashAlpha: 0.18
+  retreatSuccessEffectPrefab: {fileID: 0}
+  retreatFailEffectPrefab: {fileID: 0}
   dungeonMistRoot: {fileID: 1510810761}
   battleMistAlpha: 0.8
   mistFadeDuration: 0.5
@@ -11999,7 +12018,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0.1463125}
   m_AnchorMax: {x: 1, y: 0.5385625}
-  m_AnchoredPosition: {x: 0.08001709, y: 0.2241211}
+  m_AnchoredPosition: {x: 0.080078125, y: 0.2241211}
   m_SizeDelta: {x: 0.3199997, y: -8.5253}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!225 &1650220958
@@ -13454,7 +13473,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.25622815, y: 0}
   m_AnchorMax: {x: 0.7437594, y: 0.5}
-  m_AnchoredPosition: {x: 0, y: 0.20800018}
+  m_AnchoredPosition: {x: 0, y: 0.20800781}
   m_SizeDelta: {x: 1.9599991, y: -0.41600037}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1803876378
@@ -13611,10 +13630,10 @@ RectTransform:
   m_Children: []
   m_Father: {fileID: 2129960977}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0.26111114, y: 0.7738959}
-  m_AnchorMax: {x: 0.7312593, y: 0.84900004}
-  m_AnchoredPosition: {x: -1.7825928, y: 3.9624023}
-  m_SizeDelta: {x: 15.822327, y: -2.6356812}
+  m_AnchorMin: {x: 0.26111114, y: 0.84900004}
+  m_AnchorMax: {x: 0.73774076, y: 0.92656255}
+  m_AnchoredPosition: {x: -5.282593, y: -1.5}
+  m_SizeDelta: {x: 8.822327, y: -7.635681}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &1818385223
 CanvasRenderer:
@@ -13631,7 +13650,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1818385221}
-  m_Enabled: 0
+  m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f4688fdb7df04437aeb418b961361dc5, type: 3}
   m_Name: 
@@ -15916,6 +15935,7 @@ MonoBehaviour:
   pistolButton: {fileID: 1045184878}
   gunGaugeText: {fileID: 1176997932}
   panelBattleManager: {fileID: 1314218343}
+  battleSfxController: {fileID: 0}
   ammoImages:
   - {fileID: 1387474258}
   - {fileID: 857645517}
@@ -15998,6 +16018,12 @@ MonoBehaviour:
   dragVisualAlpha: 0.9
   floorText: {fileID: 1670612985}
   retreatButton: {fileID: 850721127}
+  retreatButtonCanvasGroup: {fileID: 0}
+  retreatButtonText: {fileID: 0}
+  retreatReadyLabel: "\u9000\u907F"
+  retreatBlockedLabel: "\u9000\u907F\u4E0D\u53EF"
+  retreatPressScale: 0.9
+  retreatReturnDuration: 0.14
   playerExpBar: {fileID: 299821709}
 --- !u!114 &2129960979
 MonoBehaviour:

@@ -26,6 +26,11 @@ public class BattleSfxController : MonoBehaviour
     [SerializeField] private AudioClip battleEnemyDown;
     [SerializeField] private AudioClip battlePlayerHit;
 
+    [Header("Retreat")]
+    [SerializeField] private AudioClip retreatStart;
+    [SerializeField] private AudioClip retreatSuccess;
+    [SerializeField] private AudioClip retreatFail;
+
     [Header("Gun")]
     [SerializeField] private AudioClip gunPistolFire;
     [SerializeField] private AudioClip gunMgFire;
@@ -157,6 +162,9 @@ public class BattleSfxController : MonoBehaviour
     public void PlayEnemyHit(float volumeScale = 1f) => Play(battleEnemyHit, volumeScale);
     public void PlayEnemyDown(float volumeScale = 1f) => Play(battleEnemyDown, volumeScale);
     public void PlayPlayerHit(float volumeScale = 1f) => Play(battlePlayerHit, volumeScale);
+    public void PlayRetreatStart(float volumeScale = 1f) => Play(retreatStart, volumeScale);
+    public void PlayRetreatSuccess(float volumeScale = 1f) => Play(retreatSuccess, volumeScale);
+    public void PlayRetreatFail(float volumeScale = 1f) => Play(retreatFail, volumeScale);
 
     public void PlayGunFire(GunType gunType, float volumeScale = 1f)
     {

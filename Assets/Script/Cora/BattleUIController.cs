@@ -27,6 +27,7 @@ public class BattleUIController : MonoBehaviour
     [SerializeField] private Button pistolButton;
     [SerializeField] private TMP_Text gunGaugeText;
     [SerializeField] private PanelBattleManager panelBattleManager;
+    [SerializeField] private BattleSfxController battleSfxController;
     [SerializeField] private Image[] ammoImages;
     [SerializeField] private TMP_Text ammoCountText;
 
@@ -111,6 +112,12 @@ public class BattleUIController : MonoBehaviour
 
     [Header("逃走UI")]
     [SerializeField] private Button retreatButton;
+    [SerializeField] private CanvasGroup retreatButtonCanvasGroup;
+    [SerializeField] private TMP_Text retreatButtonText;
+    [SerializeField] private string retreatReadyLabel = "退避";
+    [SerializeField] private string retreatBlockedLabel = "退避不可";
+    [SerializeField] private float retreatPressScale = 0.9f;
+    [SerializeField] private float retreatReturnDuration = 0.14f;
 
     // WARNING:
     // playerExpBar (経験値スライダー) は World Scale 前提で配置されている。
@@ -121,6 +128,12 @@ public class BattleUIController : MonoBehaviour
     [SerializeField] private Slider playerExpBar;
 
     private Tween gunGaugePulseTween;
+
+    private void Awake()
+    {
+        ResolveBattleSfxControllerIfNeeded();
+    }
+
     private void Start()
     {
         if (pistolButton != null)
@@ -579,12 +592,61 @@ public class BattleUIController : MonoBehaviour
     private void OnClickRetreat()
     {
         if (panelBattleManager == null) return;
+        ResolveBattleSfxControllerIfNeeded();
+        if (!panelBattleManager.CanRetreat())
+        {
+            RefreshRetreatUI();
+            return;
+        }
+
+        battleSfxController?.PlayRetreatStart();
+
+        if (retreatButton != null)
+        {
+            RectTransform buttonRect = retreatButton.transform as RectTransform;
+            if (buttonRect != null)
+            {
+                buttonRect.DOKill();
+                buttonRect.localScale = Vector3.one;
+
+                Sequence seq = DOTween.Sequence();
+                seq.Append(buttonRect.DOScale(Vector3.one * retreatPressScale, 0.05f).SetEase(Ease.OutQuad));
+                seq.Append(buttonRect.DOScale(Vector3.one, retreatReturnDuration).SetEase(Ease.OutBack));
+            }
+        }
+
         panelBattleManager.TryRetreat();
+        RefreshRetreatUI();
     }
 
     public void RefreshRetreatUI()
     {
-        // ガード判定は TryRetreat() 側で行うため、ここでは何もしない
+        if (retreatButton == null) return;
+
+        bool canRetreat = panelBattleManager != null && panelBattleManager.CanRetreat();
+        bool showButton = panelBattleManager != null
+            && panelBattleManager.currentEncounter == EncounterType.Enemy;
+
+        retreatButton.gameObject.SetActive(showButton);
+        retreatButton.interactable = canRetreat;
+
+        if (retreatButtonCanvasGroup != null)
+        {
+            retreatButtonCanvasGroup.alpha = canRetreat ? 1f : 0.4f;
+        }
+
+        if (retreatButtonText != null)
+        {
+            retreatButtonText.text = canRetreat ? retreatReadyLabel : retreatBlockedLabel;
+        }
+    }
+
+    private void ResolveBattleSfxControllerIfNeeded()
+    {
+        if (battleSfxController == null)
+        {
+            battleSfxController = FindObjectOfType<BattleSfxController>();
+        }
     }
 
     private void PlayGunFireFeedback()
@@ -1261,7 +1323,7 @@ public class BattleUIController : MonoBehaviour
                     encounterLabelText.text = "平穏な部屋";
                     break;
                 case EncounterType.Treasure:
-                    encounterLabelText.text = "宝物の部屋";
+                    encounterLabelText.text = "平穏な部屋";
                     break;
                 case EncounterType.Shop:
                     encounterLabelText.text = "商店";

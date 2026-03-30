@@ -96,6 +96,9 @@ public class PanelBattleManager : MonoBehaviour
     [Header("イベントハブ")]
     public BattleEventHub battleEventHub;
 
+    [Header("SE")]
+    [SerializeField] private BattleSfxController battleSfxController;
+
     [Header("バトルユニット連携")]
     public BattleUnit playerUnit;
 
@@ -182,9 +185,24 @@ public class PanelBattleManager : MonoBehaviour
     public EpilogueController epilogueController;
 
     [Header("逃走設定")]
+    [SerializeField] private float retreatResultSeDelay = 0.06f;
     [SerializeField, Range(0f, 1f)] private float retreatSuccessRate = 0.75f;
     [SerializeField] private float retreatSuccessDelay = 0.5f;
     [SerializeField] private float retreatFailDelay = 0.3f;
+    [SerializeField] private float retreatPrepDuration = 0.10f;
+    [SerializeField] private float retreatBackstepDistance = 0.22f;
+    [SerializeField] private float retreatBackstepDuration = 0.10f;
+    [SerializeField] private float retreatRecoverDuration = 0.12f;
+    [SerializeField] private float retreatEnemyRecoilDistance = 0.18f;
+    [SerializeField] private float retreatEnemyRecoilDuration = 0.10f;
+    [SerializeField] private float retreatEnemyPressureDistance = 0.14f;
+    [SerializeField] private float retreatEnemyPressureDuration = 0.10f;
+    [SerializeField] private Color retreatSuccessFlashColor = new Color(0.48f, 0.92f, 1f, 1f);
+    [SerializeField] private float retreatSuccessFlashAlpha = 0.22f;
+    [SerializeField] private Color retreatFailFlashColor = new Color(1f, 0.34f, 0.34f, 1f);
+    [SerializeField] private float retreatFailFlashAlpha = 0.18f;
+    [SerializeField] private GameObject retreatSuccessEffectPrefab;
+    [SerializeField] private GameObject retreatFailEffectPrefab;
     private bool retreatInProgress;
 
     private struct PendingDropFeedback
@@ -1390,6 +1408,12 @@ public class PanelBattleManager : MonoBehaviour
         }
 
         battleBootstrapper.EnsureDependencies(this);
+
+        if (battleSfxController == null)
+        {
+            battleSfxController = FindObjectOfType<BattleSfxController>();
+        }
+
         EnsurePlayerPowerupFeedbackPresenter();
         SubscribePlayerPowerupFeedbackEvents();
         SubscribeBattleEvents();
@@ -1690,26 +1714,23 @@ public class PanelBattleManager : MonoBehaviour
     /// </summary>
     public void TryRetreat()
     {
-        if (!isPlayerTurn) return;
-        if (retreatInProgress) return;
-        if (currentEncounter != EncounterType.Enemy) return;
-        if (enemyUnit == null) return;
-        if (enemyUnit.enemyType == EnemyType.Boss) return;
+        if (!CanRetreat()) return;
 
         retreatInProgress = true;
         SetBoardInteractable(false);
+        battleUIController?.RefreshRetreatUI();
 
         float roll = Random.Range(0f, 1f);
         bool success = roll < retreatSuccessRate;
 
+        StartCoroutine(PlayRetreatResultSfxDelayed(success));
+
         if (success)
         {
-            SpawnDamageText("退避成功！", playerUnit.transform.position + Vector3.up * 1.5f, new Color(0.4f, 0.9f, 1f));
             StartCoroutine(RetreatSuccessRoutine());
         }
         else
         {
-            SpawnDamageText("退避失敗…", playerUnit.transform.position + Vector3.up * 1.5f, new Color(0.7f, 0.7f, 0.7f));
             StartCoroutine(RetreatFailRoutine());
         }
     }
@@ -1719,14 +1740,40 @@ public class PanelBattleManager : MonoBehaviour
     /// </summary>
     public bool CanRetreat()
     {
+        if (!isPlayerTurn) return false;
+        if (retreatInProgress) return false;
         if (currentEncounter != EncounterType.Enemy) return false;
         if (enemyUnit == null) return false;
+        if (enemyUnit.IsDead()) return false;
         if (enemyUnit.enemyType == EnemyType.Boss) return false;
         return true;
     }
 
+    private IEnumerator PlayRetreatResultSfxDelayed(bool success)
+    {
+        if (battleSfxController == null)
+        {
+            yield break;
+        }
+
+        if (retreatResultSeDelay > 0f)
+        {
+            yield return new WaitForSeconds(retreatResultSeDelay);
+        }
+
+        if (success)
+        {
+            battleSfxController.PlayRetreatSuccess();
+        }
+        else
+        {
+            battleSfxController.PlayRetreatFail();
+        }
+    }
+
     private IEnumerator RetreatSuccessRoutine()
     {
+        yield return StartCoroutine(PlayRetreatPresentation(success: true));
         yield return new WaitForSeconds(retreatSuccessDelay);
 
         // 敵を即非表示にしてから破棄（撃破カウントは増やさない＝報酬なし）
@@ -1739,6 +1786,7 @@ public class PanelBattleManager : MonoBehaviour
         }
 
         retreatInProgress = false;
+        battleUIController?.RefreshRetreatUI();
 
         // 次のエンカウントへ進む
         if (encounterFlowController != null)
@@ -1749,12 +1797,112 @@ public class PanelBattleManager : MonoBehaviour
 
     private IEnumerator RetreatFailRoutine()
     {
+        yield return StartCoroutine(PlayRetreatPresentation(success: false));
         yield return new WaitForSeconds(retreatFailDelay);
 
         retreatInProgress = false;
+        battleUIController?.RefreshRetreatUI();
 
         // 1ターン消費 → 敵ターンへ
         yield return StartCoroutine(EndPlayerTurn());
+    }
+
+    private IEnumerator PlayRetreatPresentation(bool success)
+    {
+        Transform playerTransform = playerUnit != null ? playerUnit.transform : null;
+        Transform enemyTransform = enemyUnit != null ? enemyUnit.transform : null;
+        PlayerAnimationPresenter playerAnim = GetPlayerAnimationPresenter();
+        ScreenShakeController shake = ScreenShakeController.Instance;
+
+        Vector3 playerStart = playerTransform != null ? playerTransform.position : Vector3.zero;
+        Vector3 enemyStart = enemyTransform != null ? enemyTransform.position : Vector3.zero;
+
+        if (success)
+        {
+            SpawnDamageText("退避成功！", playerStart + Vector3.up * 1.5f, new Color(0.4f, 0.9f, 1f));
+            SpawnOneShotEffect(retreatSuccessEffectPrefab, playerStart + new Vector3(-0.15f, 0.2f, 0f), 0.7f);
+
+            shake?.Flash(retreatSuccessFlashColor, 0.18f, retreatSuccessFlashAlpha);
+            shake?.Shake(ShakePreset.Light);
+
+            playerAnim?.PlayRun();
+
+            Sequence seq = DOTween.Sequence();
+
+            if (playerTransform != null)
+            {
+                playerTransform.DOKill(false);
+                seq.Append(playerTransform.DOMoveX(playerStart.x - retreatBackstepDistance, retreatBackstepDuration).SetEase(Ease.OutQuad));
+                seq.Append(playerTransform.DOMoveX(playerStart.x, retreatRecoverDuration).SetEase(Ease.OutQuad));
+            }
+
+            if (enemyTransform != null)
+            {
+                enemyTransform.DOKill(false);
+                seq.Join(enemyTransform.DOMoveX(enemyStart.x + retreatEnemyRecoilDistance, retreatEnemyRecoilDuration)
+                    .SetEase(Ease.OutQuad)
+                    .SetLoops(2, LoopType.Yoyo));
+            }
+
+            if (seq.active)
+            {
+                yield return seq.WaitForCompletion();
+            }
+        }
+        else
+        {
+            SpawnDamageText("退避失敗…", playerStart + Vector3.up * 1.5f, new Color(0.76f, 0.76f, 0.76f));
+            SpawnOneShotEffect(retreatFailEffectPrefab, playerStart + new Vector3(-0.08f, 0.12f, 0f), 0.6f);
+
+            shake?.Flash(retreatFailFlashColor, 0.16f, retreatFailFlashAlpha);
+            shake?.Shake(ShakePreset.PlayerHit);
+            shake?.HitStop(0.035f);
+
+            playerAnim?.PlayHurt();
+
+            Sequence seq = DOTween.Sequence();
+
+            if (enemyTransform != null)
+            {
+                enemyTransform.DOKill(false);
+                seq.Append(enemyTransform.DOMoveX(enemyStart.x - retreatEnemyPressureDistance, retreatEnemyPressureDuration).SetEase(Ease.OutQuad));
+                seq.Append(enemyTransform.DOMoveX(enemyStart.x, retreatEnemyPressureDuration).SetEase(Ease.InQuad));
+            }
+
+            if (playerTransform != null)
+            {
+                playerTransform.DOKill(false);
+                seq.Join(playerTransform.DOMoveX(playerStart.x - retreatBackstepDistance * 0.75f, retreatBackstepDuration).SetEase(Ease.OutQuad));
+                seq.Append(playerTransform.DOMoveX(playerStart.x, retreatRecoverDuration).SetEase(Ease.OutQuad));
+            }
+
+            if (seq.active)
+            {
+                yield return seq.WaitForCompletion();
+            }
+
+            playerAnim?.PlayIdle();
+        }
+
+        if (playerTransform != null)
+        {
+            playerTransform.position = playerStart;
+        }
+
+        if (enemyTransform != null)
+        {
+            enemyTransform.position = enemyStart;
+        }
+
+        if (success)
+        {
+            playerAnim?.PlayIdle();
+        }
+
+        if (retreatPrepDuration > 0f)
+        {
+            yield return new WaitForSeconds(retreatPrepDuration);
+        }
     }
 
     public IEnumerator TravelForward()
@@ -2050,6 +2198,11 @@ public class PanelBattleManager : MonoBehaviour
 
     public void SetBoardInteractable(bool isInteractable)
     {
+        // 盤面の開閉に追従して逃走UIも更新する。
+        // 逃走成功直後は enemyUnit が一時的に null のため、
+        // そのタイミングで RefreshRetreatUI() が走るとボタンが無効化される。
+        // 二戦目開始時にここで再更新しないと、ボタンだけ前戦闘の無効状態が残る。
+
         // === 状態異常: プレイヤー金縛りチェック ===
         // 戦闘中にプレイヤーターンが始まろうとしたとき、
         // 金縛り中なら盤面を開放せずターンをスキップする。
@@ -2072,6 +2225,8 @@ public class PanelBattleManager : MonoBehaviour
             boardCanvasGroup.blocksRaycasts = isInteractable;
             boardCanvasGroup.DOFade(isInteractable ? 1.0f : 0.6f, 0.3f);
         }
+
+        battleUIController?.RefreshRetreatUI();
     }
 
     /// <summary>
