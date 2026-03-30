@@ -133,7 +133,7 @@ public class BattleCinematicEnhancer : MonoBehaviour
     {
         if (defeatedEnemy == null) return;
 
-        bool isBoss = defeatedEnemy.enemyType == EnemyType.Boss;
+        bool isBoss = defeatedEnemy.enemyType.IsBossClass();
         ScreenShakeController shakeCtrl = ScreenShakeController.Instance;
 
         if (isBoss)

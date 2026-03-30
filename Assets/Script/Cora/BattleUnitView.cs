@@ -434,10 +434,10 @@ public class BattleUnitView : MonoBehaviour
                 return enemyType == EnemyType.Ranged || enemyType == EnemyType.Rushing;
 
             case GunType.Rifle:
-                return enemyType == EnemyType.Floating || enemyType == EnemyType.Ranged || enemyType == EnemyType.Armored || enemyType == EnemyType.Boss;
+                return enemyType == EnemyType.Floating || enemyType == EnemyType.Ranged || enemyType == EnemyType.Armored || enemyType.IsBossClass();
 
             case GunType.Shotgun:
-                return enemyType == EnemyType.Armored || enemyType == EnemyType.Rushing || enemyType == EnemyType.Boss;
+                return enemyType == EnemyType.Armored || enemyType == EnemyType.Rushing || enemyType.IsBossClass();
 
             case GunType.MachineGun:
                 return enemyType == EnemyType.Rushing;

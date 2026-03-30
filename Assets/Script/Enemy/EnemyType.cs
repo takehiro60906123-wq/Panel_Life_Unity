@@ -1,4 +1,4 @@
-﻿// =============================================================
+// =============================================================
 // EnemyType.cs
 // 敵カテゴリと攻撃パターンの定義
 // 新規ファイル：Assets/Scripts/Battle/ などに配置
@@ -24,8 +24,27 @@ public enum EnemyType
     /// 遠距離敵。放置が危険。ライフル・ピストルで優先処理。
     Ranged,
 
-    /// ボス敵。演出上の大物枠。ライフルやショットガンが有効候補。
+    /// 中ボス。演出はボス級だが逃走可能。
+    MiniBoss,
+
+    /// ボス敵。演出上の大物枠。逃走不可。ライフルやショットガンが有効候補。
     Boss
+}
+
+/// <summary>
+/// EnemyType のヘルパー。ボス級判定を一元化する。
+/// </summary>
+public static class EnemyTypeHelper
+{
+    /// <summary>
+    /// ボス級の敵かどうか（Boss + MiniBoss）。
+    /// 演出・銃相性・スキャナー表示など、ボスと同格に扱いたい箇所で使う。
+    /// 逃走判定には使わないこと（逃走不可は Boss のみ）。
+    /// </summary>
+    public static bool IsBossClass(this EnemyType type)
+    {
+        return type == EnemyType.Boss || type == EnemyType.MiniBoss;
+    }
 }
 
 /// <summary>

@@ -402,7 +402,7 @@ public class BossIntroController : MonoBehaviour
     public static bool IsBossUnit(BattleUnit unit)
     {
         if (unit == null) return false;
-        return unit.enemyType == EnemyType.Boss;
+        return unit.enemyType.IsBossClass();
     }
 
     // =============================================================

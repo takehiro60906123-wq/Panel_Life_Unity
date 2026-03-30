@@ -358,10 +358,10 @@ public class BattleUIController : MonoBehaviour
                 return type == EnemyType.Ranged || type == EnemyType.Rushing;
 
             case GunType.Rifle:
-                return type == EnemyType.Ranged || type == EnemyType.Floating || type == EnemyType.Armored || type == EnemyType.Boss;
+                return type == EnemyType.Ranged || type == EnemyType.Floating || type == EnemyType.Armored || type.IsBossClass();
 
             case GunType.Shotgun:
-                return type == EnemyType.Rushing || type == EnemyType.Armored || type == EnemyType.Boss;
+                return type == EnemyType.Rushing || type == EnemyType.Armored || type.IsBossClass();
 
             case GunType.MachineGun:
                 return type == EnemyType.Rushing;
@@ -584,7 +584,7 @@ public class BattleUIController : MonoBehaviour
 
     public void RefreshRetreatUI()
     {
-       
+        // ガード判定は TryRetreat() 側で行うため、ここでは何もしない
     }
 
     private void PlayGunFireFeedback()

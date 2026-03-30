@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -285,6 +285,7 @@ public class ShopController : MonoBehaviour
                 }
                 break;
 
+            case EnemyType.MiniBoss:
             case EnemyType.Boss:
                 switch (gunType)
                 {

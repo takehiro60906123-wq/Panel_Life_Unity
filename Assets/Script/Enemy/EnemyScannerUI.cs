@@ -1,4 +1,4 @@
-﻿using UnityEngine;
+using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
 using DG.Tweening;
@@ -287,6 +287,7 @@ public class EnemyScannerUI : MonoBehaviour
             case EnemyType.Armored: return "種別: 装甲";
             case EnemyType.Rushing: return "種別: 突撃";
             case EnemyType.Ranged: return "種別: 遠距離";
+            case EnemyType.MiniBoss: return "種別: 中ボス";
             case EnemyType.Boss: return "種別: ボス";
             default: return "種別: 通常";
         }
@@ -300,6 +301,7 @@ public class EnemyScannerUI : MonoBehaviour
             case EnemyType.Armored: return armoredColor;
             case EnemyType.Rushing: return rushingColor;
             case EnemyType.Ranged: return rangedColor;
+            case EnemyType.MiniBoss:
             case EnemyType.Boss: return new Color(1f, 0.72f, 0.28f, 1f);
             default: return normalColor;
         }
@@ -347,6 +349,7 @@ public class EnemyScannerUI : MonoBehaviour
             case EnemyType.Armored: return "・小ダメージを軽減。高威力攻撃が有効。";
             case EnemyType.Rushing: return "・毎ターン攻撃してくる。優先して倒したい。";
             case EnemyType.Ranged: return "・後衛から高圧をかける。早めに処理したい。";
+            case EnemyType.MiniBoss:
             case EnemyType.Boss: return "・大物。ライフルやショットガンで一気に削りたい。";
             default: return "";
         }
@@ -366,6 +369,7 @@ public class EnemyScannerUI : MonoBehaviour
                 return "弱点: ショットガン / ライフル";
             case EnemyType.Rushing:
                 return "弱点: ピストル / ショットガン";
+            case EnemyType.MiniBoss:
             case EnemyType.Boss:
                 return "弱点: ショットガン / ライフル";
             default:
@@ -387,6 +391,7 @@ public class EnemyScannerUI : MonoBehaviour
                 return "・推奨銃: ショットガン / ライフル";
             case EnemyType.Rushing:
                 return "・推奨銃: ピストル / ショットガン";
+            case EnemyType.MiniBoss:
             case EnemyType.Boss:
                 return "・推奨銃: ショットガン / ライフル";
             default:
